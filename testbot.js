@@ -1,14 +1,9 @@
-const testbot=require("./testbot")
-
-testbot.startTestBot()
-
-const express = require('express')
-const path = require('path')
-const PORT = process.env.PORT || 5000
+const lichess = require('lichess-api');
 
 // Load up the discord.js library
 const Discord = require("discord.js");
 
+function startBot(){
 // This is your client. Some people call it `bot`, some people call it `self`, 
 // some might call it `cootchie`. Either way, when you see `client.something`, or `bot.something`,
 // this is what we're refering to. Your client.
@@ -77,6 +72,51 @@ client.on("message", async message => {
     client.channels.get("407793962527752194").send(sayMessage);
     //message.channel.send(sayMessage);
   }
+
+  function getLichessUsers(handle1,handle2,callback,errcallback){
+    lichess.user(handle1, function (err, user) {      
+        if(err){
+            errcallback();
+        }else{
+            let json1;
+            try{
+                json1=JSON.parse(user);
+            }catch(err){errcallback();return;}
+            lichess.user(handle2, function (err, user) {
+                if(err){
+                    errcallback();
+                }else{
+                    let json2
+                    try{
+                        json2=JSON.parse(user);
+                    }catch(err){errcallback();return;}
+                    callback(json1,json2);
+                }
+            })
+        }
+    })
+  }
+
+  if(command=="cmp"){
+      let handle=message.author.username
+      let handlearg=args[0]
+      if(handlearg==undefined){
+        message.channel.send("usage: +cmp username");
+      }else{
+        message.channel.send("compare to "+handlearg);
+        getLichessUsers(handle,handlearg,(json1,json2)=>{            
+            let a1=json1.perfs.atomic;
+            let a2=json2.perfs.atomic;
+            if((a1==undefined)||(a2==undefined)){
+                message.channel.send("error: atomic rating missing");    
+            }else{               
+                message.channel.send("difference "+(a1.rating-a2.rating));    
+            }
+        },()=>{
+            message.channel.send("error: user not found");
+        })     
+      }
+  }
   
   if(command === "kick") {
     // This command must be limited to mods and admins. In this example we just hardcode the role names.
@@ -143,11 +183,7 @@ client.on("message", async message => {
   }
 });
 
-client.login(process.env.DISCORDBOT_TOKEN);
+client.login(process.env.DISCORDTESTBOT_TOKEN);
+}
 
-express()
-  .use(express.static(path.join(__dirname, 'public')))
-  .set('views', path.join(__dirname, 'views'))
-  .set('view engine', 'ejs')
-  .get('/', (req, res) => res.render('pages/indextest'))
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
+module.exports.startTestBot=startBot
