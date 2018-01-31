@@ -78,7 +78,7 @@ client.on("message", async message => {
     message.delete().catch(O_o=>{}); 
     // And we get the bot to say the thing: 
     //console.log(client.channels);
-    client.channels.get("407793962527752194").send(sayMessage);
+    //client.channels.get("407793962527752194").send(sayMessage);
     //message.channel.send(sayMessage);
   }
   
