@@ -1,6 +1,10 @@
+let TEST=false
+
+const fetch=require("./fetch")
+
 const testbot=require("./testbot")
 
-testbot.startTestBot()
+if(!TEST) testbot.startTestBot()
 
 const express = require('express')
 const path = require('path')
@@ -143,11 +147,15 @@ client.on("message", async message => {
   }
 });
 
-client.login(process.env.DISCORDBOT_TOKEN);
+if(!TEST) client.login(process.env.DISCORDBOT_TOKEN);
 
 express()
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/indextest'))
+  .get('/sendplayers', (req, res) => res.send('<pre>function not available</pre>'))
+  /*.get('/sendplayers', (req,res) => fetch.getPlayerHandles(handles=>fetch.sendPlayers(
+    handles
+  )))*/
   .listen(PORT, () => console.log(`Listening on ${ PORT }`))
