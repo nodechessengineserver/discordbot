@@ -120,7 +120,7 @@ __                                                               __
 your rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*
 __                                                               __
 
-**${handlearg}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , resitered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*
+**${handlearg}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , registered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*
 __                                                               __
 
 rating difference: **${a1.rating-a2.rating}**
