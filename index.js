@@ -79,11 +79,10 @@ client.on("message", async message => {
     // And we get the bot to say the thing: 
     //console.log(client.channels);
     client.channels.get("407793962527752194").send(`**${message.author.username}** wants the world to know that:
-  __                                                                   __
+__                                                                   __
 
-  ${sayMessage}
-  __                                                                   __
-  `);
+${sayMessage}
+__                                                                   __`);
     //message.channel.send(sayMessage);
   }
   
