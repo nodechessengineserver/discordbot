@@ -197,7 +197,9 @@ rating difference: **${a1.rating-a2.rating}**
   }
 });
 
-client.login(process.env.DISCORDTESTBOT_TOKEN);
+client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
 module.exports.startTestBot=startBot
+
+startBot()
