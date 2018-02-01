@@ -1,3 +1,4 @@
+const tourney=require("./tourney")
 const lichess = require('lichess-api');
 
 // Load up the discord.js library
@@ -95,6 +96,15 @@ client.on("message", async message => {
             })
         }
     })
+  }
+
+  if(command=="t"){
+    let time=args[0]
+    let inc=args[1]
+    message.channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
+To join, please visit: https://lichess.org/tournament
+`)
+    tourney.loginAndCreateTourney(time,inc)
   }
 
   if(command=="cmp"){

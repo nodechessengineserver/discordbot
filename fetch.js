@@ -1,3 +1,5 @@
+let DRY=false
+
 var fetch = require('node-fetch');
 var FormData = require('form-data');
 
@@ -46,11 +48,11 @@ function getPlayers(callback){
     }).then(response=>response.text()).then(content=>callback(content))
 }
 
-function getPlayerHandles(max,callback){
+function getPlayerHandles(min,max,callback){
     getPlayers(content=>{
         let parts=content.split(`href="/@/`);
         let handles=[]
-        for(let i=1;i<Math.min(parts.length,max+1);i++){
+        for(let i=min+1;i<Math.min(parts.length,max+1);i++){
             let parts2=parts[i].split(`"`);
             let handle=parts2[0];
             handles.push(handle)            
@@ -71,8 +73,24 @@ if(handles.length<=0){
 let handle=handles.shift()
 
 console.log("-----------------------\n"+handle+"\n-----------------------");
-let subject="";
-let message=`
+let subject="Atomic Chess Theoreticians Discord Server";
+let message=`Dear Atomic Friend ${handle} !
+
+I'm glad to announce that the Atomic Chess Theoreticians Team has launched its Discord Server.
+
+Discord is a very advanced chat server designed for gamers.
+
+It has high quality formatting, customizability, bots that can have custom code and perform useful functions. It is possible to link games, web pages for which a preview will be shown in the post.
+
+Everybody is on Discord nowadays, you should be too.
+
+I hereby invite you to join the server, which you can do by clicking on this invite link:
+
+https://discordapp.com/invite/6bwkzah
+
+Of course if you are not a team member already, I also invite you to the Atomic Chess Theoreticians Team itself:
+
+https://lichess.org/team/atomic-chess-theoreticians
 `
 
 console.log("remaining "+handles.length)
@@ -80,10 +98,14 @@ console.log("remaining "+handles.length)
 sendMessage(handle,subject,message,(content)=>
     console.log("message sent, response length: "+content.length))
 
-setTimeout(sendPlayers.bind(this,handles),10000)
+setTimeout(sendPlayers.bind(this,handles),DRY?1000:10000)
 }
 
 function sendMessage(user,subject,message,callback){
+    if(DRY){
+        callback("dry");
+        return;
+    }
     let form=new FormData()
     form.append("username",user);
     form.append("subject",subject);
@@ -97,7 +119,7 @@ function sendMessage(user,subject,message,callback){
     }).then(response=>response.text()).then(content=>callback(content))
 }
 
-//getPlayerHandles(3,handles=>sendPlayers(handles))
+//getPlayerHandles(0,30,handles=>sendPlayers(handles))
 
 module.exports.login=login
 module.exports.getLogin=getLogin
