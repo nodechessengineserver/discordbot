@@ -1,3 +1,4 @@
+const fetch=require("./fetch")
 const tourney=require("./tourney")
 const lichess = require('lichess-api');
 
@@ -96,6 +97,17 @@ client.on("message", async message => {
             })
         }
     })
+  }
+
+  if(command=="top"){    
+      let n=args[0];
+      if(isNaN(n)) n=10;
+      if(n>25) n=25;
+
+      fetch.getTopList(n,(table)=>message.channel.send(`Top ${n} Active Atomic Players:
+
+  ${table}
+  `));  
   }
 
   if(command=="t"){

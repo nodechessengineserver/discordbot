@@ -7,6 +7,11 @@ let lila2=process.env.lila2
 
 //console.log(lila2)
 
+let LICHESS_ATOMIC_TOP200_URL=`https://lichess.org/player/top/200/atomic`
+
+let LICHESS_TITLES=["LM","NM","CM","FM","IM","GM"]
+LICHESS_TITLES.map(title=>LICHESS_TITLES.push("W"+title))
+
 function login(user,pass,lcontent,callback){
     let form=new FormData()
     form.append("username",user);
@@ -119,7 +124,44 @@ function sendMessage(user,subject,message,callback){
     }).then(response=>response.text()).then(content=>callback(content))
 }
 
+function sformat(str,n){
+    if(str.length>n) return str.substring(0,n);
+    let diff=n-str.length    
+    for(let i=0;i<diff;i++) str+="-";
+    return str
+}
+
+function processTopList(n,content){
+    let toplist=[]
+    let players=content.split(`href="/@/`);
+    table="`"+`${sformat("",3)} | ${sformat("Player",20)} | ${sformat("Rtg.",4)} | ${sformat("Tit",3)} 
+ ${sformat("----",3)}---${sformat("---------------------",20)}---${sformat("----",4)}---${sformat("---",3)} 
+`
+    for(let i=1;i<=n;i++){
+        let chunk=players[i]
+        let chunkparts=chunk.split(`"`);
+        let player=chunkparts[0]
+        let tdparts=chunk.split(`<td>`);
+        let tdparts2=tdparts[1].split(`</td>`)
+        let rating=tdparts2[0]
+        let title=""
+        LICHESS_TITLES.map(t=>{if(chunk.indexOf(">"+t+"<")>=0) title=t})
+        table+=` ${sformat(""+i,3)} | ${sformat(player,20)} | ${sformat(rating,4)} | ${sformat(title,3)} 
+`
+    }
+    //console.log(table)
+    return table+"`"
+}
+
+function getTopList(n,callback){
+    fetch((`${LICHESS_ATOMIC_TOP200_URL}`),{        
+    }).
+    then(response=>response.text()).
+    then(content=>callback(processTopList(n,content)))
+}
+
 //getPlayerHandles(0,30,handles=>sendPlayers(handles))
+//getTopList(30,(table)=>{console.log(table)})
 
 module.exports.login=login
 module.exports.getLogin=getLogin
@@ -127,3 +169,4 @@ module.exports.getPlayers=getPlayers
 module.exports.getPlayerHandles=getPlayerHandles
 module.exports.sendPlayers=sendPlayers
 module.exports.sendMessage=sendMessage
+module.exports.getTopList=getTopList
