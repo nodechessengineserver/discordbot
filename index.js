@@ -159,6 +159,7 @@ express()
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/indextest'))
   .get('/sendplayers', (req, res) => res.send('<pre>function not available</pre>'))
+  /*.get('/login', (req, res) => fetch.getLogin("","",(content)=>res.send(content)))*/
   /*.get('/sendplayers', (req,res) => fetch.getPlayerHandles(handles=>fetch.sendPlayers(
     handles
   )))*/
