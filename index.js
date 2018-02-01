@@ -1,5 +1,7 @@
 let TEST=false
 
+const tourney=require("./tourney")
+
 const fetch=require("./fetch")
 
 const testbot=require("./testbot")
@@ -152,6 +154,8 @@ __                                                                   __`);
 });
 
 if(!TEST) client.login(process.env.DISCORDBOT_TOKEN);
+
+if(!TEST) tourney.loginAndCreateTourney(1,0);
 
 express()
   .use(express.static(path.join(__dirname, 'public')))
