@@ -1,18 +1,25 @@
-let DRY=false
-
 var fetch = require('node-fetch');
 var FormData = require('form-data');
 
-let lila2=process.env.lila2
+let DRY=true
 
-//console.log(lila2)
+let LICHESS_USER=process.env.LICHESS_USER
+let LICHESS_PASS=process.env.LICHESS_PASS
 
 let LICHESS_ATOMIC_TOP200_URL=`https://lichess.org/player/top/200/atomic`
 
 let LICHESS_TITLES=["LM","NM","CM","FM","IM","GM"]
 LICHESS_TITLES.map(title=>LICHESS_TITLES.push("W"+title))
 
-function login(user,pass,lcontent,callback){
+let lila2
+
+function getLila2(){
+    if(lila2!=undefined) return lila2
+    return process.env.lila2
+}
+
+function login(user,pass,callback){
+    console.log(`lichess login in with ${user}`)
     let form=new FormData()
     form.append("username",user);
     form.append("password",pass);
@@ -29,39 +36,34 @@ function login(user,pass,lcontent,callback){
         parts.shift()
         parts=parts.join("=").split(";")
         lila2=parts[0]                
-        fetch("https://lichess.org",{
-            headers:{
-                'Cookie': `lila2=${lila2}`
-            }
-        }).
-        then(response=>response.text()).
-        then(content=>callback(lcontent+content))
+        console.log(`obtained cookie: lila2=${lila2}`)
+        callback()
     })
 }
 
-function getLogin(user,pass,callback){    
-    fetch("https://lichess.org/login?referrer=/",{}).
-    then(response=>response.text()).
-    then(content=>login(user,pass,content,callback))
-}
-
 function getPlayers(callback){
-    fetch("https://lichess.org/player/top/200/atomic",{
-        headers: {
-            'Cookie': `lila2=${process.env.lila2}`
-        }
+    fetch("https://lichess.org/player/top/200/atomic",{        
     }).then(response=>response.text()).then(content=>callback(content))
 }
 
 function getPlayerHandles(min,max,callback){
     getPlayers(content=>{
         let parts=content.split(`href="/@/`);
+        let allhandles=[]
         let handles=[]
-        for(let i=min+1;i<Math.min(parts.length,max+1);i++){
+        let from=min+1
+        let to=Math.min(parts.length,max+1)
+        for(let i=1;i<parts.length;i++){
             let parts2=parts[i].split(`"`);
             let handle=parts2[0];
-            handles.push(handle)            
+            allhandles.push(i-1)
+            allhandles.push(handle)
+            if((i>=from)&&(i<to)) handles.push(handle)            
         }
+        console.log("all:")
+        console.log(allhandles.join(","));
+        console.log("selected:")
+        console.log(handles.join(","));
         callback(handles)
     })
 }
@@ -118,7 +120,7 @@ function sendMessage(user,subject,message,callback){
     fetch((`https://lichess.org/inbox/new?username=${user}`),{
         method:"POST",
         headers: {
-            'Cookie': `lila2=${process.env.lila2}`
+            'Cookie': `lila2=${getLila2()}`
         },
         body:form
     }).then(response=>response.text()).then(content=>callback(content))
@@ -160,11 +162,9 @@ function getTopList(n,callback){
     then(content=>callback(processTopList(n,content)))
 }
 
-//getPlayerHandles(0,30,handles=>sendPlayers(handles))
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(20,40,handles=>sendPlayers(handles)))
 //getTopList(30,(table)=>{console.log(table)})
 
-module.exports.login=login
-module.exports.getLogin=getLogin
 module.exports.getPlayers=getPlayers
 module.exports.getPlayerHandles=getPlayerHandles
 module.exports.sendPlayers=sendPlayers

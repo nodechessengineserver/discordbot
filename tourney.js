@@ -58,12 +58,12 @@ function createTourney(time,inc,callback){
     form.append("clockTime",`${time}`);
     form.append("clockIncrement",`${inc}`);
     form.append("minutes","120");
-    console.log(form)
+    //console.log(form)
     let headers={
         "Referer":`${LICHESS_TOURNEY_URL}`,
         'Cookie': `lila2=${getLila2()}`
     }
-    console.log(headers);
+    //console.log(headers);
     fetch((`${LICHESS_TOURNEY_URL}`),{
         method:"POST",
         headers:headers,
