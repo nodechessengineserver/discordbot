@@ -1,15 +1,100 @@
+// Load up the discord.js library
+const Discord = require("discord.js");
+
 const fetch=require("./fetch")
 const tourney=require("./tourney")
 const lichess = require('lichess-api');
 
-// Load up the discord.js library
-const Discord = require("discord.js");
+const GLOBALS = require("./globals")
+
+let client
+module.exports.client=client
+module.exports.getGeneralChannel=getGeneralChannel;
+module.exports.getAndSendTopList=getAndSendTopList;
+module.exports.createTourneyCommand=createTourneyCommand;
+module.exports.cmpPlayers=cmpPlayers
+
+function getGeneralChannel(){
+  return client.channels.get(GLOBALS.GENERAL_CHANNEL_ID);
+}
+
+function getLichessUsers(handle1,handle2,callback,errcallback){
+  lichess.user(handle1, function (err, user) {      
+      if(err){
+          errcallback();
+      }else{
+          let json1;
+          try{
+              json1=JSON.parse(user);
+          }catch(err){errcallback();return;}
+          lichess.user(handle2, function (err, user) {
+              if(err){
+                  errcallback();
+              }else{
+                  let json2
+                  try{
+                      json2=JSON.parse(user);
+                  }catch(err){errcallback();return;}
+                  callback(json1,json2);
+              }
+          })
+      }
+  })
+}
+
+function cmpPlayers(channel,handle,handlearg){
+  channel.send(`comparing *${handle}'s* rating to *${handlearg}*
+__                                                               __
+
+`);
+  getLichessUsers(handle,handlearg,(json1,json2)=>{   
+      if((json1.perfs==undefined)||(json2.perfs==undefined)){
+        console.log(json1,json2);
+        channel.send(`:triangular_flag_on_post: error: perfs missing`);    
+        return;
+      }
+      let a1=json1.perfs.atomic;
+      let a2=json2.perfs.atomic;
+      if((a1==undefined)||(a2==undefined)){
+          channel.send(`:triangular_flag_on_post: error: atomic rating missing`);    
+      }else{               
+          //message.channel.send("difference "+(a1.rating-a2.rating));    
+          channel.send(`:white_check_mark: success:
+__                                                               __
+
+**${handle}'s** rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*
+__                                                               __
+
+**${handlearg}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , registered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*
+__                                                               __
+
+rating difference: **${a1.rating-a2.rating}**
+`)
+            }
+  },()=>{
+      channel.send(`:triangular_flag_on_post: error: user not found`);
+  })     
+}
+
+function getAndSendTopList(channel,n){
+  fetch.getTopList(n,(table)=>channel.send(`Top ${n} Active Atomic Players:
+
+  ${table}
+  `));  
+}
+
+function createTourneyCommand(channel,time,inc){
+  channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
+  To join, please visit: https://lichess.org/tournament
+  `)
+  tourney.loginAndCreateTourney(time,inc)
+}
 
 function startBot(){
 // This is your client. Some people call it `bot`, some people call it `self`, 
 // some might call it `cootchie`. Either way, when you see `client.something`, or `bot.something`,
 // this is what we're refering to. Your client.
-const client = new Discord.Client();
+client = new Discord.Client();
 
 let config={
   prefix:"+"
@@ -75,48 +160,18 @@ client.on("message", async message => {
     //message.channel.send(sayMessage);
   }
 
-  function getLichessUsers(handle1,handle2,callback,errcallback){
-    lichess.user(handle1, function (err, user) {      
-        if(err){
-            errcallback();
-        }else{
-            let json1;
-            try{
-                json1=JSON.parse(user);
-            }catch(err){errcallback();return;}
-            lichess.user(handle2, function (err, user) {
-                if(err){
-                    errcallback();
-                }else{
-                    let json2
-                    try{
-                        json2=JSON.parse(user);
-                    }catch(err){errcallback();return;}
-                    callback(json1,json2);
-                }
-            })
-        }
-    })
-  }
-
   if(command=="top"){    
       let n=args[0];
       if(isNaN(n)) n=10;
       if(n>25) n=25;
 
-      fetch.getTopList(n,(table)=>message.channel.send(`Top ${n} Active Atomic Players:
-
-  ${table}
-  `));  
+      getAndSendTopList(message.channel,n);        
   }
 
   if(command=="t"){
-    let time=args[0]
-    let inc=args[1]
-    message.channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
-To join, please visit: https://lichess.org/tournament
-`)
-    tourney.loginAndCreateTourney(time,inc)
+    let time=args[0];
+    let inc=args[1];
+    createTourneyCommand(message.channel,time,inc);
   }
 
   if(command=="cmp"){
@@ -125,32 +180,7 @@ To join, please visit: https://lichess.org/tournament
       if(handlearg==undefined){
         message.channel.send("usage: +cmp username");
       }else{
-        message.channel.send(`comparing your rating to *${handlearg}*
-__                                                               __
-
-`);
-        getLichessUsers(handle,handlearg,(json1,json2)=>{   
-            let a1=json1.perfs.atomic;
-            let a2=json2.perfs.atomic;
-            if((a1==undefined)||(a2==undefined)){
-                message.channel.send(`:triangular_flag_on_post: error: atomic rating missing`);    
-            }else{               
-                //message.channel.send("difference "+(a1.rating-a2.rating));    
-                message.channel.send(`:white_check_mark: success:
-__                                                               __
-
-your rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*
-__                                                               __
-
-**${handlearg}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , registered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*
-__                                                               __
-
-rating difference: **${a1.rating-a2.rating}**
-`)
-            }
-        },()=>{
-            message.channel.send(`:triangular_flag_on_post: error: user not found`);
-        })     
+        cmpPlayers(message.channel,handle,handlearg);
       }
   }
   

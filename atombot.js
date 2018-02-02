@@ -1,11 +1,26 @@
 // Load up the discord.js library
 const Discord = require("discord.js");
 
+const GLOBALS = require("./globals")
+
+let client;
+module.exports.client=client;
+module.exports.getGeneralChannel=getGeneralChannel;
+module.exports.sayGeneral=sayGeneral;
+
+function getGeneralChannel(){
+  return client.channels.get(GLOBALS.GENERAL_CHANNEL_ID);
+}
+
+function sayGeneral(content){
+  getGeneralChannel().send(content);
+}
+
 function startBot(){
 // This is your client. Some people call it `bot`, some people call it `self`, 
 // some might call it `cootchie`. Either way, when you see `client.something`, or `bot.something`,
 // this is what we're refering to. Your client.
-const client = new Discord.Client();
+client = new Discord.Client();
 
 let config={
   prefix:"+"
@@ -67,7 +82,7 @@ client.on("message", async message => {
     message.delete().catch(O_o=>{}); 
     // And we get the bot to say the thing: 
     //console.log(client.channels);
-    client.channels.get("407793962527752194").send(`:exclamation: **${message.author.username}** wants the world to know that:
+    sayGeneral(`:exclamation: **${message.author.username}** wants the World out there to know that :
 __                                                                   __
 
 ${sayMessage}
