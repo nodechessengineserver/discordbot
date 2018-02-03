@@ -67,7 +67,13 @@ function createImage(){
     setTimeout(()=>{pimg.encodeJPEGToStream(img2,fs.createWriteStream(__dirname+"/public/images/board.jpg"))},1000)
 }
 
-function makeMove(move){    
+function makeMove(move){
+    let result=makeMoveInner(move);
+    createImage();
+    return result;
+}
+
+function makeMoveInner(move){    
     let old=clone(board)
     if(move==="reset"){
         board=clone(startpos)
@@ -109,8 +115,7 @@ function makeMove(move){
         }
         board[toi]=topiece.substring(2,3)=="l"?"ls":"ds"
     }
-    hist.push(old)    
-    createImage()
+    hist.push(old)        
     return true
 }
 
