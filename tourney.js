@@ -4,7 +4,7 @@ const fs=require("fs");
 
 let LICHESS_TOURNEY_URL=`https://lichess.org/tournament/new`
 let LICHESS_TOURNEY_NAME=`ACT Discord Server`
-let LICHESS_TOURNEY_WAIT_MINUTES=`5`
+let LICHESS_TOURNEY_WAIT_MINUTES=`20`
 let LICHESS_USER=process.env.LICHESS_USER
 let LICHESS_PASS=process.env.LICHESS_PASS
 
