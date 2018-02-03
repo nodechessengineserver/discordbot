@@ -94,7 +94,8 @@ function makeMoveInner(move){
     let toi=getIndexBySquare(to)    
     if((fromi<0)||(toi<0)) return false
     let frompiece=board[fromi]
-    let topiece=board[toi]                
+    let topiece=board[toi]        
+    if((frompiece=="ls")||(frompiece=="ds")) return false;
     board[fromi]=frompiece.substring(2,3)==="l"?"ls":"ds"
     let prompiece=move.length>4?move.substring(4,5):frompiece.substring(1,2)    
     board[toi]=frompiece.substring(0,1)+prompiece+(
