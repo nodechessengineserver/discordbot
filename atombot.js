@@ -8,7 +8,7 @@ module.exports.client=client;
 module.exports.sayGeneral=sayGeneral;
 
 function sayGeneral(content){
-  getChannelByName(client,"general").send(content);
+  GLOBALS.getChannelByName(client,"general").send(content);
 }
 
 function startBot(){
