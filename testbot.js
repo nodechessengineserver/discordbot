@@ -163,10 +163,10 @@ client.on("message", async message => {
   }
 
   if(chess.makeMove(command)){    
-    message.channel.send(chess.getBoardText());
+    //message.channel.send(chess.getBoardText());
     setTimeout((ev)=>{
       message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/board.jpg?rnd=${Math.floor(Math.random()*1e6)}`)
-    },2000)
+    },1000)
   }
 
   if(command=="top"){    
