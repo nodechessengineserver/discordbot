@@ -7,6 +7,8 @@ const lichess = require('lichess-api');
 
 const GLOBALS = require("./globals")
 
+const chess = require("./chess")
+
 let client
 module.exports.client=client
 module.exports.getAndSendTopList=getAndSendTopList;
@@ -158,6 +160,10 @@ client.on("message", async message => {
     //console.log(client.channels);
     //client.channels.get("407793962527752194").send(sayMessage);
     //message.channel.send(sayMessage);
+  }
+
+  if(chess.makeMove(command)){    
+    message.channel.send(chess.getBoardText());
   }
 
   if(command=="top"){    
