@@ -77,7 +77,7 @@ client.on("message", async message => {
     message.delete().catch(O_o=>{}); 
     // And we get the bot to say the thing: 
     //console.log(client.channels);
-    sayGeneral(`:exclamation: **${message.author.username}** wants the World out there to know that :
+    sayGeneral(`:exclamation: **${message.author.username}** wants the world to know that :
 __                                                                   __
 
 ${sayMessage}
