@@ -1,9 +1,14 @@
 module.exports.getBoardText=getBoardText
 module.exports.makeMove=makeMove
 
+const pimg = require("pureimage")
+const fs = require("fs")
+
 const readline = require('readline');
 
 let FTF={0:'a',1:'b',2:'c',3:'d',4:'e',5:'f',6:'g',7:'h'}
+
+let IMAGE_SIZE=60
 
 let squares=[]
 
@@ -45,6 +50,21 @@ function getIndexBySquare(square){
 function isPiece(piece){
     if((piece=="ds")||(piece=="ls")) return false
     return true
+}
+
+function createImage(){            
+    let img2=pimg.make(480,480)
+    var c = img2.getContext('2d');        
+    for(let r=0;r<8;r++)for(let f=0;f<8;f++)
+    {        
+        pimg.decodeJPEGFromStream(fs.createReadStream(__dirname+"/chesspieces_jpg/"+board[r*8+f]+".jpg")).then((img) => {                            
+            c.drawImage(img,
+                0, 0, img.width, img.height, // source dimensions
+                f*IMAGE_SIZE, r*IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE                 // destination dimensions
+            );                            
+        });
+    }
+    setTimeout(()=>{pimg.encodeJPEGToStream(img2,fs.createWriteStream(__dirname+"/public/images/board.jpg"))},1000)
 }
 
 function makeMove(move){    
@@ -89,7 +109,8 @@ function makeMove(move){
         }
         board[toi]=topiece.substring(2,3)=="l"?"ls":"ds"
     }
-    hist.push(old)
+    hist.push(old)    
+    createImage()
     return true
 }
 
@@ -101,7 +122,7 @@ function interpreter(){
         output: process.stdout
     });
     
-    rl.question('move: ', (move) => {
+    rl.question('move: ', (move) => {        
         makeMove(move);
         rl.close();
         interpreter()
