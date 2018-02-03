@@ -9,13 +9,13 @@ const GLOBALS = require("./globals")
 
 let client
 module.exports.client=client
-module.exports.getGeneralChannel=getGeneralChannel;
 module.exports.getAndSendTopList=getAndSendTopList;
 module.exports.createTourneyCommand=createTourneyCommand;
 module.exports.cmpPlayers=cmpPlayers
+module.exports.getTourneyChannel=getTourneyChannel
 
-function getGeneralChannel(){
-  return client.channels.get(GLOBALS.GENERAL_CHANNEL_ID);
+function getTourneyChannel(){
+  return GLOBALS.getChannelByName(client,"tourney")
 }
 
 function getLichessUsers(handle1,handle2,callback,errcallback){

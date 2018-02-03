@@ -5,15 +5,10 @@ const GLOBALS = require("./globals")
 
 let client;
 module.exports.client=client;
-module.exports.getGeneralChannel=getGeneralChannel;
 module.exports.sayGeneral=sayGeneral;
 
-function getGeneralChannel(){
-  return client.channels.get(GLOBALS.GENERAL_CHANNEL_ID);
-}
-
 function sayGeneral(content){
-  getGeneralChannel().send(content);
+  getChannelByName(client,"general").send(content);
 }
 
 function startBot(){

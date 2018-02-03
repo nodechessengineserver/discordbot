@@ -5,11 +5,13 @@ const lichess = require('lichess-api');
 // Load up the discord.js library
 const Discord = require("discord.js");
 
+let client
+
 function startBot(){
 // This is your client. Some people call it `bot`, some people call it `self`, 
 // some might call it `cootchie`. Either way, when you see `client.something`, or `bot.something`,
 // this is what we're refering to. Your client.
-const client = new Discord.Client();
+client = new Discord.Client();
 
 let config={
   prefix:"+"
@@ -222,4 +224,4 @@ rating difference: **${a1.rating-a2.rating}**
 client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
-//startBot()
+startBot()

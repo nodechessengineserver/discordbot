@@ -14,27 +14,27 @@ function makeAjaxRequest(payload,callback){
     then(content=>callback(content))
 }
 
-/*makeAjaxRequest({
+makeAjaxRequest({
     action:"t",
     time:"3",
     inc:"2"
 },(content)=>{
     console.log(content)
-})*/
+})
 
-/*makeAjaxRequest({
+makeAjaxRequest({
     action:"say",
-    content:"In the end of the day we can have regular atomic tourneys every 2 hours."
+    content:"In the end of the day we can have regular atomic tourneys."
 },(content)=>{
     console.log(content)
-})*/
+})
 
-/*makeAjaxRequest({
+makeAjaxRequest({
     action:"top",
     n:5
 },(content)=>{
     console.log(content)
-})*/
+})
 
 makeAjaxRequest({
     action:"cmp",

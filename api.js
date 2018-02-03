@@ -1,3 +1,4 @@
+const GLOBALS=require("./globals")
 const atombot=require("./atombot")
 const testbot=require("./testbot")
 const tourney=require("./tourney")
@@ -13,15 +14,15 @@ function handleApi(req,res){
     let action=body.action;
     console.log("handle API",action);
     if(action==undefined){
-        send(res,{ok:false,status:"action missing"})
+        send(res,{ok:false,status:"action missing"});
     }
     if(action=="say"){
         let content=body.content;
         try{
-            atombot.sayGeneral(content);
-            send(res,{ok:true,status:"ok"})
+            testbot.getTourneyChannel().send(content);
+            send(res,{ok:true,status:"ok"});
         }catch(err){
-            send(res,{ok:false,status:"sayGeneral failed"})
+            send(res,{ok:false,status:"sayGeneral failed"});
         }        
         return
     }
@@ -29,7 +30,7 @@ function handleApi(req,res){
         let time=body.time;
         let inc=body.inc;
         try{
-            testbot.createTourneyCommand(testbot.getGeneralChannel(),time,inc);
+            testbot.createTourneyCommand(testbot.getTourneyChannel(),time,inc);
             send(res,{ok:true,status:"ok"});
         }catch(err){
             console.log(err);
@@ -40,7 +41,7 @@ function handleApi(req,res){
     if(action=="top"){
         let n=body.n;
         try{
-            testbot.getAndSendTopList(testbot.getGeneralChannel(),n);
+            testbot.getAndSendTopList(testbot.getTourneyChannel(),n);
             send(res,{ok:true,status:"ok"});
         }catch(err){
             console.log(err);
@@ -52,7 +53,7 @@ function handleApi(req,res){
         let handle=body.handle;
         let handlearg=body.handlearg;
         try{
-            testbot.cmpPlayers(testbot.getGeneralChannel(),handle,handlearg);
+            testbot.cmpPlayers(testbot.getTourneyChannel(),handle,handlearg);
             send(res,{ok:true,status:"ok"});
         }catch(err){
             console.log(err);

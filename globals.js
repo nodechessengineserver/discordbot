@@ -1,3 +1,7 @@
-let GENERAL_CHANNEL_ID="407793962527752194";
+function getChannelByName(client,name){    
+    let channels=client.channels    
+    let result=channels.find(item => item.name===name)
+    return result
+}
 
-module.exports.GENERAL_CHANNEL_ID=GENERAL_CHANNEL_ID;
+module.exports.getChannelByName=getChannelByName
