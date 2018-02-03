@@ -12,8 +12,6 @@ const tourney=require("./tourney")
 atombot.startBot()
 testbot.startBot()
 
-tourney.loginAndCreateTourney(1,0);
-
 express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))
   .use(express.static(path.join(__dirname, 'public')))
