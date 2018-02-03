@@ -64,7 +64,7 @@ function createImage(){
             );                            
         });
     }
-    setTimeout(()=>{pimg.encodeJPEGToStream(img2,fs.createWriteStream(__dirname+"/public/images/board.jpg"))},500)
+    setTimeout(()=>{pimg.encodeJPEGToStream(img2,fs.createWriteStream(__dirname+"/public/images/board.jpg"))},1000)
 }
 
 function makeMove(move){    

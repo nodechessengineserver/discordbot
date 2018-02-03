@@ -166,7 +166,7 @@ client.on("message", async message => {
     //message.channel.send(chess.getBoardText());
     setTimeout((ev)=>{
       message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/board.jpg?rnd=${Math.floor(Math.random()*1e6)}`)
-    },1000)
+    },2000)
   }
 
   if(command=="top"){    
