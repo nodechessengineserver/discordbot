@@ -67,6 +67,59 @@ client.on("message", async message => {
     m.edit(`Pong! Latency is ${m.createdTimestamp - message.createdTimestamp}ms. API Latency is ${Math.round(client.ping)}ms`);
   }
 
+  if(command=="online"){
+    let t=0
+    for(let user of client.users){
+      let handle=user[1].username    
+      setTimeout(()=>lichess.user(handle, function (err, user) {
+        if(!err){
+          try{        
+            let json=JSON.parse(user)          
+            if(json.online){
+              message.channel.send(`info: **${handle}** is online on lichess now, watch while playing: ${json.url}/tv`)
+            }
+          }catch(err){}
+        }
+      }),(t++)*5000)
+  }
+  }
+
+  if(command=="p"){
+    let username=args[0]
+    lichess.user(username, function (err, user) {
+      if(err){
+        message.channel.send(`:triangular_flag_on_post: error: could not get profile information for **${user}**`);
+      }
+      else{
+        try{          
+          let json=JSON.parse(user)
+          //console.log(json)
+          let perfs=json.perfs
+          let handle=json.username
+          let perfscontent=`__                                                                             __
+          
+**${handle}** [ member since: *${new Date(json.createdAt).toLocaleString()}* , followers: *${json.nbFollowers}* ]
+__                                                                             __
+
+`
+          for(let variant in perfs){            
+            let perf=perfs[variant]
+            if(perf.games>0)
+              perfscontent+=`__${variant}__ : **${perf.rating}** ( games : ${perf.games} )\n`
+          }                    
+          if(json.online){
+            perfscontent+=`
+${handle} is online now on lichess, watch: ${json.url}/tv`
+          }
+          message.channel.send(perfscontent)
+        }catch(err){
+          console.log(err)
+          message.channel.send(`:triangular_flag_on_post: error: could not get profile information for **${username}**`);
+        }
+      }
+    })
+  }
+
   if(chess.makeMove(command)){    
     //message.channel.send(chess.getBoardText());
     setTimeout((ev)=>{
@@ -234,3 +287,4 @@ client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
 startBot()
+

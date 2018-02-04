@@ -162,6 +162,42 @@ client.on("message", async message => {
     //message.channel.send(sayMessage);
   }
 
+  if(command=="p"){
+    let username=args[0]
+    lichess.user(username, function (err, user) {
+      if(err){
+        message.channel.send(`:triangular_flag_on_post: error: could not get profile information for **${user}**`);
+      }
+      else{
+        try{          
+          let json=JSON.parse(user)
+          //console.log(json)
+          let perfs=json.perfs
+          let handle=json.username
+          let perfscontent=`__                                                                             __
+          
+**${handle}** [ member since: *${new Date(json.createdAt).toLocaleString()}* , followers: *${json.nbFollowers}* ]
+__                                                                             __
+
+`
+          for(let variant in perfs){            
+            let perf=perfs[variant]
+            if(perf.games>0)
+              perfscontent+=`__${variant}__ : **${perf.rating}** ( games : ${perf.games} )\n`
+          }                    
+          if(json.online){
+            perfscontent+=`
+${handle} is online now on lichess, watch: ${json.url}/tv`
+          }
+          message.channel.send(perfscontent)
+        }catch(err){
+          console.log(err)
+          message.channel.send(`:triangular_flag_on_post: error: could not get profile information for **${username}**`);
+        }
+      }
+    })
+  }
+
   if(command=="fen"){
     command=args[0]
   }
