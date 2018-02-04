@@ -52,7 +52,7 @@ function isPiece(piece){
     return true
 }
 
-function createImage(){            
+function createImage(){                
     let img2=pimg.make(480,480)
     var c = img2.getContext('2d');        
     for(let r=0;r<8;r++)for(let f=0;f<8;f++)
@@ -73,6 +73,45 @@ function makeMove(move){
     return result;
 }
 
+function setPiece(r,f,p){    
+    let sqcol=(((r+f)%2)==0)?"l":"d"
+    board[r*8+f]=p=="-"?sqcol+"s":p+sqcol
+}
+
+let fenToPiece={'p':'bp','n':'bn','b':'bb','r':'br','q':'bq','k':'bk',
+'P':'wp','N':'wn','B':'wb','R':'wr','Q':'wq','K':'wk'}
+
+function setFromFen(fen){    
+    let parts=fen.split(" ")
+    let fenparts=parts[0].split("/")
+    if(fenparts.length!=8) return false
+    hist=[]
+    board=clone(startpos)
+    let r
+    let f    
+    function flush(n){
+        for(let i=0;i<n;i++){
+            setPiece(r,f,"-")
+            f++
+        }
+    }
+    for(r=0;r<fenparts.length;r++){
+        let pieces=fenparts[r].split("")
+        f=0
+        for(let p of pieces){
+            let piece=fenToPiece[p]
+            if(piece!=undefined){
+                setPiece(r,f,piece)
+                f++
+            }else{
+                let n=parseInt(p)
+                if(!isNaN(n)) flush(n)
+            }
+        }
+    }    
+    return true
+}
+
 function makeMoveInner(move){    
     let old=clone(board)
     if((move=="+")||(move=="show")||(move=="s")||(move=="board")||(move=="b")) return true
@@ -86,6 +125,10 @@ function makeMoveInner(move){
             board=hist.pop()
         }
         return true
+    }
+    let fenparts=move.split("/")
+    if(fenparts.length==8){
+        return setFromFen(move);
     }
     if(move.length<4) return false
     if(move.length>5) return false

@@ -139,7 +139,7 @@ client.on("message", async message => {
   // command = say
   // args = ["Is", "this", "the", "real", "life?"]
   const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
-  const command = args.shift().toLowerCase();
+  let command = args.shift().toLowerCase();
   
   // Let's go with a few common example commands! Feel free to delete or change those.
   
@@ -160,6 +160,10 @@ client.on("message", async message => {
     //console.log(client.channels);
     //client.channels.get("407793962527752194").send(sayMessage);
     //message.channel.send(sayMessage);
+  }
+
+  if(command=="fen"){
+    command=args[0]
   }
 
   if(chess.makeMove(command)){    
