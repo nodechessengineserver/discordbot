@@ -75,6 +75,7 @@ function makeMove(move){
 
 function makeMoveInner(move){    
     let old=clone(board)
+    if((move=="+")||(move=="show")||(move=="s")||(move=="board")||(move=="b")) return true
     if(move==="reset"){
         board=clone(startpos)
         hist=[]
