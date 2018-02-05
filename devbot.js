@@ -3,11 +3,15 @@ const tourney=require("./tourney")
 const lichess = require('lichess-api');
 const chess = require("./chess")
 const GLOBALS = require("./globals")
+const uniqid = require('uniqid')
+const nfetch = require("node-fetch")
 
 // Load up the discord.js library
 const Discord = require("discord.js");
 
 let client
+
+let codes={}
 
 function startBot(){
 // This is your client. Some people call it `bot`, some people call it `self`, 
@@ -82,6 +86,54 @@ client.on("message", async message => {
         }
       }),(t++)*5000)
   }
+  }
+
+  let VERIFIED_LICHESS_MEMBER="@verifiedlichess"
+
+  if(command=="ver"){    
+    let code=uniqid()
+    let username=message.author.username
+    codes[username]=code
+    message.author.send(`Hi ${username}! Insert this code into your profile: **${code}**, then type the command: **+check**.`)    
+  }
+
+  if(command=="check"){    
+    let username=message.author.username
+    code=codes[username]
+
+    if(code=="undefined"){
+      message.author.send(`Hi ${username}! To verify your lichess membership, type the command: **+ver**.`)    
+      return
+    }
+
+    nfetch(`https://lichess.org/@/${username}`).then((response)=>response.text()).
+      then((content)=>{
+          let index=content.indexOf(code)
+          let uindex=content.indexOf(`/@/${username}/`)
+
+          if(index<0){
+            message.author.send(`Error: code not found in your profile.`)
+            return
+          }
+
+          if(uindex<0){
+            message.author.send(`Error: your lichess username is not the same as your Discord username.`)
+            return
+          }
+          
+          message.member.addRole(message.guild.roles.find("name", VERIFIED_LICHESS_MEMBER))          
+          message.author.send(`Success: verified your lichess account ok.`)
+          message.channel.send(`:exclamation: **${username}** was verified as a lichess member.`)
+      })    
+  }
+
+  if(command=="unver"){
+    let username=message.author.username
+    message.author.send("You will not be listed as a verified lichess member.")
+    message.channel.send(`:exclamation: ${username} will no longer be listed as a verified lichess member.`)
+    try{
+      message.member.removeRole(message.guild.roles.find("name", VERIFIED_LICHESS_MEMBER))
+    }catch(err){console.log(err)}
   }
 
   if(command=="p"){

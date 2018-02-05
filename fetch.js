@@ -162,7 +162,7 @@ function getTopList(n,callback){
     then(content=>callback(processTopList(n,content)))
 }
 
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(60,80,handles=>sendPlayers(handles)))
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(100,120,handles=>sendPlayers(handles)))
 //getTopList(30,(table)=>{console.log(table)})
 
 module.exports.getPlayers=getPlayers
