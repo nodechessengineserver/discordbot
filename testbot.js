@@ -108,7 +108,10 @@ client.on("message", async message => { try {
     let code=uniqid()
     let username=message.author.username
     codes[username]=code
-    message.author.send(`Hi ${username}! Insert this code into your profile: **${code}**, then type the command: **+check** in the #test channel.`)    
+    message.author.send(`Hi ${username}! Insert this code into your profile: [ **${code}** ] , then type the command: **+check** in the #test channel.`)
+    message.channel.send(GLOBALS.infoMessage(
+      `You were sent a code. Look in your personal messages for instructions.`
+    ))
   }
 
   if(command=="check"){    
