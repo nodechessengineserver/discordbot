@@ -90,6 +90,7 @@ function purgeTourneyChannel(){
 
 function createTourneyCommand(channel,time,inc){
   channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
+  
   To join, please visit: https://lichess.org/tournament
   `)
   tourney.loginAndCreateTourney(time,inc)
