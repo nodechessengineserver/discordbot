@@ -94,7 +94,7 @@ Everybody is on Discord nowadays, you should be too.
 
 I hereby invite you to join the server, which you can do by clicking on this invite link:
 
-https://discordapp.com/invite/6bwkzah
+https://discord.gg/TvgMYfc
 
 Of course if you are not a team member already, I also invite you to the Atomic Chess Theoreticians Team itself:
 
