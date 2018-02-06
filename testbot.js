@@ -245,7 +245,7 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
   }
 
   if(command=="purgetest"){
-    GLOBALS.purgeChannel(GLOBALS.getChannelByName("test"))
+    GLOBALS.purgeChannel(GLOBALS.getChannelByName(client,"test"))
   }
 
 } catch(err){
