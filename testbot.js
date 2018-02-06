@@ -84,8 +84,9 @@ function getAndSendTopList(channel,n){
 }
 
 function purgeTourneyChannel(){  
-  const fetched = await (getTourneyChannel().fetchMessages({limit:100}));
-  message.channel.bulkDelete(fetched)
+  getTourneyChannel().fetchMessages({ limit: 100 })
+    .then(messages => getTourneyChannel().bulkDelete(messages))
+    .catch(console.error);
 }
 
 function createTourneyCommand(channel,time,inc){
@@ -252,6 +253,9 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
 client.login(process.env.DISCORDTESTBOT_TOKEN);
 
 }
+
+startBot()
+setTimeout(purgeTourneyChannel,8000)
 
 module.exports.client=client
 module.exports.startBot=startBot

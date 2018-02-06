@@ -243,8 +243,9 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     let limit=parseInt(args[0])
     if(isNaN(limit)) limit=10
     if(limit>100) limit=100
-    const fetched = await message.channel.fetchMessages({limit:limit});
-    message.channel.bulkDelete(fetched)
+    message.channel.fetchMessages({ limit: limit })
+      .then(messages => message.channel.bulkDelete(messages))
+      .catch(console.error);
   }
 
 } catch(err){
