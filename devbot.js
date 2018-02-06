@@ -101,14 +101,17 @@ client.on("ready", () => {
 client.on("message", async message => { try {
   if(message.author.bot) return;  
   if(message.content.indexOf(GLOBALS.COMMAND_PREFIX) !== 0) return;    
-  const args = message.content.slice(GLOBALS.COMMAND_PREFIX).trim().split(/ +/g);
+  const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
   let command = args.shift().toLowerCase();
 
   if(command=="ver"){    
     let code=uniqid()
     let username=message.author.username
     codes[username]=code
-    message.author.send(`Hi ${username}! Insert this code into your profile: **${code}**, then type the command: **+check** in the #test channel.`)    
+    message.author.send(`Hi ${username}! Insert this code into your profile: [ **${code}** ] , then type the command: **+check** in the #test channel.`)
+    message.channel.send(GLOBALS.infoMessage(
+      `You were sent a code. Look in your personal messages for instructions.`
+    ))
   }
 
   if(command=="check"){    
@@ -236,6 +239,14 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       }
   }
 
+  if(command=="purge"){    
+    let limit=parseInt(args[0])
+    if(isNaN(limit)) limit=10
+    if(limit>100) limit=100
+    const fetched = await message.channel.fetchMessages({limit:limit});
+    message.channel.bulkDelete(fetched)
+  }
+
 } catch(err){
   GLOBALS.unhandledMessageError(err)
 } });
@@ -243,6 +254,8 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
 client.login(process.env.DISCORDTESTBOT_TOKEN);
 
 }
+
+startBot()
 
 module.exports.client=client
 module.exports.startBot=startBot

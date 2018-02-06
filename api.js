@@ -30,6 +30,7 @@ function handleApi(req,res){
         let time=body.time;
         let inc=body.inc;
         try{
+            testbot.purgeTourneyChannel()
             testbot.createTourneyCommand(testbot.getTourneyChannel(),time,inc);
             send(res,{ok:true,status:"ok"});
         }catch(err){

@@ -83,6 +83,11 @@ function getAndSendTopList(channel,n){
   `));  
 }
 
+function purgeTourneyChannel(){
+  const fetched = await getTourneyChannel().fetchMessages({limit:100});
+  message.channel.bulkDelete(fetched)
+}
+
 function createTourneyCommand(channel,time,inc){
   channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
   To join, please visit: https://lichess.org/tournament
@@ -254,3 +259,4 @@ module.exports.getAndSendTopList=getAndSendTopList;
 module.exports.createTourneyCommand=createTourneyCommand;
 module.exports.cmpPlayers=cmpPlayers
 module.exports.getTourneyChannel=getTourneyChannel
+module.exports.purgeTourneyChannel=purgeTourneyChannel
