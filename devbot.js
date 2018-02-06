@@ -18,15 +18,19 @@ let db=null
 let codes={}
 
 function connectDb(){
-  MongoClient.connect(process.env.MONGODB_URI, function(err, client) {
-    if(err){
-      console.log(err);
-      return;
-    }else{
-      console.log(`connected to mongodb ${process.env.MONGODB_URI}`);
-      db = client.db("mychessdb");
-    }
-  })
+  try{
+    MongoClient.connect(process.env.MONGODB_URI, function(err, client) {
+      if(err){
+        console.log(err);
+        return;
+      }else{
+        console.log(`connected to mongodb ${process.env.MONGODB_URI}`);
+        db = client.db("mychessdb");
+      }
+    })
+  }catch(err){
+    console.log(err)
+  }
 }
 
 function getTourneyChannel(){
@@ -106,22 +110,31 @@ function createTourneyCommand(channel,time,inc){
 }
 
 function upsertOne(collname,query,doc){
-  const collection = db.collection(collname);
-  console.log(`upserting ${collname} ${JSON.stringify(query)} ${JSON.stringify(doc)}`)
-  collection.updateOne(query,{$set:doc},{upsert:true},(error,result)=>{
-    console.log("error",error)
-  })
+  try{
+    const collection = db.collection(collname);
+    console.log(`upserting ${collname} ${JSON.stringify(query)} ${JSON.stringify(doc)}`)
+    collection.updateOne(query,{$set:doc},{upsert:true},(error,result)=>{
+      console.log("error",error)
+    })
+  }catch(err){
+    console.log(err)
+  }
 }
 
 function findOne(collname,query,callback){
-  const collection = db.collection(collname);
-  console.log(`finding ${collname} ${JSON.stringify(query)}`)
-  collection.findOne(query,(error,result)=>{
-    console.log("error",error)
-    if(error==null){
-      callback(result)
-    }
-  })
+  try{
+    const collection = db.collection(collname);
+    console.log(`finding ${collname} ${JSON.stringify(query)}`)
+    collection.findOne(query,(error,result)=>{
+      console.log("error",error)
+      if(error==null){
+        callback(result)
+      }
+    })
+  }catch(err){
+    console.log(err)
+    callback({})
+  }
 }
 
 function execDatabaseCommand(message){
