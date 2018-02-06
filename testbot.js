@@ -101,7 +101,7 @@ client.on("ready", () => {
 client.on("message", async message => { try {
   if(message.author.bot) return;  
   if(message.content.indexOf(GLOBALS.COMMAND_PREFIX) !== 0) return;    
-  const args = message.content.slice(GLOBALS.COMMAND_PREFIX).trim().split(/ +/g);
+  const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
   let command = args.shift().toLowerCase();
 
   if(command=="ver"){    
