@@ -42,6 +42,7 @@ function handleApi(req,res){
     if(action=="top"){
         let n=body.n;
         try{
+            testbot.purgeTourneyChannel()
             testbot.getAndSendTopList(testbot.getTourneyChannel(),n);
             send(res,{ok:true,status:"ok"});
         }catch(err){
