@@ -16,7 +16,7 @@ function successMessage(succmsg){
 }
 
 function infoMessage(infomsg){
-    return `Info: ${succmsg}`
+    return `Info: ${infomsg}`
 }
 
 function unhandledMessageError(err){
