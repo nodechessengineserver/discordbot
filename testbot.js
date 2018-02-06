@@ -83,8 +83,8 @@ function getAndSendTopList(channel,n){
   `));  
 }
 
-function purgeTourneyChannel(){
-  const fetched = await getTourneyChannel().fetchMessages({limit:100});
+function purgeTourneyChannel(){  
+  const fetched = await (getTourneyChannel().fetchMessages({limit:100}));
   message.channel.bulkDelete(fetched)
 }
 
