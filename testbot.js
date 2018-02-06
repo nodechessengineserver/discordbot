@@ -84,9 +84,7 @@ function getAndSendTopList(channel,n){
 }
 
 function purgeTourneyChannel(){  
-  getTourneyChannel().fetchMessages({ limit: 100 })
-    .then(messages => getTourneyChannel().bulkDelete(messages))
-    .catch(console.error);
+  GLOBALS.purgeChannel(getTourneyChannel())
 }
 
 function createTourneyCommand(channel,time,inc){
@@ -246,6 +244,10 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       }
   }
 
+  if(command=="purgetest"){
+    GLOBALS.purgeChannel(GLOBALS.getChannelByName("test"))
+  }
+
 } catch(err){
   GLOBALS.unhandledMessageError(err)
 } });
@@ -253,9 +255,6 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
 client.login(process.env.DISCORDTESTBOT_TOKEN);
 
 }
-
-startBot()
-setTimeout(purgeTourneyChannel,8000)
 
 module.exports.client=client
 module.exports.startBot=startBot

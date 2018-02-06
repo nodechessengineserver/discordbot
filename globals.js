@@ -7,6 +7,12 @@ function getChannelByName(client,name){
     return result
 }
 
+function purgeChannel(channel){
+    channel.fetchMessages({ limit: 100 })
+        .then(messages => channel.bulkDelete(messages))
+        .catch(console.error);
+}
+
 function errorMessage(errmsg){
     return `:exclamation: Error: ${errmsg}`
 }
@@ -32,3 +38,4 @@ module.exports.infoMessage=infoMessage
 module.exports.VERIFIED_LICHESS_MEMBER=VERIFIED_LICHESS_MEMBER
 module.exports.COMMAND_PREFIX=COMMAND_PREFIX
 module.exports.unhandledMessageError=unhandledMessageError
+module.exports.purgeChannel=purgeChannel
