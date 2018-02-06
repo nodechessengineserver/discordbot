@@ -1,7 +1,8 @@
+let DRY=true
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(100,120,handles=>sendPlayers(handles)))
+
 var fetch = require('node-fetch');
 var FormData = require('form-data');
-
-let DRY=true
 
 let LICHESS_USER=process.env.LICHESS_USER
 let LICHESS_PASS=process.env.LICHESS_PASS
@@ -151,7 +152,6 @@ function processTopList(n,content){
         table+=` ${sformat(""+i,3)} | ${sformat(player,20)} | ${sformat(rating,4)} | ${sformat(title,3)} 
 `
     }
-    //console.log(table)
     return table+"`"
 }
 
@@ -161,9 +161,6 @@ function getTopList(n,callback){
     then(response=>response.text()).
     then(content=>callback(processTopList(n,content)))
 }
-
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(100,120,handles=>sendPlayers(handles)))
-//getTopList(30,(table)=>{console.log(table)})
 
 module.exports.getPlayers=getPlayers
 module.exports.getPlayerHandles=getPlayerHandles

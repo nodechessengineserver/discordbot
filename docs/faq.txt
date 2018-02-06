@@ -1,0 +1,50 @@
+__                                                                                                                                                                               __
+
+:bangbang:  **To activate the bots, visit this link**:      :pushpin:     https://quiet-tor-66877.herokuapp.com/
+__                                                                                                                                                                               __
+
+To create an __ACT Discord Server__ atomic tournament use this command with **TestBot** :
+
+     `+t [time inc]`
+
+Example: `+t 3 2`
+
+:triangular_flag_on_post:  *All tournaments will be created in the server owner's name, so please look around and don't create too many redundant tournaments.*
+
+To compare your Atomic rating to an other player, use this command with **TestBot** : 
+
+     `+cmp [lichess user name]`
+
+Example:  `+cmp tipau`
+
+To send a bot message to the #general channel, use this command with **AtomBot** :
+
+     `+say [message]`
+
+Example:  `+say Hello Atomic World!`
+
+To get the top list of Atomic players, use this command with **TestBot** :
+
+     `+top [num players]`
+
+Example: `+top 3`
+
+To get lichess profile information of a user, use this command with **TestBot** :
+
+     `+p [lichess user name]`
+
+Example: `+p tipau`
+
+New!   :cyclone:   To verify your username as a lichess member, in the #test channel type:
+
+     `+ver`
+
+   you will get a code that you have to insert into your lichess profile, then in the #test channel type
+
+     `+check`
+
+once you are verified, you can remove the code from your profile.
+
+To no longer be listed as a verified lichess member, in the #test channel type:
+
+     `+unver`

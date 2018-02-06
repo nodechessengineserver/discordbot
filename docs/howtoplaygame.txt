@@ -1,0 +1,19 @@
+Commands:
+
+`+reset` reset the board to starting position
+
+`+fen [fen]` set the board from fen, example:
+
+    `+fen rnbqkbnr/ppp1p1pp/5p2/3p4/8/4PN2/PPPP1PPP/RNBQKB1R w KQkq - 0 3`
+
+`+[algeb move]` make move given in algebraic notation, example: `+g1f3`
+
+    recall that promotion in algebraic notation is like: `+a7a8q`
+
+`+del` delete last move
+
+`+show` or `+s` or `+board` or `+b` or `++` show current board position
+
+To castle, make the king move and the rook move separately, example: `+e1g1` then `+h1f1`.
+
+To make ep capture, make the move, then make an additional move with the opponent pawn capturing your pawn. So if a white pawn was on e5 and black made the move f7f5, then first `+e5f6` then `+f5f6`.
