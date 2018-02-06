@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 5000
 
 atombot.startBot()
 testbot.startBot()
+testbot.connectDb()
 
 express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))

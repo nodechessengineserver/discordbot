@@ -3,6 +3,7 @@ const Discord = require("discord.js");
 const lichess = require('lichess-api');
 const uniqid = require('uniqid');
 const nfetch = require("node-fetch");
+const MongoClient = require('mongodb').MongoClient;
 
 // local imports
 const fetch=require("./fetch");
@@ -12,7 +13,21 @@ const chess = require("./chess");
 
 let client
 
+let db=null
+
 let codes={}
+
+function connectDb(){
+  MongoClient.connect(process.env.MONGODB_URI, function(err, client) {
+    if(err){
+      console.log(err);
+      return;
+    }else{
+      console.log(`connected to mongodb ${process.env.MONGODB_URI}`);
+      db = client.db("mychessdb");
+    }
+  })
+}
 
 function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
@@ -90,6 +105,52 @@ function createTourneyCommand(channel,time,inc){
   tourney.loginAndCreateTourney(time,inc)
 }
 
+function upsertOne(collname,query,doc){
+  const collection = db.collection(collname);
+  console.log(`upserting ${collname} ${JSON.stringify(query)} ${JSON.stringify(doc)}`)
+  collection.updateOne(query,{$set:doc},{upsert:true},(error,result)=>{
+    console.log("error",error)
+  })
+}
+
+function findOne(collname,query,callback){
+  const collection = db.collection(collname);
+  console.log(`finding ${collname} ${JSON.stringify(query)}`)
+  collection.findOne(query,(error,result)=>{
+    console.log("error",error)
+    if(error==null){
+      callback(result)
+    }
+  })
+}
+
+function execDatabaseCommand(message){
+  if(db==null) return
+  let username=message.author.username
+  let command=message.content
+  let regCreate = /\$([a-z]+)=(.+)/;
+  let matchCreate = regCreate.exec(command);  
+  if(matchCreate!=null){
+    let key=matchCreate[1]
+    let value=matchCreate[2]
+    console.log(username,key,value)
+    if(db!=null){
+      upsertOne("discord",{username:username,key:key},{username:username,key:key,value:value})
+    }
+    return
+  }
+  let regGet = /\$([a-z]+)/;
+  let matchGet = regGet.exec(command);  
+  if(matchGet!=null){
+    let key=matchGet[1]
+    findOne("discord",{username:username,key:key},result=>{
+      console.log(result)
+      let value=result.value
+      message.channel.send(value)
+    })
+  }
+}
+
 function startBot(){
 
 client = new Discord.Client();
@@ -100,6 +161,7 @@ client.on("ready", () => {
 
 client.on("message", async message => { try {
   if(message.author.bot) return;  
+  execDatabaseCommand(message);
   if(message.content.indexOf(GLOBALS.COMMAND_PREFIX) !== 0) return;    
   const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
   let command = args.shift().toLowerCase();
@@ -252,11 +314,12 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
   GLOBALS.unhandledMessageError(err)
 } });
 
-client.login(process.env.DISCORDTESTBOT_TOKEN);
+client.login(process.env.DISCORDDEVBOT_TOKEN);
 
 }
 
 startBot()
+connectDb()
 
 module.exports.client=client
 module.exports.startBot=startBot

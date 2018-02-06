@@ -1,5 +1,5 @@
 let DRY=true
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(100,120,handles=>sendPlayers(handles)))
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(120,140,handles=>sendPlayers(handles)))
 
 var fetch = require('node-fetch');
 var FormData = require('form-data');
@@ -167,3 +167,4 @@ module.exports.getPlayerHandles=getPlayerHandles
 module.exports.sendPlayers=sendPlayers
 module.exports.sendMessage=sendMessage
 module.exports.getTopList=getTopList
+
