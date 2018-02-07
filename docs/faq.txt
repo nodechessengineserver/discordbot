@@ -39,7 +39,7 @@ New!   :cyclone:   To verify your username as a lichess member, in the #test cha
 
      `+ver`
 
-   you will get a **code** that you have to **insert** into your **lichess** profile , then in the #test channel type
+You will get a **code** in a __personal message__ that you have to **insert** into your **lichess** profile , then in the #test channel type
 
      `+check`
 
