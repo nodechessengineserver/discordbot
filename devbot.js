@@ -141,7 +141,7 @@ function execDatabaseCommand(message){
   if(db==null) return
   let username=message.author.username
   let command=message.content
-  let regCreate = /^\$([a-z]+)=([\s\S]+)/;
+  let regCreate = /^\$([a-z]+)=([\s\S]+)$/;
   let matchCreate = regCreate.exec(command);  
   if(matchCreate!=null){
     let key=matchCreate[1]
@@ -152,7 +152,7 @@ function execDatabaseCommand(message){
     }
     return
   }
-  let regGet = /\$([a-z]+)/;
+  let regGet = /^\$([a-z]+)$/;
   let matchGet = regGet.exec(command);  
   if(matchGet!=null){
     let key=matchGet[1]

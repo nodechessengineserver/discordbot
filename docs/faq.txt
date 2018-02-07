@@ -17,7 +17,7 @@ To compare your Atomic rating to an other player, use this command with **TestBo
 
 Example:  `+cmp tipau`
 
-To send a bot message to the #general channel, use this command with **AtomBot** :
+To send a bot message to the <#407793962527752194> channel, use this command with **AtomBot** :
 
      `+say [message]`
 
@@ -39,12 +39,14 @@ New!   :cyclone:   To verify your username as a lichess member, in the #test cha
 
      `+ver`
 
-   you will get a code that you have to insert into your lichess profile, then in the #test channel type
+   you will get a **code** that you have to **insert** into your **lichess** profile , then in the #test channel type
 
      `+check`
 
-once you are verified, you can remove the code from your profile.
+Once you are verified, you can remove the code from your profile.
 
 To no longer be listed as a verified lichess member, in the #test channel type:
 
      `+unver`
+
+Note that you have to have the __exact__ same nick here as on lichess, otherwise verification won't work ( the username check is __case sensitive__ ). If you have a different nick here and want to change it, contact @jatekos#8208.
