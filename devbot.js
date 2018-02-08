@@ -40,7 +40,7 @@ function getTourneyChannel(){
 }
 
 let CHART_WIDTH=600
-let CHART_HEIGHT=400
+let CHART_HEIGHT=300
 
 function createChart(message,handle,ratings,minrating,maxrating){
     
@@ -51,38 +51,43 @@ function createChart(message,handle,ratings,minrating,maxrating){
   let img=pimg.make(CHART_WIDTH,CHART_HEIGHT)
   let ctx=img.getContext('2d')  
   ctx.fillStyle='#3f3f3f'
-  ctx.strokeStyle='#0000ff'
+  ctx.strokeStyle='#ffff00'
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
-  ctx.lineWidth=10
+  ctx.lineWidth=5  
+  ratings.reverse()
   for(let i=1;i<n;i++){
-    let cx0=(i-1)*X_SCALE+X_SCALE/2
+    let cx0=(i-1)*X_SCALE
     let rating0=ratings[i-1]
     let crating0=rating0-minrating
     let mcrating0=Y_RANGE-crating0
-    let cy0=mcrating0*Y_SCALE-Y_SCALE/2
+    let cy0=mcrating0*Y_SCALE
     let cx1=i*X_SCALE
     let rating1=ratings[i]
     let crating1=rating1-minrating
     let mcrating1=Y_RANGE-crating1
     let cy1=mcrating1*Y_SCALE
-    ctx.beginPath();
-    ctx.moveTo(cx0, cy0);
-    ctx.lineTo(cx1, cy1);
-    ctx.stroke();
+    for(let jx=-1;jx<=1;jx++)
+    for(let jy=-1;jy<=1;jy++){
+      ctx.beginPath();
+      ctx.moveTo(cx0+jx, cy0+jy);
+      ctx.lineTo(cx1+jy, cy1+jy);
+      ctx.stroke();       
+    }    
   }
 
   pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
       console.log(`wrote out the png file to ${handle}.png`);
-      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png`)
+      let rnd=Math.floor(Math.random()*1e9)
+      setTimeout((e)=>{
+        message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
+      },2000)      
   }).catch((e)=>{
       console.log("there was an error writing");
   });
 }
 
 function correctRating(rating,dir){
-  let mod=rating%100
-  let floor=(rating-mod)
-  return floor+(dir*100)
+  return rating
 }
 
 function createLichessGamesStats(message,handle,games,variant){  
