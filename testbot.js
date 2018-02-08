@@ -73,16 +73,15 @@ function createChart(message,handle,ratings,minrating,maxrating){
 
   pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
       console.log(`wrote out the png file to ${handle}.png`);
-      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png`)
+      let rnd=Math.floor(Math.random()*1e9)
+      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd={$rnd}`)
   }).catch((e)=>{
       console.log("there was an error writing");
   });
 }
 
 function correctRating(rating,dir){
-  let mod=rating%100
-  let floor=(rating-mod)
-  return floor+(dir*100)
+  return rating
 }
 
 function createLichessGamesStats(message,handle,games,variant){  
