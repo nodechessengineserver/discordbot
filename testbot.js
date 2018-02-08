@@ -4,6 +4,8 @@ const lichess = require('lichess-api');
 const uniqid = require('uniqid');
 const nfetch = require("node-fetch");
 const MongoClient = require('mongodb').MongoClient;
+const pimg = require("pureimage")
+const fs = require("fs")
 
 // local imports
 const fetch=require("./fetch");
@@ -37,6 +39,52 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
+let CHART_WIDTH=600
+let CHART_HEIGHT=400
+
+function createChart(message,handle,ratings,minrating,maxrating){
+    
+  let n=ratings.length
+  let X_SCALE=CHART_WIDTH/n
+  let Y_RANGE=maxrating-minrating
+  let Y_SCALE=CHART_HEIGHT/Y_RANGE  
+  let img=pimg.make(CHART_WIDTH,CHART_HEIGHT)
+  let ctx=img.getContext('2d')  
+  ctx.fillStyle='#3f3f3f'
+  ctx.strokeStyle='#0000ff'
+  ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
+  ctx.lineWidth=10
+  for(let i=1;i<n;i++){
+    let cx0=(i-1)*X_SCALE+X_SCALE/2
+    let rating0=ratings[i-1]
+    let crating0=rating0-minrating
+    let mcrating0=Y_RANGE-crating0
+    let cy0=mcrating0*Y_SCALE-Y_SCALE/2
+    let cx1=i*X_SCALE
+    let rating1=ratings[i]
+    let crating1=rating1-minrating
+    let mcrating1=Y_RANGE-crating1
+    let cy1=mcrating1*Y_SCALE
+    ctx.beginPath();
+    ctx.moveTo(cx0, cy0);
+    ctx.lineTo(cx1, cy1);
+    ctx.stroke();
+  }
+
+  pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
+      console.log(`wrote out the png file to ${handle}.png`);
+      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png`)
+  }).catch((e)=>{
+      console.log("there was an error writing");
+  });
+}
+
+function correctRating(rating,dir){
+  let mod=rating%100
+  let floor=(rating-mod)
+  return floor+(dir*100)
+}
+
 function createLichessGamesStats(message,handle,games,variant){  
   try{
     let stats=""
@@ -44,6 +92,9 @@ function createLichessGamesStats(message,handle,games,variant){
     let wins=0
     let losses=0
     let draws=0
+    let ratings=[]
+    let minrating=3500
+    let maxrating=0
     games.map(game=>{
       let white=game.players.white
       let black=game.players.black
@@ -52,8 +103,12 @@ function createLichessGamesStats(message,handle,games,variant){
       if(game.winner=="black") result="0-1"
       let empwhite=result=="1-0"?"**":""
       let empblack=result=="0-1"?"**":""
-      let handlel=handle.toLowerCase()      
+      let handlel=handle.toLowerCase()            
       if(game.variant==variant){
+        let rating=(handlel==white.userId?white.rating:black.rating);
+        if(rating>maxrating) maxrating=rating;
+        if(rating<minrating) minrating=rating;
+        ratings.push(rating)
         if(result=="1-0"){
           if(handlel==white.userId) wins++; else losses++;
         }
@@ -74,10 +129,16 @@ function createLichessGamesStats(message,handle,games,variant){
       let shown=Math.min(10,i)
       stats=`Out of last 100 lichess games __${handle}__ played **${i}** ${variant} games.
 Won **${wins}** games, lost **${losses}** games, drawn **${draws}** games.
-Showing last ${shown} games:
+Min rating: **${minrating}**, max rating: **${maxrating}**. Showing last ${shown} games:
 
 `+stats
+
       message.channel.send(stats)
+
+      setTimeout((e)=>{
+        createChart(message,handle,ratings,correctRating(minrating,0),correctRating(maxrating,1))
+      },50)
+      
     }    
   }catch(err){
     message.channel.send(GLOBALS.errorMessage(`Could not find ${variant} lichess games for ${handle}.`))
