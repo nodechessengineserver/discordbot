@@ -58,3 +58,9 @@ To get performance statistics for a player, type:
      `+perf [lichess user name]`
 
 Example: `+perf tipau`
+
+To get performance statistics for a player for a variant other than atomic, type:
+
+     `+perf [lichess user name] [variant]`
+
+Example: `+perf tipau standard`
