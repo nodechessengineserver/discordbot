@@ -242,7 +242,7 @@ function purgeTourneyChannel(){
   GLOBALS.purgeChannel(getTourneyChannel())
 }
 
-function purgetTestChannel(){
+function purgeTestChannel(){
   let testchannel=getTestChannel()
   GLOBALS.purgeChannel(testchannel)
   setTimeout((e)=>{
