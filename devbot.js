@@ -344,7 +344,7 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     })
   }
 
-  if(command="perf"){
+  if(command=="perf"){
     let handle=args[0]
     getLichessGames(message,handle)
   }
