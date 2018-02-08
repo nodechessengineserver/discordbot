@@ -55,16 +55,16 @@ function createChart(message,handle,ratings,minrating,maxrating){
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
   ctx.lineWidth=5  
   for(let i=1;i<n;i++){
-    let cx0=(i-1)*X_SCALE+X_SCALE/2
+    let cx0=(i-1)*X_SCALE
     let rating0=ratings[i-1]
     let crating0=rating0-minrating
     let mcrating0=Y_RANGE-crating0
-    let cy0=mcrating0*Y_SCALE-Y_SCALE/2
+    let cy0=mcrating0*Y_SCALE
     let cx1=i*X_SCALE
     let rating1=ratings[i]
     let crating1=rating1-minrating
     let mcrating1=Y_RANGE-crating1
-    let cy1=mcrating1*Y_SCALE    
+    let cy1=mcrating1*Y_SCALE
     for(let jx=-1;jx<=1;jx++)
     for(let jy=-1;jy<=1;jy++){
       ctx.beginPath();
