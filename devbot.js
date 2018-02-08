@@ -37,6 +37,72 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
+function createLichessGamesStats(message,handle,games){  
+  try{
+    let stats=""
+    let i=0
+    let wins=0
+    let losses=0
+    let draws=0
+    games.map(game=>{
+      let white=game.players.white
+      let black=game.players.black
+      let result="draw"
+      if(game.winner=="white") result="1-0"
+      if(game.winner=="black") result="0-1"
+      let empwhite=result=="1-0"?"**":""
+      let empblack=result=="0-1"?"**":""
+      let handlel=handle.toLowerCase()      
+      if(game.variant=="atomic"){
+        if(result=="1-0"){
+          if(handlel==white.userId) wins++; else losses++;
+        }
+        if(result=="0-1"){
+          if(handlel==black.userId) wins++; else losses++;
+        }
+        if(result=="draw") draws++;
+        if(i<10){
+          let date=new Date(game.createdAt).toLocaleString()
+          stats+=`${empwhite}${white.userId}${empwhite} ( ${white.rating} ) - ${empblack}${black.userId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${game.url}>\n`
+        }        
+        i+=1
+      }    
+    })
+    if(i==0){
+      message.channel.send(GLOBALS.errorMessage(`Could not find atomic games in recent lichess games of ${handle}.`))  
+    }else{
+      let shown=Math.min(10,i)
+      stats=`Out of last 100 lichess games __${handle}__ played **${i}** atomic games.
+Won **${wins}** games, lost **${losses}** games, drawn **${draws}** games.
+Showing last ${shown} games:
+
+`+stats
+      message.channel.send(stats)
+    }    
+  }catch(err){
+    message.channel.send(GLOBALS.errorMessage(`Could not find atomic lichess games for ${handle}.`))
+  }
+}
+
+function getLichessGames(message,handle){  
+  message.channel.send(`Looking for atomic games in the last 100 lichess games of __${handle}__.`)
+  nfetch(`https://lichess.org/api/user/${handle}/games?nb=100`)
+  .then(response=>response.text())
+  .then(content=>{
+      try{
+        let gamesjson=JSON.parse(content)
+        createLichessGamesStats(message,handle,gamesjson.currentPageResults)
+      }catch(err){
+        console.log(err)
+        message.channel.send(GLOBALS.errorMessage("Could not find lichess games for this player."))
+      }
+  })
+  .catch(err=>{
+    console.log(err)
+    message.channel.send(GLOBALS.errorMessage("Could not find lichess games for this player."))
+  })
+}
+
 function getLichessUsers(handle1,handle2,callback,errcallback){
   lichess.user(handle1, function (err, user) {      
       if(err){
@@ -278,6 +344,11 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     })
   }
 
+  if(command="perf"){
+    let handle=args[0]
+    getLichessGames(message,handle)
+  }
+
   if(command=="fen"){
     command=args[0]
   }
@@ -332,7 +403,7 @@ client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
 startBot()
-connectDb()
+//connectDb()
 
 module.exports.client=client
 module.exports.startBot=startBot

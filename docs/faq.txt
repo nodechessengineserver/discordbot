@@ -50,3 +50,11 @@ To no longer be listed as a verified lichess member, in the #test channel type:
      `+unver`
 
 Note that you have to have the __exact__ same nick here as on lichess, otherwise verification won't work ( the username check is __case sensitive__ ). If you have a different nick here and want to change it, contact @jatekos#8208.
+
+##################################################
+
+To get performance statistics for a player, type:
+
+     `+perf [lichess user name]`
+
+Example: `+perf tipau`
