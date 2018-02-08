@@ -37,7 +37,7 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
-function createLichessGamesStats(message,handle,games){  
+function createLichessGamesStats(message,handle,games,variant){  
   try{
     let stats=""
     let i=0
@@ -53,7 +53,7 @@ function createLichessGamesStats(message,handle,games){
       let empwhite=result=="1-0"?"**":""
       let empblack=result=="0-1"?"**":""
       let handlel=handle.toLowerCase()      
-      if(game.variant=="atomic"){
+      if(game.variant==variant){
         if(result=="1-0"){
           if(handlel==white.userId) wins++; else losses++;
         }
@@ -69,10 +69,10 @@ function createLichessGamesStats(message,handle,games){
       }    
     })
     if(i==0){
-      message.channel.send(GLOBALS.errorMessage(`Could not find atomic games in recent lichess games of ${handle}.`))  
+      message.channel.send(GLOBALS.errorMessage(`Could not find ${variant} games in recent lichess games of ${handle}.`))  
     }else{
       let shown=Math.min(10,i)
-      stats=`Out of last 100 lichess games __${handle}__ played **${i}** atomic games.
+      stats=`Out of last 100 lichess games __${handle}__ played **${i}** ${variant} games.
 Won **${wins}** games, lost **${losses}** games, drawn **${draws}** games.
 Showing last ${shown} games:
 
@@ -80,18 +80,18 @@ Showing last ${shown} games:
       message.channel.send(stats)
     }    
   }catch(err){
-    message.channel.send(GLOBALS.errorMessage(`Could not find atomic lichess games for ${handle}.`))
+    message.channel.send(GLOBALS.errorMessage(`Could not find ${variant} lichess games for ${handle}.`))
   }
 }
 
-function getLichessGames(message,handle){  
-  message.channel.send(`Looking for atomic games in the last 100 lichess games of __${handle}__.`)
+function getLichessGames(message,handle,variant){  
+  message.channel.send(`Looking for ${variant} games in the last 100 lichess games of __${handle}__.`)
   nfetch(`https://lichess.org/api/user/${handle}/games?nb=100`)
   .then(response=>response.text())
   .then(content=>{
       try{
         let gamesjson=JSON.parse(content)
-        createLichessGamesStats(message,handle,gamesjson.currentPageResults)
+        createLichessGamesStats(message,handle,gamesjson.currentPageResults,variant)
       }catch(err){
         console.log(err)
         message.channel.send(GLOBALS.errorMessage("Could not find lichess games for this player."))
@@ -351,7 +351,9 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
 
   if(command=="perf"){
     let handle=args[0]
-    getLichessGames(message,handle)
+    let variant=args[1]    
+    if(variant==undefined) variant="atomic";
+    getLichessGames(message,handle,variant)
   }
 
   if(command=="fen"){
