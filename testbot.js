@@ -54,7 +54,7 @@ function createChart(message,handle,ratings,minrating,maxrating){
   ctx.strokeStyle='#ffff00'
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
   ctx.lineWidth=5  
-  for(let i=1;i<n;i++){
+  for(let i=n-1;i>=1;i--){
     let cx0=(i-1)*X_SCALE
     let rating0=ratings[i-1]
     let crating0=rating0-minrating
