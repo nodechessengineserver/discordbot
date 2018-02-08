@@ -39,8 +39,8 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
-function purgeTourneyChannel(){  
-  GLOBALS.purgeChannel(getTourneyChannel())
+function getTestChannel(){
+  return GLOBALS.getChannelByName(client,"test")
 }
 
 let CHART_WIDTH=600
@@ -238,8 +238,21 @@ function getAndSendTopList(channel,n){
   `));  
 }
 
+function purgeTourneyChannel(){  
+  GLOBALS.purgeChannel(getTourneyChannel())
+}
+
+function purgetTestChannel(){
+  let testchannel=getTestChannel()
+  GLOBALS.purgeChannel(testchannel)
+  setTimeout((e)=>{
+    testchannel.send(`Channel purged at ${new Date().toLocaleString()}.`)
+  },5000)
+}
+
 function createTourneyCommand(channel,time,inc){
   channel.send(`Creating ACT Discord Server Tourney ${time}+${inc}
+  
   To join, please visit: https://lichess.org/tournament
   `)
   tourney.loginAndCreateTourney(time,inc)
@@ -309,7 +322,7 @@ client.on("ready", () => {
 });
 
 client.on("message", async message => { try {
-  if(message.author.bot) return;  
+  if(message.author.bot) return;
   execDatabaseCommand(message);
   if(message.content.indexOf(GLOBALS.COMMAND_PREFIX) !== 0) return;    
   const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
@@ -457,17 +470,8 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       }
   }
 
-  if(command=="purge"){    
-    let limit=parseInt(args[0])
-    if(isNaN(limit)) limit=10
-    if(limit>100) limit=100
-    message.channel.fetchMessages({ limit: limit })
-      .then(messages => message.channel.bulkDelete(messages))
-      .catch(console.error);
-  }
-
   if(command=="purgetest"){
-    GLOBALS.purgeChannel(GLOBALS.getChannelByName(client,"test"))
+    purgeTestChannel()
   }
 
 } catch(err){
@@ -479,12 +483,14 @@ client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
 startBot()
-//connectDb()
 
 module.exports.client=client
 module.exports.startBot=startBot
+module.exports.connectDb=connectDb
 
 module.exports.getAndSendTopList=getAndSendTopList;
 module.exports.createTourneyCommand=createTourneyCommand;
 module.exports.cmpPlayers=cmpPlayers
 module.exports.getTourneyChannel=getTourneyChannel
+module.exports.purgeTourneyChannel=purgeTourneyChannel
+module.exports.purgeTestChannel=purgeTestChannel

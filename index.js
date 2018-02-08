@@ -16,7 +16,7 @@ atombot.startBot()
 testbot.startBot()
 testbot.connectDb()
 
-setInterval(testbot.purgeTourneyChannel,10*GLOBALS.ONE_MINUTE)
+setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 
 express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))

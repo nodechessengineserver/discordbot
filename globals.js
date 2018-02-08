@@ -17,9 +17,6 @@ function purgeChannel(channel){
     channel.fetchMessages({ limit: 100 })
         .then(messages => {
             channel.bulkDelete(messages)
-            setTimeout((e)=>{
-                channel.send(`Channel purged at ${new Date().toLocaleString()}.`)
-            },5000)
         })
         .catch(console.error);
 }

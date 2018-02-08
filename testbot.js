@@ -39,6 +39,10 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
+function getTestChannel(){
+  return GLOBALS.getChannelByName(client,"test")
+}
+
 let CHART_WIDTH=600
 let CHART_HEIGHT=300
 
@@ -236,6 +240,14 @@ function getAndSendTopList(channel,n){
 
 function purgeTourneyChannel(){  
   GLOBALS.purgeChannel(getTourneyChannel())
+}
+
+function purgetTestChannel(){
+  let testchannel=getTestChannel()
+  GLOBALS.purgeChannel(testchannel)
+  setTimeout((e)=>{
+    testchannel.send(`Channel purged at ${new Date().toLocaleString()}.`)
+  },5000)
 }
 
 function createTourneyCommand(channel,time,inc){
@@ -459,7 +471,7 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
   }
 
   if(command=="purgetest"){
-    GLOBALS.purgeChannel(GLOBALS.getChannelByName(client,"test"))
+    purgeTestChannel()
   }
 
 } catch(err){
@@ -479,3 +491,4 @@ module.exports.createTourneyCommand=createTourneyCommand;
 module.exports.cmpPlayers=cmpPlayers
 module.exports.getTourneyChannel=getTourneyChannel
 module.exports.purgeTourneyChannel=purgeTourneyChannel
+module.exports.purgeTestChannel=purgeTestChannel
