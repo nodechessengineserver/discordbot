@@ -51,7 +51,7 @@ function createChart(message,handle,ratings,minrating,maxrating){
   let img=pimg.make(CHART_WIDTH,CHART_HEIGHT)
   let ctx=img.getContext('2d')  
   ctx.fillStyle='#3f3f3f'
-  ctx.strokeStyle='#0000ff'
+  ctx.strokeStyle='#ffff00'
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
   ctx.lineWidth=10
   for(let i=1;i<n;i++){
