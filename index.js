@@ -8,12 +8,15 @@ const atombot=require("./atombot")
 const testbot=require("./testbot")
 const tourney=require("./tourney")
 const api=require("./api")
+const GLOBALS=require("./globals")
 
 const PORT = process.env.PORT || 5000
 
 atombot.startBot()
 testbot.startBot()
 testbot.connectDb()
+
+setInterval(testbot.purgeTourneyChannel,10*GLOBALS.ONE_MINUTE)
 
 express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))

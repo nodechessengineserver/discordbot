@@ -39,6 +39,10 @@ function getTourneyChannel(){
   return GLOBALS.getChannelByName(client,"tourney")
 }
 
+function purgeTourneyChannel(){  
+  GLOBALS.purgeChannel(getTourneyChannel())
+}
+
 let CHART_WIDTH=600
 let CHART_HEIGHT=300
 
@@ -123,7 +127,7 @@ function createLichessGamesStats(message,handle,games,variant){
         if(result=="draw") draws++;
         if(i<10){
           let date=new Date(game.createdAt).toLocaleString()
-          stats+=`${empwhite}${white.userId}${empwhite} ( ${white.rating} ) - ${empblack}${black.userId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${game.url}>\n`
+          stats+=`${empwhite}${white.userId}${empwhite} ( ${white.rating} ) - ${empblack}${black.userId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${GLOBALS.shortGameUrl(game.url)}>\n`
         }        
         i+=1
       }    
@@ -460,6 +464,10 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     message.channel.fetchMessages({ limit: limit })
       .then(messages => message.channel.bulkDelete(messages))
       .catch(console.error);
+  }
+
+  if(command=="purgetest"){
+    GLOBALS.purgeChannel(GLOBALS.getChannelByName(client,"test"))
   }
 
 } catch(err){

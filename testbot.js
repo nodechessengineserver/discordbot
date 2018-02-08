@@ -123,7 +123,7 @@ function createLichessGamesStats(message,handle,games,variant){
         if(result=="draw") draws++;
         if(i<10){
           let date=new Date(game.createdAt).toLocaleString()
-          stats+=`${empwhite}${white.userId}${empwhite} ( ${white.rating} ) - ${empblack}${black.userId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${game.url}>\n`
+          stats+=`${empwhite}${white.userId}${empwhite} ( ${white.rating} ) - ${empblack}${black.userId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${GLOBALS.shortGameUrl(game.url)}>\n`
         }        
         i+=1
       }    

@@ -1,5 +1,5 @@
 let DRY=true
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(140,160,handles=>sendPlayers(handles)))
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(160,180,handles=>sendPlayers(handles)))
 
 var fetch = require('node-fetch');
 var FormData = require('form-data');
