@@ -53,7 +53,7 @@ function createChart(message,handle,ratings,minrating,maxrating){
   ctx.fillStyle='#3f3f3f'
   ctx.strokeStyle='#ffff00'
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
-  ctx.lineWidth=20
+  ctx.lineWidth=5  
   for(let i=1;i<n;i++){
     let cx0=(i-1)*X_SCALE+X_SCALE/2
     let rating0=ratings[i-1]
@@ -66,15 +66,19 @@ function createChart(message,handle,ratings,minrating,maxrating){
     let mcrating1=Y_RANGE-crating1
     let cy1=mcrating1*Y_SCALE
     ctx.beginPath();
-    ctx.moveTo(cx0, cy0);
-    ctx.lineTo(cx1, cy1);
-    ctx.stroke();
+    for(let jx=-1;jx<=1;jx++)
+    for(let jy=-1;jy<=1;jy++){
+      ctx.moveTo(cx0+jx, cy0+jy);
+      ctx.lineTo(cx1+jy, cy1+jy);
+      ctx.stroke();    
+      ctx.beginPath();    
+    }    
   }
 
   pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
       console.log(`wrote out the png file to ${handle}.png`);
       let rnd=Math.floor(Math.random()*1e9)
-      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd={$rnd}`)
+      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
   }).catch((e)=>{
       console.log("there was an error writing");
   });
