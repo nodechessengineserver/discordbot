@@ -77,7 +77,9 @@ function createChart(message,handle,ratings,minrating,maxrating){
   pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
       console.log(`wrote out the png file to ${handle}.png`);
       let rnd=Math.floor(Math.random()*1e9)
-      message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
+      setTimeout((e)=>{
+        message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
+      },2000)      
   }).catch((e)=>{
       console.log("there was an error writing");
   });
