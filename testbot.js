@@ -40,7 +40,7 @@ function getTourneyChannel(){
 }
 
 let CHART_WIDTH=600
-let CHART_HEIGHT=400
+let CHART_HEIGHT=300
 
 function createChart(message,handle,ratings,minrating,maxrating){
     
@@ -53,7 +53,7 @@ function createChart(message,handle,ratings,minrating,maxrating){
   ctx.fillStyle='#3f3f3f'
   ctx.strokeStyle='#ffff00'
   ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
-  ctx.lineWidth=10
+  ctx.lineWidth=20
   for(let i=1;i<n;i++){
     let cx0=(i-1)*X_SCALE+X_SCALE/2
     let rating0=ratings[i-1]
