@@ -64,14 +64,13 @@ function createChart(message,handle,ratings,minrating,maxrating){
     let rating1=ratings[i]
     let crating1=rating1-minrating
     let mcrating1=Y_RANGE-crating1
-    let cy1=mcrating1*Y_SCALE
-    ctx.beginPath();
+    let cy1=mcrating1*Y_SCALE    
     for(let jx=-1;jx<=1;jx++)
     for(let jy=-1;jy<=1;jy++){
+      ctx.beginPath();
       ctx.moveTo(cx0+jx, cy0+jy);
       ctx.lineTo(cx1+jy, cy1+jy);
-      ctx.stroke();    
-      ctx.beginPath();    
+      ctx.stroke();       
     }    
   }
 
