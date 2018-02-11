@@ -156,7 +156,7 @@ Min rating: **${minrating}**, max rating: **${maxrating}**. Showing last ${shown
 
 function getLichessGames(message,handle,variant){  
   message.channel.send(`Looking for ${variant} games in the last 100 lichess games of __${handle}__.`)
-  nfetch(`https://lichess.org/api/user/${handle}/games?nb=100`)
+  nfetch(`https://lichess.org/api/user/${handle}/games?nb=100&rated=1`)
   .then(response=>response.text())
   .then(content=>{
       try{
