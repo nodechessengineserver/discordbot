@@ -167,7 +167,7 @@ function processTopList(n,variant,content){
     let tablecontent=n>0?`Top ${n} active ${variant} players:
 
     ${table}
-\n\n`:""
+\n`:""
 
     return tablecontent+threscontent
 }
