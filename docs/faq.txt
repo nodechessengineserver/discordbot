@@ -23,12 +23,6 @@ To send a bot message to the <#407793962527752194> channel, use this command wit
 
 Example:  `+say Hello Atomic World!`
 
-To get the top list of Atomic players, use this command with **TestBot** :
-
-     `+top [num players]`
-
-Example: `+top 3`
-
 To get lichess profile information of a user, use this command with **TestBot** :
 
      `+p [lichess user name]`
@@ -64,3 +58,34 @@ To get performance statistics for a player for a variant other than atomic, type
      `+perf [lichess user name] [variant]`
 
 Example: `+perf tipau standard`
+
+##################################################
+
+To compare the popularity of Atomic in terms of players playing the variant in the last week, type:
+
+     `+vp`
+
+To get historical lichess statistics on highest number of connected players and played games, type:
+
+     `+ls`
+
+##################################################
+
+To get the top list of Atomic players, use this command with **TestBot** :
+
+     `+top [num players]`
+
+Example: `+top 3`
+
+To get the top list for players of a given variant, type:
+
+     `+top [num players] [variantName]`
+
+Example: `+top 3 kingOfTheHill`
+
+If you don't know the correct lichess variant name, you will get a list of valid variant names.
+
+To get only the Top 10, 50, 100, 200 thresolds, type:
+
+     `+top 0` or `+top 0 [variantName]`
+
