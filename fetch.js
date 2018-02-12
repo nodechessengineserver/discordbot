@@ -4,6 +4,8 @@ let DRY=true
 var fetch = require('node-fetch');
 var FormData = require('form-data');
 
+const GLOBALS = require('./globals')
+
 let LICHESS_USER=process.env.LICHESS_USER
 let LICHESS_PASS=process.env.LICHESS_PASS
 
@@ -135,6 +137,10 @@ function sformat(str,n){
 }
 
 function processTopList(n,variant,content){
+    let vdisplay=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
+    if(vdisplay==undefined){
+        return "Unknown variant. Valid variants are: "+GLOBALS.ALL_VARIANTS.join(" , ")+" ."
+    }
     let toplist=[]
     let players=content.split(`href="/@/`);
     table="`"+`${sformat("",2)} | ${sformat("Player",20)} | ${sformat("Rtg.",4)} | ${sformat("Tit",3)} 
@@ -164,7 +170,7 @@ function processTopList(n,variant,content){
         threscontent+=`**Top ${key}** thresold: **${thress[key]}**\n`
     }
 
-    let tablecontent=n>0?`Top ${n} active ${variant} players:
+    let tablecontent=n>0?`Top ${n} Active ${vdisplay} Players:
 
     ${table}
 \n`:""
