@@ -162,9 +162,15 @@ function getTopList(n,callback){
     then(content=>callback(processTopList(n,content)))
 }
 
+function quickLogin(callback){
+    login(LICHESS_USER,LICHESS_PASS,callback)
+}
+
 module.exports.getPlayers=getPlayers
 module.exports.getPlayerHandles=getPlayerHandles
 module.exports.sendPlayers=sendPlayers
 module.exports.sendMessage=sendMessage
 module.exports.getTopList=getTopList
-
+module.exports.quickLogin=quickLogin
+module.exports.getLila2=getLila2
+module.exports.LICHESS_USER=LICHESS_USER
