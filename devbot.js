@@ -6,6 +6,7 @@ const nfetch = require("node-fetch");
 const MongoClient = require('mongodb').MongoClient;
 const pimg = require("pureimage")
 const fs = require("fs")
+const schedule = require("node-schedule")
 
 // local imports
 const fetch=require("./fetch");
@@ -13,6 +14,7 @@ const tourney=require("./tourney");
 const GLOBALS = require("./globals");
 const chess = require("./chess");
 const vplayers = require("./vplayers")
+const ws = require("./ws")
 
 let client
 
@@ -46,6 +48,25 @@ function getTestChannel(){
 
 let CHART_WIDTH=600
 let CHART_HEIGHT=300
+
+function lichessStats(callback){
+  try{
+    let collection=db.collection("listats")
+    collection.find().sort({d:-1}).limit(10).toArray((error,documents)=>{
+      if(!error) try{
+        let content=""
+        documents.map(doc=>{
+          content+=`__${new Date(doc.time).toLocaleString()}__ players **${doc.d}** games **${doc.r}**\n`
+        })
+        callback(content)
+      }catch(err){
+        console.log(err)
+      }    
+    })
+  }catch(err){
+    console.log(err)
+  }
+}
 
 function createChart(message,handle,ratings,minrating,maxrating){
     
@@ -428,6 +449,12 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     })
   }
 
+  if(command=="ls"){
+    lichessStats(content=>{
+      message.channel.send(content)
+    })
+  }
+
   if(command=="vp"){
     let vp=vplayers.variantPlayers
     let variants=Object.keys(vp)    
@@ -498,6 +525,24 @@ client.login(process.env.DISCORDDEVBOT_TOKEN);
 }
 
 startBot()
+
+connectDb()
+
+schedule.scheduleJob(`0,15,30,45 * * * *`,function(){
+  console.log("logging players and games")
+  ws.getStats("p",json=>{        
+    try{
+      json.time=new Date().getTime()
+      delete json["t"]
+      console.log(json)
+      upsertOne("listats",{time:json.time},json)
+    }catch(err){
+      console.log(err)
+    }
+  })
+})
+
+//setTimeout(lichessStats.bind(null,content=>console.log(content)),6000)
 
 module.exports.client=client
 module.exports.startBot=startBot
