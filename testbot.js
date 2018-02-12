@@ -253,8 +253,8 @@ rating difference: **${a1.rating-a2.rating}**
   })     
 }
 
-function getAndSendTopList(channel,n){
-  fetch.getTopList(n,(table)=>channel.send(table));  
+function getAndSendTopList(channel,n,variant){
+  fetch.getTopList(n,variant,(table)=>channel.send(table));  
 }
 
 function purgeTourneyChannel(){  
@@ -488,7 +488,11 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       if(isNaN(n)) n=10;
       if(n>25) n=25;
 
-      getAndSendTopList(message.channel,n);        
+      let variant="atomic"
+
+      if(args[1]!=undefined) variant=args[1]
+
+      getAndSendTopList(message.channel,n,variant);        
   }
 
   if(command=="t"){

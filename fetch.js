@@ -7,7 +7,7 @@ var FormData = require('form-data');
 let LICHESS_USER=process.env.LICHESS_USER
 let LICHESS_PASS=process.env.LICHESS_PASS
 
-let LICHESS_ATOMIC_TOP200_URL=`https://lichess.org/player/top/200/atomic`
+let LICHESS_ATOMIC_TOP200_URL=`https://lichess.org/player/top/200`
 
 let LICHESS_TITLES=["LM","NM","CM","FM","IM","GM"]
 LICHESS_TITLES.map(title=>LICHESS_TITLES.push("W"+title))
@@ -134,7 +134,7 @@ function sformat(str,n){
     return str
 }
 
-function processTopList(n,content){
+function processTopList(n,variant,content){
     let toplist=[]
     let players=content.split(`href="/@/`);
     table="`"+`${sformat("",2)} | ${sformat("Player",20)} | ${sformat("Rtg.",4)} | ${sformat("Tit",3)} 
@@ -164,7 +164,7 @@ function processTopList(n,content){
         threscontent+=`**Top ${key}** thresold: **${thress[key]}**\n`
     }
 
-    let tablecontent=n>0?`Top ${n} Active Atomic Players:
+    let tablecontent=n>0?`Top ${n} active ${variant} players:
 
     ${table}
 \n\n`:""
@@ -172,11 +172,11 @@ function processTopList(n,content){
     return tablecontent+threscontent
 }
 
-function getTopList(n,callback){
-    fetch((`${LICHESS_ATOMIC_TOP200_URL}`),{        
+function getTopList(n,variant,callback){
+    fetch((`${LICHESS_ATOMIC_TOP200_URL}/${variant}`),{        
     }).
     then(response=>response.text()).
-    then(content=>callback(processTopList(n,content)))
+    then(content=>callback(processTopList(n,variant,content)))
 }
 
 function quickLogin(callback){
