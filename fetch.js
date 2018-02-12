@@ -137,10 +137,11 @@ function sformat(str,n){
 function processTopList(n,content){
     let toplist=[]
     let players=content.split(`href="/@/`);
-    table="`"+`${sformat("",3)} | ${sformat("Player",20)} | ${sformat("Rtg.",4)} | ${sformat("Tit",3)} 
+    table="`"+`${sformat("",2)} | ${sformat("Player",20)} | ${sformat("Rtg.",4)} | ${sformat("Tit",3)} 
  ${sformat("----",3)}---${sformat("---------------------",20)}---${sformat("----",4)}---${sformat("---",3)} 
 `
-    for(let i=1;i<=n;i++){
+    let thress={10:1500,50:1500,100:1500,200:1500}
+    for(let i=1;i<=Math.min(200,players.length);i++){
         let chunk=players[i]
         let chunkparts=chunk.split(`"`);
         let player=chunkparts[0]
@@ -149,10 +150,26 @@ function processTopList(n,content){
         let rating=tdparts2[0]
         let title=""
         LICHESS_TITLES.map(t=>{if(chunk.indexOf(">"+t+"<")>=0) title=t})
-        table+=` ${sformat(""+i,3)} | ${sformat(player,20)} | ${sformat(rating,4)} | ${sformat(title,3)} 
+        if(thress[i]!=undefined) thress[i]=rating
+        if(i<=n){
+            table+=` ${sformat(""+i,3)} | ${sformat(player,20)} | ${sformat(rating,4)} | ${sformat(title,3)}
 `
+        }        
     }
-    return table+"`"
+
+    table+="`"
+
+    let threscontent=""
+    for(let key in thress){
+        threscontent+=`**Top ${key}** thresold: **${thress[key]}**\n`
+    }
+
+    let tablecontent=n>0?`Top ${n} Active Atomic Players:
+
+    ${table}
+\n\n`:""
+
+    return tablecontent+threscontent
 }
 
 function getTopList(n,callback){

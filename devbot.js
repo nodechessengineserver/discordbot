@@ -254,10 +254,7 @@ rating difference: **${a1.rating-a2.rating}**
 }
 
 function getAndSendTopList(channel,n){
-  fetch.getTopList(n,(table)=>channel.send(`Top ${n} Active Atomic Players:
-
-  ${table}
-  `));  
+  fetch.getTopList(n,(table)=>channel.send(table));  
 }
 
 function purgeTourneyChannel(){  
