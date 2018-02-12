@@ -12,6 +12,7 @@ const fetch=require("./fetch");
 const tourney=require("./tourney");
 const GLOBALS = require("./globals");
 const chess = require("./chess");
+const vplayers = require("./vplayers")
 
 let client
 
@@ -425,6 +426,20 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
         }
       }
     })
+  }
+
+  if(command=="vp"){
+    let vp=vplayers.variantPlayers
+    let variants=Object.keys(vp)    
+    variants.sort((a,b)=>vp[b]-vp[a])
+    let content=""
+    for(let variant of variants){
+      let num=vp[variant]
+      let pref=variant=="atomic"?"**":"__"      
+      let disp=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
+      content+=`${pref}${disp}${pref} , players this week: **${num}**\n`
+    }
+    message.channel.send(content)
   }
 
   if(command=="perf"){

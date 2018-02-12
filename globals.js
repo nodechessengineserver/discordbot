@@ -5,6 +5,38 @@ let ONE_SECOND = 1000 //ms
 let ONE_MINUTE = 60 * ONE_SECOND
 let ONE_HOUR = 60 * ONE_MINUTE
 
+let ALL_VARIANTS=[
+    "bullet",
+    "blitz",
+    "rapid",
+    "classical",
+    "ultraBullet",
+    "crazyhouse",
+    "chess960",
+    "kingOfTheHill",
+    "threeCheck",
+    "antichess",
+    "atomic",
+    "horde",
+    "racingKings"
+]
+
+let VARIANT_DISPLAY_NAMES={
+    bullet:"Bullet",
+    blitz:"Blitz",
+    rapid:"Rapid",
+    classical:"Classical",
+    ultraBullet:"Ultra Bullet",
+    crazyhouse:"Crazyhouse",
+    chess960:"Chess960",
+    kingOfTheHill:"King of the Hill",
+    threeCheck:"Three check",
+    antichess:"Antichess",
+    atomic:"Atomic",
+    horde:"Horde",
+    racingKings:"Racing Kings"
+}
+
 function shortGameUrl(url){return url.replace(/(\/white$|\/black$)/,"")}
 
 function getChannelByName(client,name){    
@@ -51,3 +83,5 @@ module.exports.ONE_SECOND=ONE_SECOND
 module.exports.ONE_MINUTE=ONE_MINUTE
 module.exports.ONE_HOUR=ONE_HOUR
 module.exports.shortGameUrl=shortGameUrl
+module.exports.ALL_VARIANTS=ALL_VARIANTS
+module.exports.VARIANT_DISPLAY_NAMES=VARIANT_DISPLAY_NAMES
