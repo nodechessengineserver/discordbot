@@ -139,7 +139,7 @@ function sformat(str,n){
 function processTopList(n,variant,content){
     let vdisplay=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
     if(vdisplay==undefined){
-        return GLOBALS.illegalVariantMessage()
+        return GLOBALS.illegalVariantMessage(variant)
     }
     let toplist=[]
     let players=content.split(`href="/@/`);

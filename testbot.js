@@ -364,12 +364,13 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
 
   if(GLOBALS.isProd()) if(command=="top"){    
       let n=args[0];
+      
       if(isNaN(n)) n=10;
       if(n>25) n=25;
 
-      let variant="atomic"
+      let variant=args[1]
 
-      if(args[1]!=undefined) variant=args[1]
+      if(variant==undefined) variant="atomic";
 
       getAndSendTopList(message.channel,n,variant);        
   }
