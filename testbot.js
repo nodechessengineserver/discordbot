@@ -124,6 +124,7 @@ rating difference: **${a1.rating-a2.rating}**
 }
 
 function getAndSendTopList(channel,n,variant){
+  if(variant==undefined) variant="atomic";
   fetch.getTopList(n,variant,(table)=>channel.send(table));  
 }
 
