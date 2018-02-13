@@ -16,6 +16,7 @@ const chess = require("./chess");
 const vplayers = require("./vplayers")
 const ws = require("./ws")
 const perf = require("./bot/perf")
+const chart = require("./bot/chart")
 
 ////////////////////////////////////////
 
@@ -125,6 +126,25 @@ function lichessStats(callback){
             `__${new Date(doc.time).toLocaleString()}__ players **${doc.d}** games **${doc.r}**\n`
         })
         callback(content)
+      }catch(err){
+        console.log(GLOBALS.handledError(err));
+      }    
+    })
+  }catch(err){
+    console.log(GLOBALS.handledError(err));
+  }
+}
+
+function lichessStatsChart(callback){
+  try{
+    let collection=db.collection("listats")
+    collection.find().toArray((error,documents)=>{
+      if(!error) try{        
+        let data=documents.map(doc=>doc.d)
+        data.reverse()
+        chart.createChart({name:"lichessstats",data:data},callback,err=>{
+          console.log(GLOBALS.handledError(err));  
+        })
       }catch(err){
         console.log(GLOBALS.handledError(err));
       }    
@@ -256,6 +276,9 @@ client.on("message", async message => { try {
   if(GLOBALS.isProd()) if(command=="ls"){
     lichessStats(content=>{
       message.channel.send(content)
+      lichessStatsChart(function(){
+        message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/lichessstats.png`)
+      })
     })
   }
 
