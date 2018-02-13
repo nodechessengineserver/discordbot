@@ -6,6 +6,7 @@ const lichess = require('lichess-api');
 // local
 const GLOBALS = require("../globals")
 const fetch = require("../fetch")
+const chart = require("./chart")
 
 let CHART_WIDTH=600
 let CHART_HEIGHT=300
@@ -107,8 +108,16 @@ function createLichessGamesStats(message,handle,games,variant){
   
         message.channel.send(stats)
   
-        setTimeout((e)=>{
-          createChart(message,handle,ratings,minrating,maxrating)
+        setTimeout(e=>{
+          //createChart(message,handle,ratings,minrating,maxrating)
+          chart.createChart({name:handle,data:ratings},function(){
+            let rnd=Math.floor(Math.random()*1e9)
+            setTimeout(e=>{
+              message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/${handle}.png?rnd=${rnd}`)
+            },2000)      
+          },function(){
+            message.channel.send(GLOBALS.errorMessage("Could not create chart."))
+          })
         },50)
         
       }    
