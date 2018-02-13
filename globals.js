@@ -97,9 +97,9 @@ function handledError(err){
     return `******\n${err}\n******\n`
 }
 
-function illegalVariantMessage(){
+function illegalVariantMessage(variant){
     return errorMessage(
-        `Unknown variant. Valid variants are: **${ALL_VARIANTS.join("** , **")}** .`
+        `Unknown variant ' **${variant}** '. Valid variants are: **${ALL_VARIANTS.join("** , **")}** .`
     )
 }
 

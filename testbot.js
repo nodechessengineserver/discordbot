@@ -346,7 +346,7 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     let vdisplay=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
 
     if(vdisplay==undefined){
-      message.channel.send(GLOBALS.illegalVariantMessage())
+      message.channel.send(GLOBALS.illegalVariantMessage(variant))
     }else{
       perf.getLichessGamesStats(message,handle,variant)
     }
