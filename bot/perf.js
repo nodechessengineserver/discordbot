@@ -101,7 +101,7 @@ function createLichessGamesStats(message,handle,games,variant){
         let shown=Math.min(10,i)
         let variantd=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
         stats=
-            `Out of last 100 lichess games __${handle}__ played **${i}** ${variantd} games.\n`+
+            `Out of last 100 lichess games **${handle}** played **${i}** ${variantd} games.\n`+
             `Won **${wins}** games, lost **${losses}** games, drawn **${draws}** games.\n`+
             `Min rating: **${minrating}**, max rating: **${maxrating}**. Showing last ${shown} games:\n\n`+
         stats
