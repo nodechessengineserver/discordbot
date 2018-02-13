@@ -194,7 +194,7 @@ function cmpPlayers(message,handle,handlearg){
           channel.send(
             `:white_check_mark: success:\n`+
             `__                                                               __\n\n`+
-            `**${handleSafe}'s** rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*\n`
+            `**${handleSafe}'s** rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*\n`+
             `__                                                               __\n\n`+
             `**${handleargSafe}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , registered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*\n`+
             `__                                                               __\n\n`+

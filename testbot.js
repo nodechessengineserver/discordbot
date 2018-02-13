@@ -232,7 +232,7 @@ client.on("message", async message => { try {
       })    
   }
 
-  if(GLOBALS.isProd()) if(command=="unver"){
+  if(GLOBALS.isProd()||true) if(command=="unver"){
     let username=message.author.username
     message.author.send(GLOBALS.infoMessage(
       `You will not be listed as a verified lichess member.`
