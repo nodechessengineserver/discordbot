@@ -118,7 +118,8 @@ function createLichessGamesStats(message,handle,games,variant){
   
 function getLichessGamesStats(message,handle,variant){
     let handleSafe=GLOBALS.safeUserName(handle)
-    message.channel.send(`Looking for ${variant} games in the last 100 lichess games of __${handleSafe}__.`)
+    let variantd=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
+    message.channel.send(`Looking for **${variantd}** games in the last 100 lichess games of __${handleSafe}__.`)
     fetch.getLichessGames(handle,variant,gamesjson=>{
         createLichessGamesStats(message,handle,gamesjson,variant)
     },errmsg=>{
