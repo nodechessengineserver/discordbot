@@ -139,7 +139,7 @@ function sformat(str,n){
 function processTopList(n,variant,content){
     let vdisplay=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
     if(vdisplay==undefined){
-        return GLOBALS.errorMessage("Unknown variant. Valid variants are: **"+GLOBALS.ALL_VARIANTS.join("** , **")+"** .")
+        return GLOBALS.illegalVariantMessage()
     }
     let toplist=[]
     let players=content.split(`href="/@/`);
@@ -189,6 +189,28 @@ function quickLogin(callback){
     login(LICHESS_USER,LICHESS_PASS,callback)
 }
 
+function getLichessGames(handle,variant,callback,errcallback){
+    fetch(`https://lichess.org/api/user/${handle}/games?nb=100&rated=1`)
+    .then(response=>response.text())
+    .then(content=>{
+        try{
+            let gamesjsonTotal=JSON.parse(content)
+            let gamesjson=gamesjsonTotal.currentPageResults
+            callback(gamesjson)        
+        }catch(err){
+            console.log(err)
+            errcallback("Could not find lichess games for this player.")
+        }
+    })
+    .catch(err=>{
+        console.log(err)
+        errcallback("Could not find lichess games for this player.")
+    })
+}
+
+////////////////////////////////////////
+// Exports
+
 module.exports.getPlayers=getPlayers
 module.exports.getPlayerHandles=getPlayerHandles
 module.exports.sendPlayers=sendPlayers
@@ -197,3 +219,6 @@ module.exports.getTopList=getTopList
 module.exports.quickLogin=quickLogin
 module.exports.getLila2=getLila2
 module.exports.LICHESS_USER=LICHESS_USER
+module.exports.getLichessGames=getLichessGames
+
+////////////////////////////////////////

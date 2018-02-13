@@ -27,8 +27,22 @@ function getVariantPlayers(){
     }
 }
 
-getVariantPlayers()
+////////////////////////////////////////
+// Scheduling
 
-setInterval(getVariantPlayers,GLOBALS.ONE_HOUR)
+if(GLOBALS.isProd()){
+
+    getVariantPlayers()
+
+    setInterval(getVariantPlayers,GLOBALS.ONE_HOUR)
+
+}
+
+////////////////////////////////////////
+
+////////////////////////////////////////
+// Exports
 
 module.exports.variantPlayers=variantPlayers
+
+////////////////////////////////////////

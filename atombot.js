@@ -1,7 +1,7 @@
-// system imports
+// system
 const Discord = require("discord.js");
 
-// local imports
+// local
 const GLOBALS = require("./globals")
 
 let client;
@@ -24,7 +24,7 @@ client.on("message", async message => { try {
   const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
     
-  if(command === "say") {  
+  if(GLOBALS.isProd()) if(command === "say") {  
     const sayMessage = args.join(" ");    
     message.delete().catch(O_o=>{}); 
     
@@ -39,11 +39,26 @@ __                                                                   __`);
   GLOBALS.unhandledMessageError(err)
 } });
 
-client.login(process.env.DISCORDBOT_TOKEN);
+////////////////////////////////////////
+// AtomBot login
+
+try{
+  client.login(process.env.DISCORDBOT_TOKEN).
+  catch(err=>console.log(GLOBALS.handledError(err)))
+}catch(err){
+  console.log(GLOBALS.handledError(err))
+}
+
+////////////////////////////////////////
 
 }
 
-module.exports.client=client;
+////////////////////////////////////////
+// Exports
+
+module.exports.client=client
 module.exports.startBot=startBot
 
-module.exports.sayGeneral=sayGeneral;
+module.exports.sayGeneral=sayGeneral
+
+////////////////////////////////////////

@@ -1,3 +1,20 @@
+////////////////////////////////////////
+// determine whether in production mode
+
+function isProd(){
+    return ( process.env.DISCORD_LOCAL == undefined );
+}
+
+// determine whether in development mode
+
+function isDev(){
+    return !isProd();
+}
+
+console.log(`application started in ${isProd()?"production":"development"} mode`)
+
+////////////////////////////////////////
+
 let COMMAND_PREFIX="+"
 let VERIFIED_LICHESS_MEMBER="@verifiedlichess"
 
@@ -30,7 +47,7 @@ let VARIANT_DISPLAY_NAMES={
     crazyhouse:"Crazyhouse",
     chess960:"Chess960",
     kingOfTheHill:"King of the Hill",
-    threeCheck:"Three check",
+    threeCheck:"Three Check",
     antichess:"Antichess",
     atomic:"Atomic",
     horde:"Horde",
@@ -71,6 +88,27 @@ function unhandledMessageError(err){
     console.log("******")
 }
 
+// replace underscores in username not to mess up markdown
+function safeUserName(username){
+    return username.replace(/_/g,"-")
+}
+
+function handledError(err){
+    return `******\n${err}\n******\n`
+}
+
+function illegalVariantMessage(){
+    return errorMessage(
+        `Unknown variant. Valid variants are: **${ALL_VARIANTS.join("** , **")}** .`
+    )
+}
+
+////////////////////////////////////////
+// Exports
+
+module.exports.isProd=isProd
+module.exports.isDev=isDev
+
 module.exports.getChannelByName=getChannelByName
 module.exports.errorMessage=errorMessage
 module.exports.successMessage=successMessage
@@ -85,3 +123,8 @@ module.exports.ONE_HOUR=ONE_HOUR
 module.exports.shortGameUrl=shortGameUrl
 module.exports.ALL_VARIANTS=ALL_VARIANTS
 module.exports.VARIANT_DISPLAY_NAMES=VARIANT_DISPLAY_NAMES
+module.exports.safeUserName=safeUserName
+module.exports.handledError=handledError
+module.exports.illegalVariantMessage=illegalVariantMessage
+
+////////////////////////////////////////

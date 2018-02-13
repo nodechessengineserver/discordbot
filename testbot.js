@@ -1,4 +1,4 @@
-// system imports
+// system
 const Discord = require("discord.js");
 const lichess = require('lichess-api');
 const uniqid = require('uniqid');
@@ -8,13 +8,14 @@ const pimg = require("pureimage")
 const fs = require("fs")
 const schedule = require("node-schedule")
 
-// local imports
+// local
 const fetch=require("./fetch");
 const tourney=require("./tourney");
 const GLOBALS = require("./globals");
 const chess = require("./chess");
 const vplayers = require("./vplayers")
 const ws = require("./ws")
+const perf = require("./bot/perf")
 
 let client
 
@@ -26,15 +27,14 @@ function connectDb(){
   try{
     MongoClient.connect(process.env.MONGODB_URI, function(err, client) {
       if(err){
-        console.log(err);
-        return;
+        console.log(GLOBALS.handledError(err));
       }else{
         console.log(`connected to mongodb ${process.env.MONGODB_URI}`);
         db = client.db("mychessdb");
       }
     })
   }catch(err){
-    console.log(err)
+    console.log(GLOBALS.handledError(err));
   }
 }
 
@@ -45,9 +45,6 @@ function getTourneyChannel(){
 function getTestChannel(){
   return GLOBALS.getChannelByName(client,"test")
 }
-
-let CHART_WIDTH=600
-let CHART_HEIGHT=300
 
 function lichessStats(callback){
   try{
@@ -66,135 +63,6 @@ function lichessStats(callback){
   }catch(err){
     console.log(err)
   }
-}
-
-function createChart(message,handle,ratings,minrating,maxrating){
-    
-  let n=ratings.length
-  let X_SCALE=CHART_WIDTH/n
-  let Y_RANGE=maxrating-minrating
-  let Y_SCALE=CHART_HEIGHT/Y_RANGE  
-  let img=pimg.make(CHART_WIDTH,CHART_HEIGHT)
-  let ctx=img.getContext('2d')  
-  ctx.fillStyle='#3f3f3f'
-  ctx.strokeStyle='#ffff00'
-  ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
-  ctx.lineWidth=5  
-  ratings.reverse()
-  for(let i=1;i<n;i++){
-    let cx0=(i-1)*X_SCALE
-    let rating0=ratings[i-1]
-    let crating0=rating0-minrating
-    let mcrating0=Y_RANGE-crating0
-    let cy0=mcrating0*Y_SCALE
-    let cx1=i*X_SCALE
-    let rating1=ratings[i]
-    let crating1=rating1-minrating
-    let mcrating1=Y_RANGE-crating1
-    let cy1=mcrating1*Y_SCALE
-    for(let jx=-1;jx<=1;jx++)
-    for(let jy=-1;jy<=1;jy++){
-      ctx.beginPath();
-      ctx.moveTo(cx0+jx, cy0+jy);
-      ctx.lineTo(cx1+jy, cy1+jy);
-      ctx.stroke();       
-    }    
-  }
-
-  pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/public/images/perfs/${handle}.png`)).then(() => {
-      console.log(`wrote out the png file to ${handle}.png`);
-      let rnd=Math.floor(Math.random()*1e9)
-      setTimeout((e)=>{
-        message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
-      },2000)      
-  }).catch((e)=>{
-      console.log("there was an error writing");
-  });
-}
-
-function correctRating(rating,dir){
-  return rating
-}
-
-function createLichessGamesStats(message,handle,games,variant){  
-  try{
-    let stats=""
-    let i=0
-    let wins=0
-    let losses=0
-    let draws=0
-    let ratings=[]
-    let minrating=3500
-    let maxrating=0
-    games.map(game=>{
-      let white=game.players.white
-      let black=game.players.black
-      let result="draw"
-      if(game.winner=="white") result="1-0"
-      if(game.winner=="black") result="0-1"
-      let empwhite=result=="1-0"?"**":""
-      let empblack=result=="0-1"?"**":""
-      let handlel=handle.toLowerCase()            
-      if(game.variant==variant){
-        let rating=(handlel==white.userId?white.rating:black.rating);
-        if(rating>maxrating) maxrating=rating;
-        if(rating<minrating) minrating=rating;
-        ratings.push(rating)
-        if(result=="1-0"){
-          if(handlel==white.userId) wins++; else losses++;
-        }
-        if(result=="0-1"){
-          if(handlel==black.userId) wins++; else losses++;
-        }
-        if(result=="draw") draws++;
-        if(i<10){
-          let date=new Date(game.createdAt).toLocaleString()
-          let corrWhiteUserId=white.userId.replace(/_/g,"-")
-          let corrBlackUserId=black.userId.replace(/_/g,"-")
-          stats+=`${empwhite}${corrWhiteUserId}${empwhite} ( ${white.rating} ) - ${empblack}${corrBlackUserId}${empblack} ( ${black.rating} ) **${result}** *${date}* <${GLOBALS.shortGameUrl(game.url)}>\n`
-        }        
-        i+=1
-      }    
-    })
-    if(i==0){
-      message.channel.send(GLOBALS.errorMessage(`Could not find ${variant} games in recent lichess games of ${handle}.`))  
-    }else{
-      let shown=Math.min(10,i)
-      stats=`Out of last 100 lichess games __${handle}__ played **${i}** ${variant} games.
-Won **${wins}** games, lost **${losses}** games, drawn **${draws}** games.
-Min rating: **${minrating}**, max rating: **${maxrating}**. Showing last ${shown} games:
-
-`+stats
-
-      message.channel.send(stats)
-
-      setTimeout((e)=>{
-        createChart(message,handle,ratings,correctRating(minrating,0),correctRating(maxrating,1))
-      },50)
-      
-    }    
-  }catch(err){
-    message.channel.send(GLOBALS.errorMessage(`Could not find ${variant} lichess games for ${handle}.`))
-  }
-}
-
-function getLichessGames(message,handle,variant){  
-  message.channel.send(`Looking for ${variant} games in the last 100 lichess games of __${handle}__.`)
-  nfetch(`https://lichess.org/api/user/${handle}/games?nb=100&rated=1`)
-  .then(response=>response.text())
-  .then(content=>{
-      try{
-        let gamesjson=JSON.parse(content)
-        createLichessGamesStats(message,handle,gamesjson.currentPageResults,variant)
-      }catch(err){
-        console.log(err)
-        message.channel.send(GLOBALS.errorMessage("Could not find lichess games for this player."))
-      }
-  })
-  .catch(err=>{
-    console.log(err)
-    message.channel.send(GLOBALS.errorMessage("Could not find lichess games for this player."))
-  })
 }
 
 function getLichessUsers(handle1,handle2,callback,errcallback){
@@ -349,7 +217,7 @@ client.on("message", async message => { try {
   const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
   let command = args.shift().toLowerCase();
 
-  if(command=="ver"){    
+  if(GLOBALS.isProd()) if(command=="ver"){    
     let code=uniqid()
     let username=message.author.username
     codes[username]=code
@@ -359,7 +227,7 @@ client.on("message", async message => { try {
     ))
   }
 
-  if(command=="check"){    
+  if(GLOBALS.isProd()) if(command=="check"){    
     let username=message.author.username
     code=codes[username]
 
@@ -397,7 +265,7 @@ client.on("message", async message => { try {
       })    
   }
 
-  if(command=="unver"){
+  if(GLOBALS.isProd()) if(command=="unver"){
     let username=message.author.username
     message.author.send(GLOBALS.infoMessage(
       `You will not be listed as a verified lichess member.`
@@ -408,7 +276,7 @@ client.on("message", async message => { try {
     }catch(err){console.log(err)}
   }
 
-  if(command=="p"){
+  if(GLOBALS.isProd()) if(command=="p"){
     let username=args[0]
     lichess.user(username, function (err, user) {
       if(err){
@@ -448,13 +316,13 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     })
   }
 
-  if(command=="ls"){
+  if(GLOBALS.isProd()) if(command=="ls"){
     lichessStats(content=>{
       message.channel.send(content)
     })
   }
 
-  if(command=="vp"){
+  if(GLOBALS.isProd()) if(command=="vp"){
     let vp=vplayers.variantPlayers
     let variants=Object.keys(vp)    
     variants.sort((a,b)=>vp[b]-vp[a])
@@ -468,24 +336,32 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
     message.channel.send(content)
   }
 
-  if(command=="perf"){
+  if(GLOBALS.isProd()) if(command=="perf"){
     let handle=args[0]
     let variant=args[1]    
-    if(variant==undefined) variant="atomic";
-    getLichessGames(message,handle,variant)
+
+    if(variant==undefined) variant="atomic"
+
+    let vdisplay=GLOBALS.VARIANT_DISPLAY_NAMES[variant]
+
+    if(vdisplay==undefined){
+      message.channel.send(GLOBALS.illegalVariantMessage())
+    }else{
+      perf.getLichessGamesStats(message,handle,variant)
+    }
   }
 
-  if(command=="fen"){
+  if(GLOBALS.isProd()) if(command=="fen"){
     command=args[0]
   }
 
-  if(chess.makeMove(command)){    
+  if(GLOBALS.isProd()) if(chess.makeMove(command)){    
     setTimeout((ev)=>{
       message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/board.jpg?rnd=${Math.floor(Math.random()*1e9)}`)
     },2000)
   }
 
-  if(command=="top"){    
+  if(GLOBALS.isProd()) if(command=="top"){    
       let n=args[0];
       if(isNaN(n)) n=10;
       if(n>25) n=25;
@@ -497,14 +373,14 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       getAndSendTopList(message.channel,n,variant);        
   }
 
-  if(command=="t"){
+  if(GLOBALS.isProd()) if(command=="t"){
     let time=args[0];
     let inc=args[1];
 
     createTourneyCommand(message.channel,time,inc);
   }
 
-  if(command=="cmp"){
+  if(GLOBALS.isProd()) if(command=="cmp"){
       let handle=message.author.username
       let handlearg=args[0]
 
@@ -515,7 +391,7 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
       }
   }
 
-  if(command=="purgetest"){
+  if(GLOBALS.isProd()) if(command=="purgetest"){
     purgeTestChannel()
   }
 
@@ -523,9 +399,22 @@ ${handle} is online now on lichess, watch: ${json.url}/tv`
   GLOBALS.unhandledMessageError(err)
 } });
 
-client.login(process.env.DISCORDTESTBOT_TOKEN);
+////////////////////////////////////////
+// TestBot login
 
-schedule.scheduleJob(`0,15,30,45 * * * *`,function(){
+try{
+  client.login(process.env.DISCORDTESTBOT_TOKEN).
+  catch(err=>console.log(GLOBALS.handledError(err)))
+}catch(err){
+  console.log(GLOBALS.handledError(err))
+}
+
+////////////////////////////////////////
+
+////////////////////////////////////////
+// TestBot scheduling
+
+if(GLOBALS.isProd()) schedule.scheduleJob(`0,15,30,45 * * * *`,function(){
   console.log("logging players and games")
   ws.getStats("p",json=>{        
     try{
@@ -539,11 +428,16 @@ schedule.scheduleJob(`0,15,30,45 * * * *`,function(){
   })
 })
 
-schedule.scheduleJob(`0,5,10,15,20,25,30,35,40,45,50,55 * * * *`,function(){
+if(GLOBALS.isProd()) schedule.scheduleJob(`0,5,10,15,20,25,30,35,40,45,50,55 * * * *`,function(){
   ws.makeRandomInvite()
 })
 
+////////////////////////////////////////
+
 }
+
+////////////////////////////////////////
+// Exports
 
 module.exports.client=client
 module.exports.startBot=startBot
@@ -555,3 +449,5 @@ module.exports.cmpPlayers=cmpPlayers
 module.exports.getTourneyChannel=getTourneyChannel
 module.exports.purgeTourneyChannel=purgeTourneyChannel
 module.exports.purgeTestChannel=purgeTestChannel
+
+////////////////////////////////////////
