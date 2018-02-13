@@ -64,7 +64,7 @@ function createChartInner(blob,callback,errcallback){
         let magN=Math.floor(Math.log10(MAX_ABS))-1
         let mag=Math.pow(10,magN)
 
-        MIN_Y_J=Math.floor(MIN_Y/mag)-1
+        MIN_Y_J=Math.floor(MIN_Y/mag)
         MAX_Y_J=Math.floor(MAX_Y/mag)+1
         
         MIN_Y=MIN_Y_J*mag
