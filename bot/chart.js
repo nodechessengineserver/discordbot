@@ -30,7 +30,7 @@ function createChartInner(blob,callback,errcallback){
     let name=blob.name||"chart"
     let ext=blob.ext||"png"    
     let CHART_WIDTH=blob.CHART_WIDTH||600
-    let CHART_HEIGHT=blob.CHART_HEIGHT||400
+    let CHART_HEIGHT=blob.CHART_HEIGHT||300
     let MARGIN_TOP=blob.MARGIN_TOP||30
     let MARGIN_LEFT=blob.MARGIN_LEFT||80
     let TEXT_MARGIN_LEFT=blob.TEXT_MARGIN_LEFT||5
