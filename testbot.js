@@ -277,7 +277,7 @@ client.on("message", async message => { try {
     lichessStats(content=>{
       message.channel.send(content)
       lichessStatsChart(function(){
-        message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/lichessstats.png?rnd=${Math.floor(Math.random()*1e9)`)
+        message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/lichessstats.png?rnd=${Math.floor(Math.random()*1e9)}`)
       })
     })
   }
