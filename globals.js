@@ -15,6 +15,10 @@ console.log(`application started in ${isProd()?"production":"development"} mode`
 
 ////////////////////////////////////////
 
+let HOST_URL=`https://quiet-tor-66877.herokuapp.com`
+
+let DEFAULT_VARIANT="atomic"
+
 let COMMAND_PREFIX="+"
 let VERIFIED_LICHESS_MEMBER="@verifiedlichess"
 
@@ -71,7 +75,7 @@ function purgeChannel(channel){
 }
 
 function errorMessage(errmsg){
-    return `:exclamation: Error: ${errmsg}`
+    return `:triangular_flag_on_post: Error: ${errmsg}`
 }
 
 function successMessage(succmsg){
@@ -126,5 +130,7 @@ module.exports.VARIANT_DISPLAY_NAMES=VARIANT_DISPLAY_NAMES
 module.exports.safeUserName=safeUserName
 module.exports.handledError=handledError
 module.exports.illegalVariantMessage=illegalVariantMessage
+module.exports.DEFAULT_VARIANT=DEFAULT_VARIANT
+module.exports.HOST_URL=HOST_URL
 
 ////////////////////////////////////////

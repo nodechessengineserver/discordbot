@@ -4,18 +4,26 @@ const Discord = require("discord.js");
 // local
 const GLOBALS = require("./globals")
 
-let client;
+////////////////////////////////////////
+
+let client
+
+////////////////////////////////////////
 
 function sayGeneral(content){
   GLOBALS.getChannelByName(client,"general").send(content);
 }
+
+////////////////////////////////////////
 
 function startBot(){
 
 client = new Discord.Client();
 
 client.on("ready", () => {
-  console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`);   
+  console.log(
+    `AtomBot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`
+  );   
 });
 
 client.on("message", async message => { try {
@@ -28,11 +36,12 @@ client.on("message", async message => { try {
     const sayMessage = args.join(" ");    
     message.delete().catch(O_o=>{}); 
     
-    sayGeneral(`:exclamation: **${message.author.username}** wants the world to know that :
-__                                                                   __
-
-${sayMessage}
-__                                                                   __`);    
+    sayGeneral(
+      `:exclamation: **${message.author.username}** wants the world to know that :\n`+
+      `__                                                                   __\n\n`+
+      `${sayMessage}\n`+
+      `__                                                                   __`
+    );    
   }
     
 } catch(err) {

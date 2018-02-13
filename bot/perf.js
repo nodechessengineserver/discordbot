@@ -1,6 +1,7 @@
 // system
 const pimg = require("pureimage")
 const fs = require("fs")
+const lichess = require('lichess-api');
 
 // local
 const GLOBALS = require("../globals")
@@ -127,9 +128,91 @@ function getLichessGamesStats(message,handle,variant){
     })
 }
 
+function profile(message,username){
+  lichess.user(username, function (err, user) {
+    if(err){
+      message.channel.send(GLOBALS.errorMessage(
+        `Could not get profile information for **${user}** .`
+      ));
+    }
+    else{
+      try{          
+        let json=JSON.parse(user)
+        //console.log(json)
+        let perfs=json.perfs
+        let handle=json.username
+        let handleSafe=GLOBALS.safeUserName(handle)
+        let perfscontent=
+          `__                                                                             __\n\n`+
+          `**${handleSafe}** [ member since: *${new Date(json.createdAt).toLocaleString()}* , followers: *${json.nbFollowers}* ]\n`+
+          `__                                                                             __\n\n`
+        for(let variant in perfs){            
+          let perf=perfs[variant]
+          if(perf.games>0)
+            perfscontent+=
+              `__${variant}__ : **${perf.rating}** ( games : ${perf.games} )\n`
+        }                    
+        if(json.online){
+          perfscontent+=
+            `\n${handleSafe} is online now on lichess, watch: ${json.url}/tv`
+        }
+        message.channel.send(perfscontent)
+      }catch(err){
+        console.log(err)
+        message.channel.send(GLOBALS.errorMessage(
+          `Could not get profile information for **${username}** .`
+        ));
+      }
+    }
+  })
+}
+
+function cmpPlayers(message,handle,handlearg){
+  let channel=message.channel
+  let handleSafe=GLOBALS.safeUserName(handle)
+  let handleargSafe=GLOBALS.safeUserName(handlearg)
+  channel.send(
+    `comparing *${handleSafe}'s* rating to *${handleargSafe}*\n`+
+    `__                                                               __\n\n`
+  );
+  fetch.getLichessUsers(handle,handlearg,(json1,json2)=>{   
+      if((json1.perfs==undefined)||(json2.perfs==undefined)){
+        console.log(json1,json2);
+        channel.send(
+          GLOBALS.errorMessage("Perfs missing.")
+        );    
+        return;
+      }
+      let a1=json1.perfs.atomic;
+      let a2=json2.perfs.atomic;
+      if((a1==undefined)||(a2==undefined)){
+          channel.send(
+            GLOBALS.errorMessage("Atomic rating missing.")
+          );    
+      }else{               
+          //message.channel.send("difference "+(a1.rating-a2.rating));    
+          channel.send(
+            `:white_check_mark: success:\n`+
+            `__                                                               __\n\n`+
+            `**${handleSafe}'s** rating: **${a1.rating}** , total games played: *${a1.games}* , registered: *${new Date(json1.createdAt).toLocaleString()}* , followers: *${json1.nbFollowers}*\n`
+            `__                                                               __\n\n`+
+            `**${handleargSafe}**'s rating: **${a2.rating}** , total games played: *${a2.games}* , registered: *${new Date(json2.createdAt).toLocaleString()}* , followers: *${json2.nbFollowers}*\n`+
+            `__                                                               __\n\n`+
+            `rating difference: **${a1.rating-a2.rating}**`
+          )
+        }
+  },()=>{
+      channel.send(
+        GLOBALS.errorMessage("User not found.")        
+      );
+  })     
+}
+
 ////////////////////////////////////////
 // Exports
 
 module.exports.getLichessGamesStats=getLichessGamesStats
+module.exports.profile=profile
+module.exports.cmpPlayers=cmpPlayers
 
 ////////////////////////////////////////

@@ -58,18 +58,7 @@ function handleApiFunc(req,res){
             console.log(err);
             send(res,{ok:false,status:"getAndSetTopList failed"});
         }
-    }
-    else if(action=="cmp"){
-        let handle=body.handle;
-        let handlearg=body.handlearg;
-        try{
-            testbot.cmpPlayers(testbot.getTourneyChannel(),handle,handlearg);
-            send(res,{ok:true,status:"ok"});
-        }catch(err){
-            console.log(err);
-            send(res,{ok:false,status:"cmpPlayers failed"});
-        }
-    }
+    }    
 
     send(res,{ok:false,status:"unknown action"})
 }

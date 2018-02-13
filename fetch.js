@@ -1,8 +1,10 @@
 let DRY=true
 //login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(0,20,handles=>sendPlayers(handles)))
 
-var fetch = require('node-fetch');
-var FormData = require('form-data');
+// system
+const fetch = require('node-fetch');
+const FormData = require('form-data');
+const lichess = require('lichess-api');
 
 const GLOBALS = require('./globals')
 
@@ -208,6 +210,30 @@ function getLichessGames(handle,variant,callback,errcallback){
     })
 }
 
+function getLichessUsers(handle1,handle2,callback,errcallback){
+    lichess.user(handle1, function (err, user) {      
+        if(err){
+            errcallback();
+        }else{
+            let json1;
+            try{
+                json1=JSON.parse(user);
+            }catch(err){errcallback();return;}
+            lichess.user(handle2, function (err, user) {
+                if(err){
+                    errcallback();
+                }else{
+                    let json2
+                    try{
+                        json2=JSON.parse(user);
+                    }catch(err){errcallback();return;}
+                    callback(json1,json2);
+                }
+            })
+        }
+    })
+  }
+
 ////////////////////////////////////////
 // Exports
 
@@ -220,5 +246,6 @@ module.exports.quickLogin=quickLogin
 module.exports.getLila2=getLila2
 module.exports.LICHESS_USER=LICHESS_USER
 module.exports.getLichessGames=getLichessGames
+module.exports.getLichessUsers=getLichessUsers
 
 ////////////////////////////////////////
