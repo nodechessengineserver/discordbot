@@ -318,7 +318,11 @@ client.on("message", async message => { try {
     let time=args[0];
     let inc=args[1];
 
-    createTourneyCommand(message.channel,time,inc);
+    //createTourneyCommand(message.channel,time,inc);
+
+    message.channel.send(GLOBALS.errorMessage(
+      `Sorry, this command has been deprecated.`
+    ))
   }
 
   if(GLOBALS.isProd()) if(command=="cmp"){
