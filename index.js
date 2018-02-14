@@ -28,6 +28,7 @@ if(GLOBALS.isProd()) setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 
 express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))
+  .use('/chess',express.static(path.join(__dirname, 'client/public')))
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')

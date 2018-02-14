@@ -1,0 +1,251 @@
+:root{
+    --fontsize: 15;
+    --fontsizerem: 15rem;
+
+    --sliderrelwidth: 8;
+    --sliderrelheight: 0.6;
+    --sliderthumbrelwidth: 1;
+    --sliderthumbrelheight: 2;
+
+    --draggablewindowwidth: 400;
+    --draggablewindowheight: 200;
+
+    font-size:1px;
+}
+
+.domtd{
+    background-color: #ddd;
+    padding: 3rem;
+}
+
+.tabpanetabtd{
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 1rem;        
+    background-color: #ddd;
+    padding-left: 8rem;
+    padding-top: 3rem;
+    cursor: pointer;
+}
+
+.tabpanetabtdselected{
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 1rem;        
+    background-color: #dfd;
+    padding-left: 8rem;
+    padding-top: 3rem;    
+    cursor: pointer;
+}
+
+.tabpanetabtd:hover{
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 1rem;        
+    background-color: #ccc;
+    padding-left: 8rem;
+    padding-top: 3rem;    
+    cursor: pointer;
+}
+
+.tabpanecontenttd{
+    padding: 3rem;
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 1rem;        
+}
+
+.logtable{
+    font-family: monospace;    
+}
+
+.logtd{
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 0rem;        
+}
+
+.logcontent{
+    padding-left: 6rem;
+}
+
+.logtime{
+    vertical-align: middle;
+    text-align: center;    
+}
+
+.lognormal{
+    color: initial;    
+}
+
+.loginfo{
+    color: blue;
+}
+
+.logsuccess{
+    color: green;
+}
+
+.logerror{
+    color: red;
+}
+
+.coverdiv{
+    background-color: #ccc;
+    opacity: 0.5;
+}
+
+.contentdiv{
+    background-color: #fff;
+    opacity: 1;
+}
+
+.titlebar{
+    background-color: azure;
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 0rem;        
+    cursor: move;
+}
+
+.bottombar{
+    background-color: rgb(223, 147, 48);	
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 0rem;        		
+}
+
+.buttonbar{    
+    text-align: center;
+	box-shadow: 3px 3px #888;
+	border-radius: 5rem;
+}
+
+.closebox{
+    background-color: crimson;    
+    opacity: 0.7;
+    cursor: pointer;	
+}
+
+.resizebox{
+    background-color: darkgreen;
+    border-width: 0rem;      
+    opacity: 0.4;
+    cursor: nwse-resize;  
+}
+
+.dragbar{
+    background-color: azure;
+    opacity: 0.5;
+}
+
+.resizebar{
+    background-color: darkgreen;
+    opacity: 0.5;
+}
+
+.draggablewindow{
+    border-style: solid;
+    border-radius: 5rem;
+    border-width: 0rem;           
+}
+
+.okbutton{
+    background-color:#7f7;    
+    border-radius: 5rem;    
+}
+
+.cancelbutton{
+    background-color: #dd9;
+    border-radius: 5rem;
+}
+
+.deletebutton{
+    background-color: #f99;
+    border-radius: 5rem;
+}
+
+.infobutton{
+    background-color: #ddf;
+    border-radius: 5rem;
+}
+
+.windowbutton{
+    margin-left: 6rem;
+    margin-right: 0rem;
+    cursor: pointer;
+}
+
+.windowcontenttable{
+    border-radius: 5rem;       
+    background-color: lightblue;
+}
+
+.windowcontenttable td{
+    text-align: center;
+    vertical-align: middle;
+    background-color: #eef;
+    border-radius: 5rem; 
+}
+
+.domtable{
+    background-color: #eee;
+}
+
+.textinputwindowtextinput{
+    border-radius: 5rem;
+    padding: 5rem;
+    color:#111;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: calc( var(--fontsizerem) * var(--sliderrelwidth) );
+    height: calc( var(--fontsizerem) * var(--sliderrelheight) );
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin-top: calc( ( ( var(--fontsizerem) * var(--sliderthumbrelheight) ) - calc( var(--fontsizerem) * var(--sliderrelheight) ) ) / 2 );
+}
+
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: calc( var(--fontsizerem) * var(--sliderthumbrelwidth) );
+    height: calc( var(--fontsizerem) * var(--sliderthumbrelheight) );
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: calc( var(--fontsizerem) * var(--sliderthumbrelwidth) );
+    height: calc( var(--fontsizerem) * var(--sliderthumbrelheight) );
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.mongodocmaindiv{
+    background-color:#ddf;
+    border-style:solid;
+    border-width:1rem;
+    border-radius:5rem;
+    padding:5rem;
+    font-family: monospace;
+    margin-bottom: 3rem;
+}
+
+.mongocollmaindiv{
+    background-color:#dfd;
+    border-style:solid;
+    border-width:1rem;
+    border-radius:5rem;
+    padding:5rem;
+    margin-top:3rem;
+}
+
+.dockey{
+    font-weight: bold;
+}
