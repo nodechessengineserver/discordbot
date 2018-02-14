@@ -58,6 +58,15 @@ let VARIANT_DISPLAY_NAMES={
     racingKings:"Racing Kings"
 }
 
+function rndUrl(url){
+    let rnd=Math.floor(Math.random()*1e9)
+    return `${url}?rnd=${rnd}`
+}
+
+function hostRndUrl(path){
+    return `${HOST_URL}/${path}`
+}
+
 function shortGameUrl(url){return url.replace(/(\/white$|\/black$)/,"")}
 
 function getChannelByName(client,name){    
@@ -132,5 +141,7 @@ module.exports.handledError=handledError
 module.exports.illegalVariantMessage=illegalVariantMessage
 module.exports.DEFAULT_VARIANT=DEFAULT_VARIANT
 module.exports.HOST_URL=HOST_URL
+module.exports.rndUrl=rndUrl
+module.exports.hostRndUrl=hostRndUrl
 
 ////////////////////////////////////////

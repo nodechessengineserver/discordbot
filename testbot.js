@@ -142,7 +142,12 @@ function lichessStatsChart(callback){
       if(!error) try{        
         let data=documents.map(doc=>doc.d)
         data.reverse()
-        chart.createChart({name:"lichessstats",data:data},callback,err=>{
+        chart.createChart({
+          name:"lichessstats",
+          data:data,
+          MOVING_AVERAGE:96,
+          MOVING_AVERAGE_FRONT:true
+        },callback,err=>{
           console.log(GLOBALS.handledError(err));  
         })
       }catch(err){
@@ -277,7 +282,9 @@ client.on("message", async message => { try {
     lichessStats(content=>{
       message.channel.send(content)
       lichessStatsChart(function(){
-        message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/lichessstats.png?rnd=${Math.floor(Math.random()*1e9)}`)
+        message.channel.send(GLOBALS.hostRndUrl(
+          `images/charts/lichessstats.png`
+        ))
       })
     })
   }
@@ -318,9 +325,9 @@ client.on("message", async message => { try {
 
   if(GLOBALS.isProd()) if(chess.makeMove(command)){    
     setTimeout((ev)=>{
-      message.channel.send(
-        `${GLOBALS.HOST_URL}/images/board.jpg?rnd=${Math.floor(Math.random()*1e9)}`
-      )
+      message.channel.send(GLOBALS.hostRndUrl(
+        `images/board.jpg`
+      ))
     },2000)
   }
 

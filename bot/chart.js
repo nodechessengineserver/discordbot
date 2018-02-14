@@ -43,8 +43,12 @@ function createChartInner(blob,callback,errcallback){
     let LINE_WIDTH=blob.LINE_WIDTH==undefined?2:blob.LINE_WIDTH
     let BCKG_COLOR=blob.BCKG_COLOR||'#3f3f3f'
     let PLOT_COLOR=blob.PLOT_COLOR||'#ffff00'
+    let MOVING_AVERAGE_COLOR=blob.MOVING_AVERAGE_COLOR||'#ff0000'
     let GRID_COLOR=blob.GRID_COLOR||'#7f7fff'
     let FONT_COLOR=blob.FONT_COLOR||'#00ff00'
+    let MOVING_AVERAGE=blob.MOVING_AVERAGE
+    let MOVING_AVERAGE_FRONT=blob.MOVING_AVERAGE_FRONT
+    let FOLDER=blob.FOLDER||"charts"
 
     let img=pimg.make(TOTAL_CHART_WIDTH,TOTAL_CHART_HEIGHT)
     var ctx = img.getContext('2d');        
@@ -98,13 +102,7 @@ function createChartInner(blob,callback,errcallback){
             }
         }
 
-        ctx.strokeStyle=PLOT_COLOR
-        for(let i=1;i<data.length;i++){                
-            let cx0=x2c(i-1)
-            let cy0=y2c(data[i-1])
-            let cx1=x2c(i)
-            let cy1=y2c(data[i])
-
+        function drawLine(cx0,cy0,cx1,cy1){            
             for(let jx=-LINE_WIDTH;jx<=LINE_WIDTH;jx++)
             for(let jy=-LINE_WIDTH;jy<=LINE_WIDTH;jy++){                                
                 ctx.beginPath();
@@ -113,10 +111,43 @@ function createChartInner(blob,callback,errcallback){
                 ctx.stroke();       
             }
         }
+        
+        for(let i=1;i<data.length;i++){                
+            let cx0=x2c(i-1)
+            let cx1=x2c(i)
+
+            function drawData(){
+                let cy0=y2c(data[i-1])
+                let cy1=y2c(data[i])
+                ctx.strokeStyle=PLOT_COLOR
+                drawLine(cx0,cy0,cx1,cy1)
+            }
+
+            function drawMovingAverage(){
+                if(MOVING_AVERAGE==undefined) return
+                if(i<MOVING_AVERAGE) return
+                let sumPrev=data.slice(i-MOVING_AVERAGE,i).reduce((a,b)=>a+b)
+                let sumCurr=data.slice(i+1-MOVING_AVERAGE,i+1).reduce((a,b)=>a+b)                      
+                let avgPrev=sumPrev/MOVING_AVERAGE
+                let avgCurr=sumCurr/MOVING_AVERAGE
+                let cy0=y2c(avgPrev)
+                let cy1=y2c(avgCurr)                
+                ctx.strokeStyle=MOVING_AVERAGE_COLOR                
+                drawLine(cx0,cy0,cx1,cy1)
+            }
+
+            if(MOVING_AVERAGE_FRONT){                
+                drawData()
+                drawMovingAverage()
+            }else{
+                drawMovingAverage()
+                drawData()
+            }            
+        }
         }
     }
 
-    pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/../public/images/perfs/${name}.${ext}`)).then(() => {
+    pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/../public/images/${FOLDER}/${name}.${ext}`)).then(() => {
         console.log(`wrote out the png file to ${name}.${ext}`);        
         if(callback!=undefined) callback()
     }).catch(e=>{
@@ -125,7 +156,7 @@ function createChartInner(blob,callback,errcallback){
     });
 }
 
-createChart()
+//createChart()
 
 ////////////////////////////////////////
 // Exports

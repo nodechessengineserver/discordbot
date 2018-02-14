@@ -8,53 +8,6 @@ const GLOBALS = require("../globals")
 const fetch = require("../fetch")
 const chart = require("./chart")
 
-let CHART_WIDTH=600
-let CHART_HEIGHT=300
-
-function createChart(message,handle,ratings,minrating,maxrating){
-    
-    let n=ratings.length
-    let X_SCALE=CHART_WIDTH/n
-    let Y_RANGE=maxrating-minrating
-    let Y_SCALE=CHART_HEIGHT/Y_RANGE  
-    let img=pimg.make(CHART_WIDTH,CHART_HEIGHT)
-    let ctx=img.getContext('2d')  
-    ctx.fillStyle='#3f3f3f'
-    ctx.strokeStyle='#ffff00'
-    ctx.fillRect(0,0,CHART_WIDTH,CHART_HEIGHT)
-    ctx.lineWidth=5  
-    ratings.reverse()
-    for(let i=1;i<n;i++){
-      let cx0=(i-1)*X_SCALE
-      let rating0=ratings[i-1]
-      let crating0=rating0-minrating
-      let mcrating0=Y_RANGE-crating0
-      let cy0=mcrating0*Y_SCALE
-      let cx1=i*X_SCALE
-      let rating1=ratings[i]
-      let crating1=rating1-minrating
-      let mcrating1=Y_RANGE-crating1
-      let cy1=mcrating1*Y_SCALE
-      for(let jx=-1;jx<=1;jx++)
-      for(let jy=-1;jy<=1;jy++){
-        ctx.beginPath();
-        ctx.moveTo(cx0+jx, cy0+jy);
-        ctx.lineTo(cx1+jy, cy1+jy);
-        ctx.stroke();       
-      }    
-    }
-  
-    pimg.encodePNGToStream(img, fs.createWriteStream(`${__dirname}/../public/images/perfs/${handle}.png`)).then(() => {
-        console.log(`wrote out the png file to ${handle}.png`);
-        let rnd=Math.floor(Math.random()*1e9)
-        setTimeout((e)=>{
-          message.channel.send(`https://quiet-tor-66877.herokuapp.com/images/perfs/${handle}.png?rnd=${rnd}`)
-        },2000)      
-    }).catch(e=>{
-        console.log("there was an error writing",e);
-    });
-  }
-
 function createLichessGamesStats(message,handle,games,variant){  
     try{
       let stats=""
@@ -108,12 +61,17 @@ function createLichessGamesStats(message,handle,games,variant){
   
         message.channel.send(stats)
   
-        setTimeout(e=>{
-          //createChart(message,handle,ratings,minrating,maxrating)
-          chart.createChart({name:handle,data:ratings},function(){
-            let rnd=Math.floor(Math.random()*1e9)
+        setTimeout(e=>{          
+          chart.createChart({
+            name:handle,
+            data:ratings,
+            FOLDER:"perfs",
+            MOVING_AVERAGE:10
+          },function(){            
             setTimeout(e=>{
-              message.channel.send(`${GLOBALS.HOST_URL}/images/perfs/${handle}.png?rnd=${rnd}`)
+              message.channel.send(GLOBALS.hostRndUrl(
+                `images/perfs/${handle}.png`
+              ))
             },2000)      
           },function(){
             message.channel.send(GLOBALS.errorMessage("Could not create chart."))
