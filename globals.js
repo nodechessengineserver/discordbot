@@ -64,7 +64,7 @@ function rndUrl(url){
 }
 
 function hostRndUrl(path){
-    return `${HOST_URL}/${path}`
+    return rndUrl(`${HOST_URL}/${path}`)
 }
 
 function shortGameUrl(url){return url.replace(/(\/white$|\/black$)/,"")}
