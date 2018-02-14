@@ -1,5 +1,7 @@
 // system
 const express = require('express')
+const WebSocket = require("ws")
+const http=require('http');
 const path = require('path')
 const bodyParser = require('body-parser')
 
@@ -9,6 +11,7 @@ const testbot=require("./testbot")
 const tourney=require("./tourney")
 const api=require("./api")
 const GLOBALS=require("./globals")
+const chessWs=require("./chess/ws")
 
 const PORT = process.env.PORT || 5000
 
@@ -26,7 +29,7 @@ if(GLOBALS.isProd()) setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 ////////////////////////////////////////
 // Server startup
 
-express()
+const app=express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))
   .use('/chess',express.static(path.join(__dirname, 'client/public')))
   .use(express.static(path.join(__dirname, 'public')))
@@ -34,6 +37,15 @@ express()
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/index'))
   .post("/ajax",(req, res) => api.handleApi(req,res))
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
+
+const server=http.createServer(app)
+
+const wss = new WebSocket.Server({ server });
+
+wss.on("connection", (ws,req)=>{
+  chessWs.handleWs(ws,req)
+})
+
+server.listen(PORT, () => console.log(`Listening on ${ PORT }`))
 
 ////////////////////////////////////////

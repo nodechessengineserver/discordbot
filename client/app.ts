@@ -1,8 +1,22 @@
 DEBUG=false
 
 let AJAX_URL=`http://${document.location.host}/ajax`
+let WS_URL=`ws://${document.location.host}/ws`
 
 //localStorage.clear()
+
+function socketTest(){
+    let ws=new WebSocket(`${WS_URL}/?sri=${Math.floor(Math.random()*1e9)}`)
+    ws.onopen=function(){
+        console.log("socket connected")
+        ws.send("hi there ws server")
+        setTimeout(function(){
+            console.log("closing socket")
+            ws.close(1000)
+        },3000)
+    }
+}
+socketTest()
 
 function resetApp(){
     localStorage.clear()
