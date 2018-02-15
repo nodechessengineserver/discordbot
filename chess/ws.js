@@ -1,6 +1,9 @@
 // local
 let utils = require("./utils")
 let users = require("./users")
+let board = require("./board")
+
+let b=new board.Board().setFromFen()
 
 function send(ws,json){
     try{

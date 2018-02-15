@@ -1,5 +1,6 @@
 let WHITE=1
 let BLACK=0
+let NO_COL=-1
 
 let EMPTY="-"
 let PAWN="p"
@@ -10,6 +11,8 @@ let QUEEN="q"
 let KING="k"
 
 let IS_PIECE:{[id:string]:boolean}={"p":true,"n":true,"b":true,"r":true,"q":true,"k":true}
+let PROM_PIECE:{[id:string]:boolean}={"n":true,"b":true,"r":true,"q":true}
+let MOVE_LETTER_TO_TURN:{[id:string]:number}={"w":WHITE,"b":BLACK}
 
 let VARIANT_PROPERTIES:{[id:string]:any}={
     "promoatomic":{
@@ -26,7 +29,7 @@ class Piece{
     kind:string
     color:number
     
-    constructor(kind:string=EMPTY,color:number=BLACK){
+    constructor(kind:string=EMPTY,color:number=NO_COL){
         this.kind=kind
         this.color=color
     }
@@ -34,8 +37,58 @@ class Piece{
     empty():boolean{return this.kind==EMPTY}
 }
 
+class Square{
+    f:number
+    r:number
+
+    constructor(f:number,r:number){
+        this.f=f
+        this.r=r
+    }    
+
+    p(sq:Square):Square{
+        return new Square(this.f+sq.f,this.r+sq.r)
+    }
+
+    e(sq:Square):boolean{
+        return (sq.f==this.f)&&(sq.r==this.r)
+    }
+
+    invalid():boolean{return (this.f<0)||(this.r<0)}
+}
+
+const INVALID_SQUARE=new Square(-1,-1)
+
+class Move{
+    fromSq:Square
+    toSq:Square
+    promPiece:Piece
+
+    constructor(fromSq:Square,toSq:Square,promPiece:Piece=new Piece()){
+        this.fromSq=fromSq
+        this.toSq=toSq
+        this.promPiece=promPiece
+    }
+
+    e(m:Move):boolean{
+        if(!m.fromSq.e(this.fromSq)) return false
+        if(!m.toSq.e(this.toSq)) return false
+        return m.promPiece.kind==this.promPiece.kind
+    }
+
+    invalid():boolean{
+        return this.fromSq.invalid()||this.toSq.invalid()
+    }
+}
+
+const INVALID_MOVE=new Move(INVALID_SQUARE,INVALID_SQUARE)
+
 class Board{
     variant:string
+
+    turn:number
+
+    hist:string[]=[]
 
     PROPS:any
     BOARD_WIDTH:number
@@ -49,6 +102,8 @@ class Board{
         for(let i=0;i<this.BOARD_SIZE;i++){
             this.rep[i]=new Piece()
         }
+        this.turn=WHITE
+        this.hist=[]        
     }
 
     constructor(variant:string=DEFAULT_VARIANT){
@@ -72,14 +127,17 @@ class Board{
         if(this.frOk(f,r)) this.rep[r*8+f]=p
     }
 
+    setSq(sq:Square,p:Piece=new Piece()){this.setFR(sq.f,sq.r,p)}
+
     getFR(f:number,r:number):Piece{
         if(!this.frOk(f,r)) return new Piece()
         return this.rep[r*8+f]
     }
 
-    setFromFenChecked(fen:string=this.START_FEN):boolean{
+    setFromFenChecked(fen:string=this.START_FEN,clearHist:boolean=true):boolean{
         let b=new Board(this.variant)
         let parts=fen.split(" ")
+        if(parts.length!=6) return false
         let rawfen=parts[0]
         let ranks=rawfen.split("/")
         if(ranks.length!=8) return false
@@ -99,12 +157,313 @@ class Board{
             }
             if(f!=this.BOARD_WIDTH) return false
         }
+
+        let turnfen=parts[1]
+        let turn=MOVE_LETTER_TO_TURN[turnfen]
+
+        if(turn==undefined) return false
+
+        b.turn=turn
+        
         this.rep=b.rep
+        this.turn=b.turn
+        if(clearHist) this.hist=[fen]
+        this.posChanged()
         return true
     }
 
-    setFromFen(fen:string=this.START_FEN):Board{
-        this.setFromFenChecked(fen)
+    setFromFen(fen:string=this.START_FEN,clearHist:boolean=true):Board{
+        this.setFromFenChecked(fen,clearHist)
         return this
     }
+
+    pawnDir(color:number):Square{
+        return color==WHITE?new Square(0,-1):new Square(0,1)
+    }
+
+    sqOk(sq:Square){return this.frOk(sq.f,sq.r)}
+
+    getSq(sq:Square):Piece{
+        if(!this.sqOk) return new Piece()
+        return this.getFR(sq.f,sq.r)
+    }
+
+    isSqEmpty(sq:Square){
+        if(!this.sqOk(sq)) return false
+        return this.getSq(sq).empty()
+    }
+
+    isSqOpp(sq:Square,color:number){
+        if(!this.sqOk(sq)) return false
+        let col=this.getSq(sq).color
+        if(col==NO_COL) return false
+        return col!=color
+    }
+
+    isSqSame(sq:Square,color:number){
+        if(!this.sqOk(sq)) return false
+        let col=this.getSq(sq).color
+        if(col==NO_COL) return false
+        return col==color
+    }
+
+    pawnFromStart(sq:Square,color:number){
+        return color==WHITE?this.BOARD_HEIGHT-1-sq.r:sq.r
+    }
+
+    pawnFromProm(sq:Square,color:number){
+        return this.BOARD_HEIGHT-1-this.pawnFromStart(sq,color)
+    }
+
+    plms:Move[]=[]
+    lms:Move[]=[]
+
+    posChanged(){                
+        this.genLegalMoves()
+        if(this.posChangedCallback!=undefined){
+            this.posChangedCallback()
+        }
+    }
+
+    genLegalMoves(){
+        this.genPseudoLegalMoves()
+        this.lms=this.plms
+    }
+
+    genPseudoLegalMoves(){
+        this.plms=[]
+        for(let f=0;f<this.BOARD_WIDTH;f++){
+            for(let r=0;r<this.BOARD_HEIGHT;r++){
+                let p=this.getFR(f,r)
+                if(p.color==this.turn){
+                    let pms=this.pseudoLegalMovesForPieceAt(p,new Square(f,r))
+                    for(let m of pms){
+                        this.plms.push(m)
+                    }
+                }
+            }
+        }
+        let ams=[]
+        for(let m of this.plms){
+            let fp=this.getSq(m.fromSq)
+            if(PROM_PIECE[fp.kind]){
+                if(fp.kind==BISHOP){
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(KNIGHT)))
+                }
+                if(fp.kind==KNIGHT){
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(BISHOP)))
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(ROOK)))
+                }
+                if(fp.kind==ROOK){
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(KNIGHT)))
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(QUEEN)))
+                }
+                if(fp.kind==QUEEN){                    
+                    ams.push(new Move(m.fromSq,m.toSq,new Piece(ROOK)))
+                }
+            }
+        }
+        for(let m of ams){
+            this.plms.push(m)
+        }
+    }
+
+    squareToAlgeb(sq:Square):string{
+        return `${String.fromCharCode(sq.f+"a".charCodeAt(0))}${this.BOARD_HEIGHT-sq.r}`
+    }
+
+    moveToAlgeb(m:Move):string{
+        let raw=`${this.squareToAlgeb(m.fromSq)}${this.squareToAlgeb(m.toSq)}`
+        return `${raw}${m.promPiece.empty()?"":m.promPiece.kind}`
+    }
+
+    pseudoLegalMovesForPieceAt(p:Piece,sq:Square):Move[]{
+        let moves:Move[]=[]
+        if(p.kind==PAWN){
+            let pdir=this.pawnDir(p.color)
+            let pushOne=sq.p(pdir)
+            if(this.isSqEmpty(pushOne)){
+                let m=new Move(sq,pushOne)
+                moves.push(m)
+                let pushTwo=pushOne.p(pdir)
+                if(this.isSqEmpty(pushTwo)&&(this.pawnFromStart(sq,p.color)==1)){
+                    let m=new Move(sq,pushTwo)
+                    moves.push(m)
+                }
+            }
+            for(let df=-1;df<=1;df+=2){
+                let csq=sq.p(pdir).p(new Square(df,0))
+                if(this.isSqOpp(csq,p.color)){
+                    let m=new Move(sq,csq)
+                    moves.push(m)
+                }
+            }
+        }else{
+            for(let df=-2;df<=2;df++){
+                for(let dr=-2;dr<=2;dr++){
+                    let multAbs=Math.abs(df*dr)
+                    let sumAbs=Math.abs(df)+Math.abs(dr)
+                    let ok=true
+                    let f=sq.f
+                    let r=sq.r
+                    do{
+                        let knightOk=(multAbs==2)
+                        let bishopOk=(multAbs==1)
+                        let rookOk=((multAbs==0)&&(sumAbs==1))
+                        let pieceOk=
+                            (knightOk&&(p.kind==KNIGHT))||
+                            (bishopOk&&(p.kind==BISHOP))||
+                            (rookOk&&(p.kind==ROOK))||
+                            (rookOk&&bishopOk&&((p.kind==QUEEN)||(p.kind==KING)))
+                        if(pieceOk){
+                            f+=df
+                            r+=dr
+                            if(this.frOk(f,r)){
+                                let tp=this.getFR(f,r)
+                                if(tp.color==p.color){
+                                    ok=false
+                                }else{
+                                    let m=new Move(sq,new Square(f,r))
+                                    moves.push(m)
+                                    if(!tp.empty()) ok=false
+                                    if((p.kind==KING)||(p.kind==KNIGHT)) ok=false
+                                }
+                            }else{
+                                ok=false
+                            }
+                        }else{
+                            ok=false
+                        }
+                    }while(ok)
+                }
+            }        
+        }
+        return moves
+    }
+
+    legalAlgebMoves(){
+        return this.lms.map(m=>this.moveToAlgeb(m))
+    }
+
+    invColor(color:number){return color==WHITE?BLACK:WHITE}
+
+    isMoveLegal(m:Move){
+        let flms=this.lms.filter((tm:Move)=>tm.e(m))        
+        return flms.length>0
+    }
+
+    makeMove(m:Move):boolean{
+        if(!this.isMoveLegal(m)) return false
+        let fSq=m.fromSq
+        let tSq=m.toSq
+        let fp=this.getSq(fSq)
+        let tp=this.getSq(tSq)
+        this.setSq(fSq)
+        if(tp.empty()){
+            if(m.promPiece.empty()){
+                this.setSq(tSq,fp)
+            }else{
+                this.setSq(tSq,new Piece(m.promPiece.kind,fp.color))
+            }            
+        }else{
+            for(let df=-1;df<=1;df++){
+                for(let dr=-1;dr<=1;dr++){
+                    let testSq=tSq.p(new Square(df,dr))
+                    if(this.sqOk(testSq)){
+                        let tp=this.getSq(testSq)
+                        if(tp.kind!=PAWN) this.setSq(testSq)
+                    }
+                }
+            }
+            this.setSq(tSq)
+        }
+        this.turn=this.invColor(this.turn)
+        let fen=this.reportFen()
+        this.hist.push(fen)
+        this.posChanged()
+        return true
+    }
+
+    del(){
+        if(this.hist.length>1){
+            this.hist.pop()            
+            let fen=this.hist[this.hist.length-1]            
+            this.setFromFen(fen,false)
+        }
+    }
+
+    reportFen():string{
+        let fen=""
+        for(let r=0;r<this.BOARD_HEIGHT;r++){
+            let acc=0
+            for(let f=0;f<this.BOARD_WIDTH;f++){                
+                let p=this.getFR(f,r)
+                if(p.empty()){
+                    acc++
+                }else{
+                    if(acc){
+                        fen+=acc
+                        acc=0
+                    }                    
+                    fen+=p.color==WHITE?p.kind.toUpperCase():p.kind                    
+                }
+            }
+            if(acc){
+                fen+=acc
+                acc=0
+            }                    
+            if(r<(this.BOARD_HEIGHT-1)) fen+="/"
+        }
+
+        fen+=" "+(this.turn==WHITE?"w":"b")
+
+        fen+=" KQkq - 0 1"
+
+        return fen
+    }
+
+    squareFromAlgeb(algeb:string):Square{
+        if(algeb.length!=2) return INVALID_SQUARE
+        let fc=algeb.charAt(0)
+        let f=fc.charCodeAt(0)-"a".charCodeAt(0)
+        let r=this.BOARD_HEIGHT-parseInt(algeb.charAt(1))
+        if(isNaN(r)) return INVALID_SQUARE
+        if(this.frOk(f,r)) return new Square(f,r)
+        return INVALID_SQUARE
+    }
+
+    moveFromAlgeb(algeb:string):Move{
+        if(algeb.length<4) return INVALID_MOVE
+        if(algeb.length>5) return INVALID_MOVE
+        let fromSq=this.squareFromAlgeb(algeb.substring(0,2))
+        if(!this.sqOk(fromSq)) return INVALID_MOVE
+        let toSq=this.squareFromAlgeb(algeb.substring(2,4))
+        if(!this.sqOk(toSq)) return INVALID_MOVE
+        let rm=new Move(fromSq,toSq)
+        if(algeb.length==4) return rm
+        let pk=algeb.charAt(4)
+        if(!PROM_PIECE[pk]) return INVALID_MOVE
+        rm.promPiece=new Piece(pk,NO_COL)
+        return rm
+    }
+
+    makeAlgebMove(algeb:string):boolean{
+        let m=this.moveFromAlgeb(algeb)
+        if(m.invalid()) return false
+        return this.makeMove(m)
+    }
+
+    posChangedCallback:any
+
+    setPosChangedCallback(posChangedCallback:any):Board{
+        this.posChangedCallback=posChangedCallback
+        return this
+    }
+}
+
+declare let module:any
+
+if(!DOM_DEFINED){
+    module.exports.Piece=Piece
+    module.exports.Board=Board
 }

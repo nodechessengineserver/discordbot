@@ -1,3 +1,5 @@
+let DOM_DEFINED=true
+
 let FONT_SIZE=getCssFloatProperty("--fontsize",15)
 
 let DEBUG=true
@@ -385,7 +387,8 @@ class DomElement<T>{
         return this.setAttribute("type",type)
     }    
     setValue(value:string):DomElement<T>{
-        return this.setAttribute("value",value)
+        (<any>this.e)["value"]=value
+        return this
     }    
     getValue():string{
         return (<any>this.e)["value"]

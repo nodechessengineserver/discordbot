@@ -16,9 +16,23 @@ class GuiBoard extends DomElement<GuiBoard>{
     totalBoardWidth(){return this.boardWidth()+2*this.MARGIN}
     totalBoardHeight(){return this.boardHeight()+2*this.MARGIN}
 
+    posChangedCallback:any
+
+    setPosChangedCallback(posChangedCallback:any):GuiBoard{
+        this.posChangedCallback=posChangedCallback
+        return this
+    }
+
+    posChanged(){        
+        this.build()
+        if(this.posChangedCallback!=undefined){            
+            this.posChangedCallback()
+        }
+    }
+
     constructor(){
         super("div")
-        this.b=new Board().setFromFen()
+        this.b=new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this))        
     }
 
     setVariant(variant:string=DEFAULT_VARIANT):GuiBoard{
@@ -67,3 +81,4 @@ class GuiBoard extends DomElement<GuiBoard>{
         return this
     }
 }
+

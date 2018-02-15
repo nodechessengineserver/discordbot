@@ -110,8 +110,11 @@ function clog(json:any){
 ///////////////////////////////////////////////////////////
 
 let intro:Div
+let playtable:Table
 let play:Div
+let legalmoves:Div
 let gboard:GuiBoard
+let moveInput:TextInput
 let users:Div
 let profile:Div
 let tabpane:Tabpane
@@ -180,6 +183,23 @@ function lichessLogout(){
     setLoggedUser()
 }
 
+function moveInputEntered(){
+    let algeb=moveInput.getText()
+    moveInput.clear()
+    if(algeb=="reset"){
+        gboard.b.setFromFen()
+    }else if(algeb=="del"){
+        gboard.b.del()
+    }
+    else{
+        gboard.b.makeAlgebMove(algeb)    
+    }    
+}
+
+function boardPosChanged(){
+    legalmoves.h(gboard.b.legalAlgebMoves().join("<br>"))
+}
+
 function buildApp(){
 
     intro=new Div().h(
@@ -188,10 +208,28 @@ function buildApp(){
 
     users=new Div()
 
-    gboard=new GuiBoard()
+    gboard=new GuiBoard().setPosChangedCallback(boardPosChanged)
 
     play=new Div().a([
-        gboard.build()
+        gboard.build(),
+        moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered)
+    ])
+
+    legalmoves=new Div()
+
+    let legalmovesTd=new Td().a([
+        legalmoves
+    ])
+
+    legalmovesTd.e.style.verticalAlign="top"
+
+    let playtable=new Table().bs().a([
+        new Tr().a([
+            new Td().a([
+                play
+            ]),
+            legalmovesTd
+        ])
     ])
 
     profileTable=new Table().bs()
@@ -236,7 +274,7 @@ function buildApp(){
         setTabs([
             new Tab("intro","Intro",intro),
             new Tab("users","Users",users),
-            new Tab("play","Play",play),
+            new Tab("play","Play",playtable),
             new Tab("profile","Profile",profile),
             new Tab("log","Log",log)            
         ]).
@@ -253,12 +291,11 @@ function buildApp(){
 
     setLoggedUser()
 
+    gboard.b.posChanged()
 }
 
 buildApp()
 
 let b=new Board().setFromFen()
-
-console.log(b)
 
 DEBUG=true
