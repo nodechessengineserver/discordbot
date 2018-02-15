@@ -111,6 +111,7 @@ function clog(json:any){
 
 let intro:Div
 let play:Div
+let gboard:GuiBoard
 let users:Div
 let profile:Div
 let tabpane:Tabpane
@@ -187,9 +188,11 @@ function buildApp(){
 
     users=new Div()
 
-    play=new Div().h(
-        `Under construction.`
-    )
+    gboard=new GuiBoard()
+
+    play=new Div().a([
+        gboard.build()
+    ])
 
     profileTable=new Table().bs()
 
@@ -253,5 +256,9 @@ function buildApp(){
 }
 
 buildApp()
+
+let b=new Board().setFromFen()
+
+console.log(b)
 
 DEBUG=true

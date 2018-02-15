@@ -1498,6 +1498,146 @@ class MongoColl extends DomElement {
         return this;
     }
 }
+let WHITE = 1;
+let BLACK = 0;
+let EMPTY = "-";
+let PAWN = "p";
+let KNIGHT = "n";
+let BISHOP = "b";
+let ROOK = "r";
+let QUEEN = "q";
+let KING = "k";
+let IS_PIECE = { "p": true, "n": true, "b": true, "r": true, "q": true, "k": true };
+let VARIANT_PROPERTIES = {
+    "promoatomic": {
+        DISPLAY: "Promotion Atomic",
+        BOARD_WIDTH: 8,
+        BOARD_HEIGHT: 8,
+        START_FEN: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    }
+};
+let DEFAULT_VARIANT = "promoatomic";
+class Piece {
+    constructor(kind = EMPTY, color = BLACK) {
+        this.kind = kind;
+        this.color = color;
+    }
+    empty() { return this.kind == EMPTY; }
+}
+class Board {
+    reset() {
+        for (let i = 0; i < this.BOARD_SIZE; i++) {
+            this.rep[i] = new Piece();
+        }
+    }
+    constructor(variant = DEFAULT_VARIANT) {
+        this.variant = variant;
+        this.PROPS = VARIANT_PROPERTIES[variant];
+        this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
+        this.BOARD_HEIGHT = this.PROPS.BOARD_HEIGHT;
+        this.BOARD_SIZE = this.BOARD_WIDTH * this.BOARD_HEIGHT;
+        this.START_FEN = this.PROPS.START_FEN;
+        this.rep = new Array(this.BOARD_SIZE);
+        this.reset();
+    }
+    frOk(f, r) {
+        if ((f < 0) || (f >= this.BOARD_WIDTH))
+            return false;
+        if ((r < 0) || (r >= this.BOARD_HEIGHT))
+            return false;
+        return true;
+    }
+    setFR(f, r, p = new Piece()) {
+        if (this.frOk(f, r))
+            this.rep[r * 8 + f] = p;
+    }
+    getFR(f, r) {
+        if (!this.frOk(f, r))
+            return new Piece();
+        return this.rep[r * 8 + f];
+    }
+    setFromFenChecked(fen = this.START_FEN) {
+        let b = new Board(this.variant);
+        let parts = fen.split(" ");
+        let rawfen = parts[0];
+        let ranks = rawfen.split("/");
+        if (ranks.length != 8)
+            return false;
+        for (let r = 0; r < 8; r++) {
+            let pieces = ranks[r].split("");
+            let f = 0;
+            for (let p of pieces) {
+                if ((p >= "1") && (p <= "8")) {
+                    for (let pc = 0; pc < parseInt(p); pc++) {
+                        b.setFR(f++, r);
+                    }
+                }
+                else {
+                    let kind = p.toLowerCase();
+                    if (!IS_PIECE[kind])
+                        return false;
+                    b.setFR(f++, r, new Piece(kind, p != kind ? WHITE : BLACK));
+                }
+            }
+            if (f != this.BOARD_WIDTH)
+                return false;
+        }
+        this.rep = b.rep;
+        return true;
+    }
+    setFromFen(fen = this.START_FEN) {
+        this.setFromFenChecked(fen);
+        return this;
+    }
+}
+let PIECE_TO_STYLE = { "p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king" };
+let COLOR_TO_STYLE = { 0: "black", 1: "white" };
+class GuiBoard extends DomElement {
+    constructor() {
+        super("div");
+        this.MARGIN = 5;
+        this.SQUARE_SIZE = 50;
+        this.PIECE_MARGIN = 4;
+        this.PIECE_SIZE = this.SQUARE_SIZE - 2 * this.PIECE_MARGIN;
+        this.pDivs = [];
+        this.b = new Board().setFromFen();
+    }
+    boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
+    boardHeight() { return this.b.BOARD_HEIGHT * this.SQUARE_SIZE; }
+    totalBoardWidth() { return this.boardWidth() + 2 * this.MARGIN; }
+    totalBoardHeight() { return this.boardHeight() + 2 * this.MARGIN; }
+    setVariant(variant = DEFAULT_VARIANT) {
+        this.b = new Board(variant).setFromFen();
+        return this.build();
+    }
+    build() {
+        this.x.pr().z(this.totalBoardWidth(), this.totalBoardHeight()).
+            burl("assets/images/backgrounds/wood.jpg");
+        this.bDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight()).
+            burl("assets/images/backgrounds/wood.jpg");
+        this.pDivs = [];
+        for (let r = 0; r < this.b.BOARD_WIDTH; r++) {
+            for (let f = 0; f < this.b.BOARD_HEIGHT; f++) {
+                let sqDiv = new Div().pa().r(f * this.SQUARE_SIZE, r * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE);
+                sqDiv.e.style.opacity = "0.1";
+                sqDiv.e.style.backgroundColor = ((r + f) % 2) == 0 ? "#fff" : "#777";
+                let p = this.b.getFR(f, r);
+                let pDiv = new Div().pa().r(f * this.SQUARE_SIZE + this.PIECE_MARGIN, r * this.SQUARE_SIZE + this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE);
+                this.pDivs.push(pDiv);
+                if (!p.empty()) {
+                    let cn = PIECE_TO_STYLE[p.kind] + " " + COLOR_TO_STYLE[p.color];
+                    pDiv.ac(cn);
+                }
+                pDiv.e.setAttribute("draggable", "true");
+                this.bDiv.a([sqDiv, pDiv]);
+            }
+        }
+        this.a([
+            this.bDiv
+        ]);
+        return this;
+    }
+}
 DEBUG = false;
 let PING_INTERVAL = 5000;
 let SOCKET_TIMEOUT = 30000;
@@ -1609,6 +1749,7 @@ function clog(json) {
 ///////////////////////////////////////////////////////////
 let intro;
 let play;
+let gboard;
 let users;
 let profile;
 let tabpane;
@@ -1674,7 +1815,10 @@ function lichessLogout() {
 function buildApp() {
     intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
     users = new Div();
-    play = new Div().h(`Under construction.`);
+    gboard = new GuiBoard();
+    play = new Div().a([
+        gboard.build()
+    ]);
     profileTable = new Table().bs();
     profileTable.a([
         new Tr().a([
@@ -1726,4 +1870,6 @@ function buildApp() {
     setLoggedUser();
 }
 buildApp();
+let b = new Board().setFromFen();
+console.log(b);
 DEBUG = true;
