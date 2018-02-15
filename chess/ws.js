@@ -36,9 +36,20 @@ function handleWs(ws,req){
         let userCookie=cookies.user
         users.checkCookie(userCookie,result=>{
             if(result.ok){
-                loggedUser=result.user
+                loggedUser=result.user                
+                let username=loggedUser.username
                 console.log(`logged user`,loggedUser)
+                send(ws,{
+                    t:"setuser",
+                    username:username,
+                    cookie:userCookie
+                })
             }
+        })
+
+        send(ws,{
+            t:"userlist",
+            userlist:users.userList()
         })
 
         ws.on('message', message=>{
@@ -76,6 +87,10 @@ function handleWs(ws,req){
                                     username:username,
                                     cookie:cookie
                                 })
+                                send(ws,{
+                                    t:"userlist",
+                                    userlist:users.userList()
+                                })
                             })
                         }else{
                             send(ws,{
@@ -88,6 +103,11 @@ function handleWs(ws,req){
                     let username=json.username
                     let cookie=json.cookie
                     console.log(`logged in ${username} ${cookie}`)                    
+                    send(ws,{
+                        t:"setuser",
+                        username:username,
+                        cookie:cookie
+                    })
                 }
             }catch(err){console.log(err)}
         })

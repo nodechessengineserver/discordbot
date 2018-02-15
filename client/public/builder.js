@@ -1281,6 +1281,13 @@ class Tabpane extends DomElement {
         }
         return -1;
     }
+    setCaptionByKey(id, caption) {
+        let index = this.getIndexById(id);
+        if (index >= 0) {
+            this.tabs[index].td.h(caption);
+        }
+        return this;
+    }
     selectTabByIndex(index) {
         this.selectedIndex = index;
         if (index >= 0) {
@@ -1492,9 +1499,11 @@ class MongoColl extends DomElement {
     }
 }
 DEBUG = false;
-let PING_INTERVAL = 3000;
-let SOCKET_TIMEOUT = 10000;
+let PING_INTERVAL = 5000;
+let SOCKET_TIMEOUT = 30000;
+let USER_COOKIE_EXPIRY = 365;
 let WS_URL = `ws://${document.location.host}/ws`;
+let loggedUser;
 //localStorage.clear()
 function newSocket() {
     return new WebSocket(`${WS_URL}/?sri=${uniqueId()}`);
@@ -1522,7 +1531,7 @@ function ping() {
     }
     else {
         //console.log("timeout",timeout)
-        timeoutDiv.h(`${timeout}`);
+        timeoutDiv.h(`${Math.floor(timeout / 1000)} / ${SOCKET_TIMEOUT / 1000}`);
         emit({ t: "ping", time: performance.now() });
         setTimeout(ping, PING_INTERVAL);
     }
@@ -1547,7 +1556,7 @@ function strongSocket() {
                 let time = json.time;
                 let lag = now - time;
                 //console.log("lag",lag)
-                lagDiv.h(`${lag}`);
+                lagDiv.h(`${lag.toLocaleString()}`);
             }
             else if (t == "lichesscode") {
                 let code = json.code;
@@ -1559,7 +1568,7 @@ function strongSocket() {
                 let username = json.username;
                 let cookie = json.cookie;
                 console.log(`${username} registered , cookie : ${cookie}`);
-                setCookie("user", cookie, 365);
+                setCookie("user", cookie, USER_COOKIE_EXPIRY);
                 emit({
                     t: "userloggedin",
                     username: username,
@@ -1569,6 +1578,19 @@ function strongSocket() {
             else if (t == "usercheckfailed") {
                 let username = json.username;
                 console.log(`check for ${username} failed`);
+            }
+            else if (t == "setuser") {
+                let username = json.username;
+                let cookie = json.cookie;
+                console.log(`set user ${username} ${cookie}`);
+                setCookie("user", cookie, USER_COOKIE_EXPIRY);
+                loggedUser = username;
+                setLoggedUser();
+            }
+            else if (t == "userlist") {
+                userlist = json.userlist;
+                console.log(`set userlist`, userlist);
+                setUserList();
             }
         }
         catch (err) {
@@ -1586,6 +1608,8 @@ function clog(json) {
 }
 ///////////////////////////////////////////////////////////
 let intro;
+let play;
+let users;
 let profile;
 let tabpane;
 let profileTable;
@@ -1594,6 +1618,28 @@ let lichessUsernameDiv;
 let timeoutDiv;
 let usernameInputWindow;
 let lichessCodeShowWindow;
+let usernameDiv;
+let usernameButtonDiv;
+let userlist;
+function setLoggedUser() {
+    usernameButtonDiv.x.a([
+        loggedUser == undefined ?
+            new Button("Login").onClick(lichessLogin) :
+            new Button("Logout").onClick(lichessLogout)
+    ]);
+    lichessUsernameDiv.h(loggedUser == undefined ? "?" : loggedUser);
+    tabpane.setCaptionByKey("profile", loggedUser == undefined ? "Profile" : loggedUser);
+    tabpane.selectTab(loggedUser == undefined ? "profile" : "play");
+}
+function setUserList() {
+    users.x;
+    for (let username in userlist) {
+        let user = userlist[username];
+        users.a([
+            new Div().h(user.username)
+        ]);
+    }
+}
 function showLichessCode(username, code) {
     lichessCodeShowWindow = new TextInputWindow("showlichesscode");
     lichessCodeShowWindow.setTitle(`Lichess verification code`).
@@ -1620,9 +1666,15 @@ function lichessLogin() {
     }).setInfo(`Enter your lichess username:`).
         setTitle(`Lichess username`).build();
 }
+function lichessLogout() {
+    setCookie("user", "", USER_COOKIE_EXPIRY);
+    loggedUser = undefined;
+    setLoggedUser();
+}
 function buildApp() {
-    intro = new Div().h(`<hr>Chess playing interface of ACT Discord Server.<hr>` +
-        `Under construction.`);
+    intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
+    users = new Div();
+    play = new Div().h(`Under construction.`);
     profileTable = new Table().bs();
     profileTable.a([
         new Tr().a([
@@ -1630,10 +1682,10 @@ function buildApp() {
                 new Div().setWidthRem(200).h(`Lichess username`)
             ]),
             new Td().a([
-                lichessUsernameDiv = new Div().setWidthRem(400).h("?")
+                lichessUsernameDiv = new Div().setWidthRem(400)
             ]),
             new Td().a([
-                new Button("Login").onClick(lichessLogin)
+                usernameButtonDiv = new Div()
             ])
         ]),
         new Tr().a([
@@ -1660,6 +1712,8 @@ function buildApp() {
     tabpane = new Tabpane("maintabpane").
         setTabs([
         new Tab("intro", "Intro", intro),
+        new Tab("users", "Users", users),
+        new Tab("play", "Play", play),
         new Tab("profile", "Profile", profile),
         new Tab("log", "Log", log)
     ]).
@@ -1669,6 +1723,7 @@ function buildApp() {
     conslog = log.logText.bind(log);
     Layers.init();
     Layers.root.a([tabpane]);
+    setLoggedUser();
 }
 buildApp();
 DEBUG = true;

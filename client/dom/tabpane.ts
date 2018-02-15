@@ -41,6 +41,13 @@ class Tabpane extends DomElement<Tabpane>{
         }
         return -1
     }
+    setCaptionByKey(id:string,caption:string):Tabpane{
+        let index=this.getIndexById(id)
+        if(index>=0){
+            this.tabs[index].td.h(caption)
+        }
+        return this
+    }
     selectTabByIndex(index:number):Tabpane{
         this.selectedIndex=index
         if(index>=0){
