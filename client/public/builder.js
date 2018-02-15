@@ -40,6 +40,18 @@ class Log {
             this.items.pop();
     }
 }
+function uniqueId() {
+    return "" + Math.floor(Math.random() * 1e9);
+}
+function setCookie(name, value, days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
 class Vect {
     constructor(_x, _y) {
         this.x = _x;
@@ -1480,21 +1492,91 @@ class MongoColl extends DomElement {
     }
 }
 DEBUG = false;
-let AJAX_URL = `http://${document.location.host}/ajax`;
+let PING_INTERVAL = 3000;
+let SOCKET_TIMEOUT = 10000;
 let WS_URL = `ws://${document.location.host}/ws`;
 //localStorage.clear()
-function socketTest() {
-    let ws = new WebSocket(`${WS_URL}/?sri=${Math.floor(Math.random() * 1e9)}`);
+function newSocket() {
+    return new WebSocket(`${WS_URL}/?sri=${uniqueId()}`);
+}
+let ws;
+function emit(json) {
+    try {
+        let jsontext = JSON.stringify(json);
+        if (ws.OPEN) {
+            //console.log("sending",jsontext)
+            ws.send(jsontext);
+        }
+    }
+    catch (err) {
+        console.log(err);
+    }
+}
+let lastPong = 0;
+function ping() {
+    let now = performance.now();
+    let timeout = now - lastPong;
+    if (timeout > SOCKET_TIMEOUT) {
+        //console.log("socket timed out")
+        strongSocket();
+    }
+    else {
+        //console.log("timeout",timeout)
+        timeoutDiv.h(`${timeout}`);
+        emit({ t: "ping", time: performance.now() });
+        setTimeout(ping, PING_INTERVAL);
+    }
+}
+function strongSocket() {
+    ws = newSocket();
     ws.onopen = function () {
-        console.log("socket connected");
-        ws.send("hi there ws server");
-        setTimeout(function () {
-            console.log("closing socket");
-            ws.close(1000);
-        }, 3000);
+        //console.log("socket connected")        
+        lastPong = performance.now();
+        ping();
+    };
+    ws.onmessage = (e) => {
+        let content = e.data;
+        //console.log("received",content)
+        try {
+            let json = JSON.parse(content);
+            let t = json.t;
+            //console.log("action",t)
+            if (t == "pong") {
+                let now = performance.now();
+                lastPong = now;
+                let time = json.time;
+                let lag = now - time;
+                //console.log("lag",lag)
+                lagDiv.h(`${lag}`);
+            }
+            else if (t == "lichesscode") {
+                let code = json.code;
+                let username = json.username;
+                console.log(`lichess code received ${username} ${code}`);
+                showLichessCode(username, code);
+            }
+            else if (t == "userregistered") {
+                let username = json.username;
+                let cookie = json.cookie;
+                console.log(`${username} registered , cookie : ${cookie}`);
+                setCookie("user", cookie, 365);
+                emit({
+                    t: "userloggedin",
+                    username: username,
+                    cookie: cookie
+                });
+            }
+            else if (t == "usercheckfailed") {
+                let username = json.username;
+                console.log(`check for ${username} failed`);
+            }
+        }
+        catch (err) {
+            console.log(err);
+        }
     };
 }
-socketTest();
+strongSocket();
 function resetApp() {
     localStorage.clear();
     buildApp();
@@ -1502,31 +1584,78 @@ function resetApp() {
 function clog(json) {
     conslog(JSON.stringify(json, null, 2));
 }
-function ajaxRequest(payload, callback) {
-    console.log("submitting ajax request", payload);
-    let body = JSON.stringify(payload);
-    let headers = new Headers();
-    headers.append("Content-Type", "application/json");
-    fetch(AJAX_URL, {
-        method: 'POST',
-        headers: headers,
-        body: body
-    }).then(response => {
-        console.log("server responded to ajax request");
-        return response.json();
-    }).then(json => {
-        console.log("server returned", json);
-        callback(json);
-    });
-}
 ///////////////////////////////////////////////////////////
 let intro;
 let profile;
 let tabpane;
+let profileTable;
+let lagDiv;
+let lichessUsernameDiv;
+let timeoutDiv;
+let usernameInputWindow;
+let lichessCodeShowWindow;
+function showLichessCode(username, code) {
+    lichessCodeShowWindow = new TextInputWindow("showlichesscode");
+    lichessCodeShowWindow.setTitle(`Lichess verification code`).
+        setInfo(`${username} ! Insert this code into your lichess profile, then press Ok.`).
+        setOkCallback(function () {
+        console.log("checking lichess code");
+        emit({
+            t: "checklichesscode",
+            username: username,
+            code: code
+        });
+    }).
+        build();
+    lichessCodeShowWindow.textinput.setText(code);
+}
+function lichessLogin() {
+    usernameInputWindow = new TextInputWindow("lichessusername");
+    usernameInputWindow.setOkCallback(function () {
+        let username = usernameInputWindow.textinput.getText();
+        emit({
+            t: "lichesslogin",
+            username: username
+        });
+    }).setInfo(`Enter your lichess username:`).
+        setTitle(`Lichess username`).build();
+}
 function buildApp() {
     intro = new Div().h(`<hr>Chess playing interface of ACT Discord Server.<hr>` +
         `Under construction.`);
-    profile = new Div();
+    profileTable = new Table().bs();
+    profileTable.a([
+        new Tr().a([
+            new Td().a([
+                new Div().setWidthRem(200).h(`Lichess username`)
+            ]),
+            new Td().a([
+                lichessUsernameDiv = new Div().setWidthRem(400).h("?")
+            ]),
+            new Td().a([
+                new Button("Login").onClick(lichessLogin)
+            ])
+        ]),
+        new Tr().a([
+            new Td().a([
+                new Div().h(`Lag`)
+            ]),
+            new Td().a([
+                lagDiv = new Div()
+            ])
+        ]),
+        new Tr().a([
+            new Td().a([
+                new Div().h(`Timeout`)
+            ]),
+            new Td().a([
+                timeoutDiv = new Div()
+            ])
+        ])
+    ]);
+    profile = new Div().a([
+        profileTable
+    ]);
     let log = new Logpane();
     tabpane = new Tabpane("maintabpane").
         setTabs([

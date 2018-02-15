@@ -43,3 +43,17 @@ class Log{
         if(this.items.length>LOG_BUFFER_SIZE) this.items.pop()
     }
 }
+
+function uniqueId(){
+    return ""+Math.floor(Math.random()*1e9)
+}
+
+function setCookie(name:any,value:any,days:any) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+}
