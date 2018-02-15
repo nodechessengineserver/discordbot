@@ -6,7 +6,7 @@ let mongodb = require("mongodb")
 const GLOBALS = require("../globals")
 
 let DATABASE_NAME=`mychessdb`
-let USERS_COLL=`users`
+let USERS_COLL=`actusers`
 
 let LOCAL_MONGO_URI=`mongodb://localhost:27017/${DATABASE_NAME}`
 
