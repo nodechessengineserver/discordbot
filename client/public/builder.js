@@ -2496,6 +2496,8 @@ let legalmoves;
 let gboard;
 let boardInfoDiv;
 let moveInput;
+let chatDiv;
+let chatInput;
 let users;
 let profile;
 let tabpane;
@@ -2601,6 +2603,8 @@ function dragMoveCallback(algeb) {
         algeb: algeb
     });
 }
+function chatInputCallback() {
+}
 function buildApp() {
     intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
     users = new Div();
@@ -2615,18 +2619,23 @@ function buildApp() {
     legalmoves = new Div();
     let legalmovesTd = new Td().a([
         legalmoves
-    ]);
-    legalmovesTd.e.style.verticalAlign = "top";
+    ]).setVerticalAlign("top");
+    chatDiv = new Div().z(gboard.totalBoardWidth(), gboard.totalBoardHeight()).
+        setVerticalAlign("top").bcol("#aaf");
     let playtable = new Table().bs().a([
         new Tr().a([
             new Td().a([
                 play
             ]),
-            legalmovesTd
+            legalmovesTd,
+            chatDiv
         ]),
         new Tr().a([
             new Td().cs(2).a([
                 boardInfoDiv = new Div()
+            ]),
+            new Td().a([
+                chatInput = new TextInput("chatinput").setEnterCallback(chatInputCallback)
             ])
         ])
     ]);

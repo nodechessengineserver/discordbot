@@ -119,6 +119,8 @@ let legalmoves:Div
 let gboard:GuiBoard
 let boardInfoDiv:Div
 let moveInput:TextInput
+let chatDiv:Div
+let chatInput:TextInput
 let users:Div
 let profile:Div
 let tabpane:Tabpane
@@ -235,6 +237,10 @@ function dragMoveCallback(algeb:string){
     })
 }
 
+function chatInputCallback(){
+
+}
+
 function buildApp(){
 
     intro=new Div().h(
@@ -257,20 +263,25 @@ function buildApp(){
 
     let legalmovesTd=new Td().a([
         legalmoves
-    ])
+    ]).setVerticalAlign("top")
 
-    legalmovesTd.e.style.verticalAlign="top"
+    chatDiv=new Div().z(gboard.totalBoardWidth(),gboard.totalBoardHeight()).
+        setVerticalAlign("top").bcol("#aaf")
 
     let playtable=new Table().bs().a([
         new Tr().a([
             new Td().a([
                 play
             ]),
-            legalmovesTd
+            legalmovesTd,
+            chatDiv
         ]),
         new Tr().a([
             new Td().cs(2).a([
                 boardInfoDiv=new Div()
+            ]),
+            new Td().a([
+                chatInput=new TextInput("chatinput").setEnterCallback(chatInputCallback)
             ])
         ])
     ])
