@@ -6,3 +6,11 @@
     border-color:#999;
     margin:3rem;    
 }
+
+.chatuser{    
+    color: green;
+}
+
+.chattext{
+    color: blue;
+}

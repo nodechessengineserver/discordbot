@@ -2474,6 +2474,10 @@ function strongSocket() {
                 let fen = json.fen;
                 gboard.b.setFromFen(fen);
             }
+            else if (t == "chat") {
+                chatItems.unshift(new ChatItem(json.user, json.text));
+                showChat();
+            }
         }
         catch (err) {
             console.log(err);
@@ -2603,39 +2607,62 @@ function dragMoveCallback(algeb) {
         algeb: algeb
     });
 }
+class ChatItem {
+    constructor(user, text) {
+        this.user = user;
+        this.text = text;
+    }
+}
+let chatItems = [];
+function showChat() {
+    chatDiv.x.h(chatItems.map(item => `<span class="chatuser">${item.user}</span> : <span class="chattext">${item.text}</span>`).join("<hr>"));
+}
 function chatInputCallback() {
+    let user = loggedUser != undefined ? loggedUser : "Anonymous";
+    let text = chatInput.getTextAndClear();
+    emit({
+        t: "chat",
+        user: user,
+        text: text
+    });
+}
+function chatButtonClicked() {
+    chatInputCallback();
 }
 function buildApp() {
     intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
     users = new Div();
     gboard = new GuiBoard().setPosChangedCallback(boardPosChanged);
     play = new Div().a([
-        gboard.build(),
-        moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
-        new Button("Del").onClick((e) => emit({ t: "delmove" })),
-        new Button("Flip").onClick((e) => gboard.doFlip()),
-        new Button("Reset").onClick((e) => emit({ t: "reset" })),
+        gboard.build()
     ]);
-    legalmoves = new Div();
-    let legalmovesTd = new Td().a([
-        legalmoves
-    ]).setVerticalAlign("top");
-    chatDiv = new Div().z(gboard.totalBoardWidth(), gboard.totalBoardHeight()).
-        setVerticalAlign("top").bcol("#aaf");
+    chatDiv = new Div().z(gboard.totalBoardWidth() - 20, gboard.totalBoardHeight()).
+        bcol("#eef").setOverflow("scroll");
+    chatInput = new TextInput("chatinput").setEnterCallback(chatInputCallback);
+    chatInput.w(gboard.totalBoardWidth() - 70);
     let playtable = new Table().bs().a([
         new Tr().a([
             new Td().a([
                 play
             ]),
-            legalmovesTd,
-            chatDiv
+            new Td().a([
+                legalmoves = new Div()
+            ]).setVerticalAlign("top"),
+            new Td().pr().a([
+                chatDiv.pa().o(3, 3)
+            ])
         ]),
         new Tr().a([
             new Td().cs(2).a([
-                boardInfoDiv = new Div()
+                moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
+                new Button("Del").onClick((e) => emit({ t: "delmove" })),
+                new Button("Flip").onClick((e) => gboard.doFlip()),
+                new Button("Reset").onClick((e) => emit({ t: "reset" })),
+                boardInfoDiv = new Div().mt(3)
             ]),
             new Td().a([
-                chatInput = new TextInput("chatinput").setEnterCallback(chatInputCallback)
+                chatInput.mt(3),
+                new Button("Chat").onClick(chatButtonClicked).mt(3)
             ])
         ])
     ]);

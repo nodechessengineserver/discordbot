@@ -218,6 +218,9 @@ function handleWs(ws,req){
                         t:"setboard",
                         fen:fen
                     })
+                }else if(t=="chat"){                    
+                    console.log("chat")
+                    broadcast(json)
                 }
             }catch(err){console.log(err)}
         })
