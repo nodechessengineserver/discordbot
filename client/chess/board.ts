@@ -118,6 +118,8 @@ class Board{
         }
         this.turn=WHITE
         this.hist=[]        
+        this.fullmoveNumber=1
+        this.halfmoveClock=0
     }
 
     constructor(variant:string=DEFAULT_VARIANT){
@@ -184,9 +186,26 @@ class Board{
         if(turn==undefined) return false
 
         b.turn=turn
+
+        let halfmoveFen=parts[4]
+        let hmc=parseInt(halfmoveFen)
+        if(isNaN(hmc)) return false
+        if(hmc<0) return false
+
+        b.halfmoveClock=hmc
+
+        let fullmoveFen=parts[5]
+        let fmn=parseInt(fullmoveFen)
+        if(isNaN(fmn)) return false
+        if(fmn<1) return false
+
+        b.fullmoveNumber=fmn
         
         this.rep=b.rep
         this.turn=b.turn
+        this.fullmoveNumber=b.fullmoveNumber
+        this.halfmoveClock=b.halfmoveClock
+
         if(clearHist) this.hist=[fen]
         this.posChanged()
         return true
@@ -390,6 +409,9 @@ class Board{
         return flms.length>0
     }
 
+    fullmoveNumber=1
+    halfmoveClock=0
+
     makeMove(m:Move,check:boolean=true):boolean{
         if(check) if(!this.isMoveLegal(m)) return false
         let fSq=m.fromSq
@@ -416,6 +438,10 @@ class Board{
             this.setSq(tSq)
         }
         this.turn=INV_COLOR(this.turn)
+        if(this.turn==WHITE) this.fullmoveNumber++
+        this.halfmoveClock++
+        if(fp.kind==PAWN) this.halfmoveClock=0
+        if(tp.kind!=EMPTY) this.halfmoveClock=0
         let fen=this.reportFen()
         this.hist.push(fen)        
         this.posChanged()
@@ -454,11 +480,7 @@ class Board{
             if(r<(this.BOARD_HEIGHT-1)) fen+="/"
         }
 
-        fen+=" "+(this.turn==WHITE?"w":"b")
-
-        fen+=" KQkq - 0 1"
-
-        return fen
+        return `${fen} ${(this.turn==WHITE?"w":"b")} KQkq - ${this.halfmoveClock} ${this.fullmoveNumber}`
     }
 
     squareFromAlgeb(algeb:string):Square{

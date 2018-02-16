@@ -117,6 +117,7 @@ let playtable:Table
 let play:Div
 let legalmoves:Div
 let gboard:GuiBoard
+let boardInfoDiv:Div
 let moveInput:TextInput
 let users:Div
 let profile:Div
@@ -220,6 +221,10 @@ function boardPosChanged(){
         new Div().h(algeb).cp().setColor("#00f").ul().
         addEventListener("mousedown",moveClicked.bind(null,algeb))
     ))
+    boardInfoDiv.x.a([
+        new TextInput("boardinfo").setText(gboard.b.reportFen()).
+        w(gboard.totalBoardWidth()+60).fs(10)
+    ])
 }
 
 function dragMoveCallback(algeb:string){
@@ -241,7 +246,7 @@ function buildApp(){
     gboard=new GuiBoard().setPosChangedCallback(boardPosChanged)
 
     play=new Div().a([
-        gboard.build(),
+        gboard.build(),        
         moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered),
         new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
         new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
@@ -262,6 +267,11 @@ function buildApp(){
                 play
             ]),
             legalmovesTd
+        ]),
+        new Tr().a([
+            new Td().cs(2).a([
+                boardInfoDiv=new Div()
+            ])
         ])
     ])
 

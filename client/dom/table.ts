@@ -28,12 +28,9 @@ class Td extends DomElement<Td>{
     setColspan(value:string):Td{
         this.setAttribute("colspan",value)
         return this
-    }
-    setColspanRem(rem:number):Td{
-        return this.setColspan(`${rem}rem`)
-    }
-    cs(rem:number):Td{
-        return this.setColspanRem(rem)
+    }    
+    cs(cs:number):Td{
+        return this.setColspan(""+cs)
     }
     //////////////////////////////////////////////
 }

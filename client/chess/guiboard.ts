@@ -79,9 +79,11 @@ class GuiBoard extends DomElement<GuiBoard>{
 
                 if(!this.promMode) pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
 
-                this.pDivs.push(pDiv)
+                let dopush=!(this.promMode&&sq.e(this.promMove.fromSq))                                
 
-                this.bDiv.a([sqDiv,pDiv])
+                this.bDiv.a([sqDiv])
+
+                if(dopush) this.bDiv.a([pDiv])
 
                 if(this.promMode){
                     let promToSq=this.promMove.toSq
