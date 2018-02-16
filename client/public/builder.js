@@ -1553,6 +1553,11 @@ class MongoColl extends DomElement {
 let WHITE = 1;
 let BLACK = 0;
 let NO_COL = -1;
+function INV_COLOR(color) {
+    if (color == NO_COL)
+        return NO_COL;
+    return color == WHITE ? BLACK : WHITE;
+}
 let EMPTY = "-";
 let PAWN = "p";
 let KNIGHT = "n";
@@ -1561,6 +1566,8 @@ let ROOK = "r";
 let QUEEN = "q";
 let KING = "k";
 let IS_PIECE = { "p": true, "n": true, "b": true, "r": true, "q": true, "k": true };
+let ALL_PIECES = Object.keys(IS_PIECE);
+let ALL_CHECK_PIECES = ["p", "n", "b", "r", "q"];
 let PROM_PIECE = { "n": true, "b": true, "r": true, "q": true };
 let MOVE_LETTER_TO_TURN = { "w": WHITE, "b": BLACK };
 let VARIANT_PROPERTIES = {
@@ -1578,6 +1585,10 @@ class Piece {
         this.color = color;
     }
     empty() { return this.kind == EMPTY; }
+    inv() { return new Piece(this.kind, INV_COLOR(this.color)); }
+    e(p) {
+        return (this.kind == p.kind) && (this.color == p.color);
+    }
 }
 class Square {
     constructor(f, r) {
@@ -1614,8 +1625,10 @@ const INVALID_MOVE = new Move(INVALID_SQUARE, INVALID_SQUARE);
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
         this.hist = [];
+        this.test = false;
         this.plms = [];
         this.lms = [];
+        this.debug = false;
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -1631,6 +1644,10 @@ class Board {
         }
         this.turn = WHITE;
         this.hist = [];
+    }
+    setTest(test) {
+        this.test = test;
+        return this;
     }
     frOk(f, r) {
         if ((f < 0) || (f >= this.BOARD_WIDTH))
@@ -1730,15 +1747,23 @@ class Board {
         return this.BOARD_HEIGHT - 1 - this.pawnFromStart(sq, color);
     }
     posChanged() {
-        //console.log("pos changed",this.hist)     
-        this.genLegalMoves();
+        if (!this.test) {
+            this.genLegalMoves();
+        }
         if (this.posChangedCallback != undefined) {
             this.posChangedCallback();
         }
     }
     genLegalMoves() {
         this.genPseudoLegalMoves();
-        this.lms = this.plms;
+        this.lms = [];
+        for (let m of this.plms) {
+            let b = new Board().setTest(true).setFromFen(this.reportFen());
+            b.makeMove(m, false);
+            if (!b.isInCheck(this.turn)) {
+                this.lms.push(m);
+            }
+        }
     }
     genPseudoLegalMoves() {
         this.plms = [];
@@ -1821,7 +1846,7 @@ class Board {
                         let pieceOk = (knightOk && (p.kind == KNIGHT)) ||
                             (bishopOk && (p.kind == BISHOP)) ||
                             (rookOk && (p.kind == ROOK)) ||
-                            (rookOk && bishopOk && ((p.kind == QUEEN) || (p.kind == KING)));
+                            ((rookOk || bishopOk) && ((p.kind == QUEEN) || (p.kind == KING)));
                         if (pieceOk) {
                             f += df;
                             r += dr;
@@ -1855,14 +1880,14 @@ class Board {
     legalAlgebMoves() {
         return this.lms.map(m => this.moveToAlgeb(m));
     }
-    invColor(color) { return color == WHITE ? BLACK : WHITE; }
     isMoveLegal(m) {
         let flms = this.lms.filter((tm) => tm.e(m));
         return flms.length > 0;
     }
-    makeMove(m) {
-        if (!this.isMoveLegal(m))
-            return false;
+    makeMove(m, check = true) {
+        if (check)
+            if (!this.isMoveLegal(m))
+                return false;
         let fSq = m.fromSq;
         let tSq = m.toSq;
         let fp = this.getSq(fSq);
@@ -1889,7 +1914,7 @@ class Board {
             }
             this.setSq(tSq);
         }
-        this.turn = this.invColor(this.turn);
+        this.turn = INV_COLOR(this.turn);
         let fen = this.reportFen();
         this.hist.push(fen);
         this.posChanged();
@@ -1975,6 +2000,72 @@ class Board {
     }
     isAlgebMoveLegal(algeb) {
         return this.isMoveLegal(this.moveFromAlgeb(algeb));
+    }
+    isSquareAttackedByPiece(sq, p) {
+        let tp = p.inv();
+        if (p.kind == PAWN) {
+            let pdir = this.pawnDir(tp.color);
+            for (let df = -1; df <= 1; df += 2) {
+                let tsq = sq.p(new Square(df, pdir.r));
+                if (this.sqOk(tsq)) {
+                    let ap = this.getSq(tsq);
+                    if (ap.e(p))
+                        return true;
+                }
+            }
+        }
+        else {
+            let plms = this.pseudoLegalMovesForPieceAt(tp, sq);
+            for (let m of plms) {
+                let ap = this.getSq(m.toSq);
+                if (ap.e(p))
+                    return true;
+            }
+        }
+        return false;
+    }
+    isSquareAttackedByColor(sq, color) {
+        for (let kind of ALL_CHECK_PIECES) {
+            if (this.isSquareAttackedByPiece(sq, new Piece(kind, color)))
+                return true;
+        }
+        return false;
+    }
+    isSquareInCheck(sq, color) {
+        return this.isSquareAttackedByColor(sq, INV_COLOR(color));
+    }
+    whereIsKing(color) {
+        for (let f = 0; f < this.BOARD_WIDTH; f++) {
+            for (let r = 0; r < this.BOARD_HEIGHT; r++) {
+                let p = this.getFR(f, r);
+                if ((p.kind == KING) && (p.color == color)) {
+                    return new Square(f, r);
+                }
+            }
+        }
+        return INVALID_SQUARE;
+    }
+    kingsAdjacent() {
+        let ww = this.whereIsKing(WHITE);
+        let wb = this.whereIsKing(BLACK);
+        if (ww.invalid())
+            return false;
+        if (wb.invalid())
+            return false;
+        return this.isSquareAttackedByPiece(ww, new Piece(KING, BLACK));
+    }
+    isExploded(color) {
+        let wk = this.whereIsKing(color);
+        if (wk.invalid())
+            return true;
+        return false;
+    }
+    isInCheck(color = this.turn) {
+        if (this.kingsAdjacent())
+            return false;
+        if (this.isExploded(color))
+            return true;
+        return this.isSquareInCheck(this.whereIsKing(color), color);
     }
 }
 if (!DOM_DEFINED) {

@@ -2,6 +2,11 @@ let WHITE=1
 let BLACK=0
 let NO_COL=-1
 
+function INV_COLOR(color:number){
+    if(color==NO_COL) return NO_COL
+    return color==WHITE?BLACK:WHITE
+}
+
 let EMPTY="-"
 let PAWN="p"
 let KNIGHT="n"
@@ -11,6 +16,8 @@ let QUEEN="q"
 let KING="k"
 
 let IS_PIECE:{[id:string]:boolean}={"p":true,"n":true,"b":true,"r":true,"q":true,"k":true}
+let ALL_PIECES=Object.keys(IS_PIECE)
+let ALL_CHECK_PIECES=["p","n","b","r","q"]
 let PROM_PIECE:{[id:string]:boolean}={"n":true,"b":true,"r":true,"q":true}
 let MOVE_LETTER_TO_TURN:{[id:string]:number}={"w":WHITE,"b":BLACK}
 
@@ -35,6 +42,12 @@ class Piece{
     }
 
     empty():boolean{return this.kind==EMPTY}
+
+    inv():Piece{return new Piece(this.kind,INV_COLOR(this.color))}
+
+    e(p:Piece):boolean{
+        return (this.kind==p.kind)&&(this.color==p.color)
+    }
 }
 
 class Square{
@@ -115,6 +128,12 @@ class Board{
         this.START_FEN=this.PROPS.START_FEN
         this.rep=new Array(this.BOARD_SIZE)
         this.reset()
+    }
+
+    test:boolean=false
+    setTest(test:boolean):Board{
+        this.test=test
+        return this
     }
 
     frOk(f:number,r:number){
@@ -218,25 +237,35 @@ class Board{
     plms:Move[]=[]
     lms:Move[]=[]
 
-    posChanged(){           
-        //console.log("pos changed",this.hist)     
-        this.genLegalMoves()
+    posChanged(){              
+        if(!this.test){            
+            this.genLegalMoves()            
+        }
         if(this.posChangedCallback!=undefined){
             this.posChangedCallback()
         }
     }
 
+    debug:boolean=false
+
     genLegalMoves(){
         this.genPseudoLegalMoves()
-        this.lms=this.plms
+        this.lms=[]                
+        for(let m of this.plms){            
+            let b=new Board().setTest(true).setFromFen(this.reportFen())            
+            b.makeMove(m,false)                        
+            if(!b.isInCheck(this.turn)){
+                this.lms.push(m)
+            }
+        }
     }
 
-    genPseudoLegalMoves(){
-        this.plms=[]
+    genPseudoLegalMoves(){                
+        this.plms=[]                
         for(let f=0;f<this.BOARD_WIDTH;f++){
             for(let r=0;r<this.BOARD_HEIGHT;r++){
-                let p=this.getFR(f,r)
-                if(p.color==this.turn){
+                let p=this.getFR(f,r)                
+                if(p.color==this.turn){                    
                     let pms=this.pseudoLegalMovesForPieceAt(p,new Square(f,r))
                     for(let m of pms){
                         this.plms.push(m)
@@ -315,7 +344,7 @@ class Board{
                             (knightOk&&(p.kind==KNIGHT))||
                             (bishopOk&&(p.kind==BISHOP))||
                             (rookOk&&(p.kind==ROOK))||
-                            (rookOk&&bishopOk&&((p.kind==QUEEN)||(p.kind==KING)))
+                            ((rookOk||bishopOk)&&((p.kind==QUEEN)||(p.kind==KING)))
                         if(pieceOk){
                             f+=df
                             r+=dr
@@ -346,15 +375,13 @@ class Board{
         return this.lms.map(m=>this.moveToAlgeb(m))
     }
 
-    invColor(color:number){return color==WHITE?BLACK:WHITE}
-
     isMoveLegal(m:Move){
         let flms=this.lms.filter((tm:Move)=>tm.e(m))        
         return flms.length>0
     }
 
-    makeMove(m:Move):boolean{
-        if(!this.isMoveLegal(m)) return false
+    makeMove(m:Move,check:boolean=true):boolean{
+        if(check) if(!this.isMoveLegal(m)) return false
         let fSq=m.fromSq
         let tSq=m.toSq
         let fp=this.getSq(fSq)
@@ -378,9 +405,9 @@ class Board{
             }
             this.setSq(tSq)
         }
-        this.turn=this.invColor(this.turn)
+        this.turn=INV_COLOR(this.turn)
         let fen=this.reportFen()
-        this.hist.push(fen)
+        this.hist.push(fen)        
         this.posChanged()
         return true
     }
@@ -464,6 +491,70 @@ class Board{
 
     isAlgebMoveLegal(algeb:string){
         return this.isMoveLegal(this.moveFromAlgeb(algeb))
+    }
+
+    isSquareAttackedByPiece(sq:Square,p:Piece):boolean{                
+        let tp=p.inv()        
+        if(p.kind==PAWN){
+            let pdir=this.pawnDir(tp.color)
+            for(let df=-1;df<=1;df+=2){
+                let tsq=sq.p(new Square(df,pdir.r))                
+                if(this.sqOk(tsq)){
+                    let ap=this.getSq(tsq)
+                    if(ap.e(p)) return true
+                }
+            }
+        }else{
+            let plms=this.pseudoLegalMovesForPieceAt(tp,sq)
+            for(let m of plms){
+                let ap=this.getSq(m.toSq)                      
+                if(ap.e(p)) return true
+            }
+        }
+        return false
+    }
+
+    isSquareAttackedByColor(sq:Square,color:number):boolean{
+        for(let kind of ALL_CHECK_PIECES){
+            if(this.isSquareAttackedByPiece(sq,new Piece(kind,color))) return true
+        }
+        return false
+    }
+
+    isSquareInCheck(sq:Square,color:number){        
+        return this.isSquareAttackedByColor(sq,INV_COLOR(color))
+    }
+
+    whereIsKing(color:number):Square{
+        for(let f=0;f<this.BOARD_WIDTH;f++){
+            for(let r=0;r<this.BOARD_HEIGHT;r++){
+                let p=this.getFR(f,r)
+                if((p.kind==KING)&&(p.color==color)){
+                    return new Square(f,r)
+                }
+            }
+        }
+        return INVALID_SQUARE
+    }
+
+    kingsAdjacent():boolean{
+        let ww=this.whereIsKing(WHITE)
+        let wb=this.whereIsKing(BLACK)
+        if(ww.invalid()) return false
+        if(wb.invalid()) return false
+        return this.isSquareAttackedByPiece(ww,new Piece(KING,BLACK))
+    }
+
+    isExploded(color:number){
+        let wk=this.whereIsKing(color)
+        if(wk.invalid()) return true
+        return false
+    }
+
+    isInCheck(color:number=this.turn){
+        if(this.kingsAdjacent()) return false
+        if(this.isExploded(color)) return true
+        return this.isSquareInCheck(this.whereIsKing(color),color)
     }
 }
 
