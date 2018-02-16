@@ -218,7 +218,8 @@ class Board{
     plms:Move[]=[]
     lms:Move[]=[]
 
-    posChanged(){                
+    posChanged(){           
+        //console.log("pos changed",this.hist)     
         this.genLegalMoves()
         if(this.posChangedCallback!=undefined){
             this.posChangedCallback()
@@ -385,6 +386,7 @@ class Board{
     }
 
     del(){
+        //console.log("del",this.hist)
         if(this.hist.length>1){
             this.hist.pop()            
             let fen=this.hist[this.hist.length-1]            
@@ -458,6 +460,10 @@ class Board{
     setPosChangedCallback(posChangedCallback:any):Board{
         this.posChangedCallback=posChangedCallback
         return this
+    }
+
+    isAlgebMoveLegal(algeb:string){
+        return this.isMoveLegal(this.moveFromAlgeb(algeb))
     }
 }
 

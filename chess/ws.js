@@ -1,3 +1,6 @@
+// system
+const WebSocket = require("ws")
+
 // local
 const utils = require("./utils")
 const users = require("./users")
@@ -21,7 +24,8 @@ function maintainSockets(){
             let elapsed=now-lastping            
             if(elapsed>SOCKET_TIMEOUT){
                 try{
-                    if(socket.OPEN){
+                    let ws=socket.ws
+                    if(isOpen(ws)){
                         socket.close(1000)
                     }
                     delsris.push(sri)
@@ -45,9 +49,13 @@ function maintainSockets(){
 
 setInterval(maintainSockets,SOCKET_MAINTAIN_INTERVAL)
 
+function isOpen(ws){
+    return ws.readyState == WebSocket.OPEN
+}
+
 function send(ws,json){
     try{
-        if(ws.OPEN){
+        if(isOpen(ws)){
             let jsontext=JSON.stringify(json)
             //console.log("sending",jsontext)
             ws.send(jsontext)
@@ -184,16 +192,18 @@ function handleWs(ws,req){
                 }else if(t=="makemove"){
                     let algeb=json.algeb
                     let ok=b.makeAlgebMove(algeb)
+                    let fen=b.reportFen()                        
                     console.log("makemove",algeb)
                     if(ok){                        
-                        let fen=b.reportFen()                        
-                        console.log("legal",fen)
-                        broadcast({
-                            t:"setboard",
-                            fen:fen
-                        })
+                        fen=b.reportFen()                        
+                        console.log("legal",fen)                        
                     }
+                    broadcast({
+                        t:"setboard",
+                        fen:fen
+                    })
                 }else if(t=="delmove"){
+                    console.log("del move")
                     b.del()
                     let fen=b.reportFen()
                     broadcast({
@@ -201,6 +211,7 @@ function handleWs(ws,req){
                         fen:fen
                     })
                 }else if(t=="reset"){
+                    console.log("reset board")
                     b.setFromFen()
                     let fen=b.reportFen()
                     broadcast({

@@ -302,6 +302,30 @@ class DomElement<T>{
         this.e.style.backgroundColor=value
         return this
     }
+    bcol(value:string):DomElement<T>{
+        return this.setBackgroundColor(value)
+    }
+    setColor(value:string):DomElement<T>{
+        this.e.style.color=value
+        return this
+    }
+    col(value:string):DomElement<T>{
+        return this.setColor(value)
+    }
+    fontStyle(value:string):DomElement<T>{
+        this.e.style.fontStyle=value
+        return this
+    }
+    it():DomElement<T>{
+        return this.fontStyle("italic")
+    }
+    textDecoration(value:string):DomElement<T>{
+        this.e.style.textDecoration=value
+        return this
+    }
+    ul():DomElement<T>{
+        return this.textDecoration("underline")
+    }
     //////////////////////////////////////////////
     setFontSize(value:string):DomElement<T>{
         this.e.style.fontSize=value
@@ -393,6 +417,32 @@ class DomElement<T>{
     getValue():string{
         return (<any>this.e)["value"]
     }    
+    //////////////////////////////////////////////
+    getPx(pxstr:any):number{
+        return parseInt(pxstr.replace("px",""))
+    }
+    getTopPx():number{
+        return this.getPx(this.e.style.top)
+    }
+    getLeftPx():number{
+        return this.getPx(this.e.style.left)
+    }
+    topPx(px:number):DomElement<T>{
+        this.e.style.top=px+"px"
+        return this
+    }
+    leftPx(px:number):DomElement<T>{
+        this.e.style.left=px+"px"
+        return this
+    }
+    zIndexNumber(z:number):DomElement<T>{
+        this.e.style.zIndex=""+z
+        return this
+    }
+    cp():DomElement<T>{
+        this.e.style.cursor="pointer"
+        return this
+    }
     //////////////////////////////////////////////
     addEventListener(type:any,listener:(this:Element,ev:any)=>any):DomElement<T>{
         this.e.addEventListener(type,listener)

@@ -11,6 +11,10 @@ class GuiBoard extends DomElement<GuiBoard>{
 
     bDiv:Div
 
+    dragstart:Vect
+	dragstartst:Vect
+    dragd:Vect
+
     boardWidth(){return this.b.BOARD_WIDTH*this.SQUARE_SIZE}
     boardHeight(){return this.b.BOARD_HEIGHT*this.SQUARE_SIZE}
     totalBoardWidth(){return this.boardWidth()+2*this.MARGIN}
@@ -51,17 +55,20 @@ class GuiBoard extends DomElement<GuiBoard>{
 
         this.pDivs=[]
 
-        for(let r=0;r<this.b.BOARD_WIDTH;r++){
-            for(let f=0;f<this.b.BOARD_HEIGHT;f++){
+        for(let nr=0;nr<this.b.BOARD_WIDTH;nr++){
+            for(let nf=0;nf<this.b.BOARD_HEIGHT;nf++){                
+                let sq=new Square(nf,nr)
+                let rotSq=this.rotateSquare(sq,this.flip)
+                let f=rotSq.f
+                let r=rotSq.r
+
                 let sqDiv=new Div().pa().r(f*this.SQUARE_SIZE,r*this.SQUARE_SIZE,this.SQUARE_SIZE,this.SQUARE_SIZE)
 
                 sqDiv.e.style.opacity="0.1"
                 sqDiv.e.style.backgroundColor=((r+f)%2)==0?"#fff":"#777"
 
-                let p=this.b.getFR(f,r)
+                let p=this.b.getFR(nf,nr)
                 let pDiv=new Div().pa().r(f*this.SQUARE_SIZE+this.PIECE_MARGIN,r*this.SQUARE_SIZE+this.PIECE_MARGIN,this.PIECE_SIZE,this.PIECE_SIZE)
-
-                this.pDivs.push(pDiv)
               
                 if(!p.empty()){
                     let cn=PIECE_TO_STYLE[p.kind]+" "+COLOR_TO_STYLE[p.color]
@@ -69,6 +76,10 @@ class GuiBoard extends DomElement<GuiBoard>{
                 }
 
                 pDiv.e.setAttribute("draggable","true")
+
+                pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
+
+                this.pDivs.push(pDiv)
 
                 this.bDiv.a([sqDiv,pDiv])
             }
@@ -78,7 +89,95 @@ class GuiBoard extends DomElement<GuiBoard>{
             this.bDiv
         ])
 
+        this.bDiv.addEventListener("mousemove",this.boardmousemove.bind(this))
+        this.bDiv.addEventListener("mouseup",this.boardmouseup.bind(this))
+
         return this
+    }
+
+    draggedSq:Square
+    draggedPDiv:Div
+    dragunderway:boolean
+
+    piecedragstart(sq:Square,pDiv:Div,e:Event){        
+        let me=<MouseEvent>e
+        me.preventDefault()
+        this.draggedSq=sq
+        this.dragstart=new Vect(me.clientX,me.clientY)            
+        
+        this.draggedPDiv=pDiv
+        this.dragstartst=new Vect(pDiv.getLeftPx(),pDiv.getTopPx())               
+        this.dragunderway=true
+
+        for(let pd of this.pDivs){
+            pd.zIndexNumber(0)
+        }
+        pDiv.zIndexNumber(100)
+    }
+    boardmousemove(e:Event){
+        let me=<MouseEvent>e          
+        if(this.dragunderway){            
+            let client=new Vect(me.clientX,me.clientY)
+            this.dragd=client.m(this.dragstart)            
+            let nsv=this.dragstartst.p(this.dragd)            
+            this.draggedPDiv.
+                leftPx(nsv.x).
+                topPx(nsv.y)
+        }
+    }
+    
+    HALF_SQUARE_SIZE_VECT(){
+        return new Vect(this.SQUARE_SIZE/2,this.SQUARE_SIZE/2)
+    }
+    SQUARE_SIZE_PX(){
+        return this.SQUARE_SIZE/SCALE_FACTOR()
+    }
+    screenvectortosquare(sv:Vect):Square{
+        let f = Math.floor( sv.x / this.SQUARE_SIZE_PX() )
+        let r = Math.floor( sv.y / this.SQUARE_SIZE_PX() )
+        return new Square(f,r)
+    }    
+    squaretoscreenvector(sq:Square):Vect{
+        let x = sq.f * this.SQUARE_SIZE_PX()
+        let y = sq.r * this.SQUARE_SIZE_PX()
+        return new Vect(x,y)
+    }
+    flip:number=0
+    rotateSquare(sq:Square,flip:number):Square{
+        if(flip==0) return new Square(sq.f,sq.r)
+        return new Square(this.b.BOARD_WIDTH-1-sq.f,this.b.BOARD_HEIGHT-1-sq.r)
+    }
+    doFlip(){
+        this.flip=1-this.flip        
+        this.build()
+    }
+    boardmouseup(e:Event){        
+        let me=<MouseEvent>e
+        if(this.dragunderway){
+            this.dragunderway=false
+            let dragdcorr=this.dragd.p(this.HALF_SQUARE_SIZE_VECT())
+            let dragdnom=dragdcorr
+            let dsq=this.screenvectortosquare(dragdnom)
+            let dsv=this.squaretoscreenvector(dsq)
+            let nsv=this.dragstartst.p(dsv)
+            this.draggedPDiv.
+                leftPx(nsv.x).
+                topPx(nsv.y)            
+            let fromsqorig=this.rotateSquare(this.draggedSq,this.flip)
+            let tosq=this.rotateSquare(fromsqorig.p(dsq),-this.flip)
+            let m=new Move(this.draggedSq,tosq)     
+            let algeb=this.b.moveToAlgeb(m)
+            //console.log(algeb)
+            if(this.dragMoveCallback!=undefined){
+                this.dragMoveCallback(algeb)
+            }else{
+                this.b.makeAlgebMove(algeb)
+            }
+        }
+    }
+    dragMoveCallback:any
+    setDragMoveCallback(dragMoveCallback:any){
+        this.dragMoveCallback=dragMoveCallback
     }
 }
 

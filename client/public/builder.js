@@ -440,6 +440,30 @@ class DomElement {
         this.e.style.backgroundColor = value;
         return this;
     }
+    bcol(value) {
+        return this.setBackgroundColor(value);
+    }
+    setColor(value) {
+        this.e.style.color = value;
+        return this;
+    }
+    col(value) {
+        return this.setColor(value);
+    }
+    fontStyle(value) {
+        this.e.style.fontStyle = value;
+        return this;
+    }
+    it() {
+        return this.fontStyle("italic");
+    }
+    textDecoration(value) {
+        this.e.style.textDecoration = value;
+        return this;
+    }
+    ul() {
+        return this.textDecoration("underline");
+    }
     //////////////////////////////////////////////
     setFontSize(value) {
         this.e.style.fontSize = value;
@@ -530,6 +554,32 @@ class DomElement {
     }
     getValue() {
         return this.e["value"];
+    }
+    //////////////////////////////////////////////
+    getPx(pxstr) {
+        return parseInt(pxstr.replace("px", ""));
+    }
+    getTopPx() {
+        return this.getPx(this.e.style.top);
+    }
+    getLeftPx() {
+        return this.getPx(this.e.style.left);
+    }
+    topPx(px) {
+        this.e.style.top = px + "px";
+        return this;
+    }
+    leftPx(px) {
+        this.e.style.left = px + "px";
+        return this;
+    }
+    zIndexNumber(z) {
+        this.e.style.zIndex = "" + z;
+        return this;
+    }
+    cp() {
+        this.e.style.cursor = "pointer";
+        return this;
     }
     //////////////////////////////////////////////
     addEventListener(type, listener) {
@@ -1680,6 +1730,7 @@ class Board {
         return this.BOARD_HEIGHT - 1 - this.pawnFromStart(sq, color);
     }
     posChanged() {
+        //console.log("pos changed",this.hist)     
         this.genLegalMoves();
         if (this.posChangedCallback != undefined) {
             this.posChangedCallback();
@@ -1845,6 +1896,7 @@ class Board {
         return true;
     }
     del() {
+        //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
             let fen = this.hist[this.hist.length - 1];
@@ -1921,6 +1973,9 @@ class Board {
         this.posChangedCallback = posChangedCallback;
         return this;
     }
+    isAlgebMoveLegal(algeb) {
+        return this.isMoveLegal(this.moveFromAlgeb(algeb));
+    }
 }
 if (!DOM_DEFINED) {
     module.exports.Piece = Piece;
@@ -1936,6 +1991,7 @@ class GuiBoard extends DomElement {
         this.PIECE_MARGIN = 4;
         this.PIECE_SIZE = this.SQUARE_SIZE - 2 * this.PIECE_MARGIN;
         this.pDivs = [];
+        this.flip = 0;
         this.b = new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this));
     }
     boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
@@ -1962,26 +2018,110 @@ class GuiBoard extends DomElement {
         this.bDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight()).
             burl("assets/images/backgrounds/wood.jpg");
         this.pDivs = [];
-        for (let r = 0; r < this.b.BOARD_WIDTH; r++) {
-            for (let f = 0; f < this.b.BOARD_HEIGHT; f++) {
+        for (let nr = 0; nr < this.b.BOARD_WIDTH; nr++) {
+            for (let nf = 0; nf < this.b.BOARD_HEIGHT; nf++) {
+                let sq = new Square(nf, nr);
+                let rotSq = this.rotateSquare(sq, this.flip);
+                let f = rotSq.f;
+                let r = rotSq.r;
                 let sqDiv = new Div().pa().r(f * this.SQUARE_SIZE, r * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE);
                 sqDiv.e.style.opacity = "0.1";
                 sqDiv.e.style.backgroundColor = ((r + f) % 2) == 0 ? "#fff" : "#777";
-                let p = this.b.getFR(f, r);
+                let p = this.b.getFR(nf, nr);
                 let pDiv = new Div().pa().r(f * this.SQUARE_SIZE + this.PIECE_MARGIN, r * this.SQUARE_SIZE + this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE);
-                this.pDivs.push(pDiv);
                 if (!p.empty()) {
                     let cn = PIECE_TO_STYLE[p.kind] + " " + COLOR_TO_STYLE[p.color];
                     pDiv.ac(cn);
                 }
                 pDiv.e.setAttribute("draggable", "true");
+                pDiv.addEventListener("dragstart", this.piecedragstart.bind(this, sq, pDiv));
+                this.pDivs.push(pDiv);
                 this.bDiv.a([sqDiv, pDiv]);
             }
         }
         this.a([
             this.bDiv
         ]);
+        this.bDiv.addEventListener("mousemove", this.boardmousemove.bind(this));
+        this.bDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
         return this;
+    }
+    piecedragstart(sq, pDiv, e) {
+        let me = e;
+        me.preventDefault();
+        this.draggedSq = sq;
+        this.dragstart = new Vect(me.clientX, me.clientY);
+        this.draggedPDiv = pDiv;
+        this.dragstartst = new Vect(pDiv.getLeftPx(), pDiv.getTopPx());
+        this.dragunderway = true;
+        for (let pd of this.pDivs) {
+            pd.zIndexNumber(0);
+        }
+        pDiv.zIndexNumber(100);
+    }
+    boardmousemove(e) {
+        let me = e;
+        if (this.dragunderway) {
+            let client = new Vect(me.clientX, me.clientY);
+            this.dragd = client.m(this.dragstart);
+            let nsv = this.dragstartst.p(this.dragd);
+            this.draggedPDiv.
+                leftPx(nsv.x).
+                topPx(nsv.y);
+        }
+    }
+    HALF_SQUARE_SIZE_VECT() {
+        return new Vect(this.SQUARE_SIZE / 2, this.SQUARE_SIZE / 2);
+    }
+    SQUARE_SIZE_PX() {
+        return this.SQUARE_SIZE / SCALE_FACTOR();
+    }
+    screenvectortosquare(sv) {
+        let f = Math.floor(sv.x / this.SQUARE_SIZE_PX());
+        let r = Math.floor(sv.y / this.SQUARE_SIZE_PX());
+        return new Square(f, r);
+    }
+    squaretoscreenvector(sq) {
+        let x = sq.f * this.SQUARE_SIZE_PX();
+        let y = sq.r * this.SQUARE_SIZE_PX();
+        return new Vect(x, y);
+    }
+    rotateSquare(sq, flip) {
+        if (flip == 0)
+            return new Square(sq.f, sq.r);
+        return new Square(this.b.BOARD_WIDTH - 1 - sq.f, this.b.BOARD_HEIGHT - 1 - sq.r);
+    }
+    doFlip() {
+        this.flip = 1 - this.flip;
+        this.build();
+    }
+    boardmouseup(e) {
+        let me = e;
+        if (this.dragunderway) {
+            this.dragunderway = false;
+            let dragdcorr = this.dragd.p(this.HALF_SQUARE_SIZE_VECT());
+            let dragdnom = dragdcorr;
+            let dsq = this.screenvectortosquare(dragdnom);
+            let dsv = this.squaretoscreenvector(dsq);
+            let nsv = this.dragstartst.p(dsv);
+            this.draggedPDiv.
+                leftPx(nsv.x).
+                topPx(nsv.y);
+            let fromsqorig = this.rotateSquare(this.draggedSq, this.flip);
+            let tosq = this.rotateSquare(fromsqorig.p(dsq), -this.flip);
+            let m = new Move(this.draggedSq, tosq);
+            let algeb = this.b.moveToAlgeb(m);
+            //console.log(algeb)
+            if (this.dragMoveCallback != undefined) {
+                this.dragMoveCallback(algeb);
+            }
+            else {
+                this.b.makeAlgebMove(algeb);
+            }
+        }
+    }
+    setDragMoveCallback(dragMoveCallback) {
+        this.dragMoveCallback = dragMoveCallback;
     }
 }
 DEBUG = false;
@@ -2123,7 +2263,7 @@ function setLoggedUser() {
     ]);
     lichessUsernameDiv.h(loggedUser == undefined ? "?" : loggedUser);
     tabpane.setCaptionByKey("profile", loggedUser == undefined ? "Profile" : loggedUser);
-    tabpane.selectTab(loggedUser == undefined ? "profile" : "play");
+    tabpane.selectTab(loggedUser == undefined ? "play" : "play");
 }
 function setUserList() {
     users.x;
@@ -2170,14 +2310,12 @@ function moveInputEntered() {
     moveInput.clear();
     if (algeb == "reset") {
         emit({
-            t: "reset",
-            algeb: algeb
+            t: "reset"
         });
     }
     else if (algeb == "del") {
         emit({
-            t: "delmove",
-            algeb: algeb
+            t: "delmove"
         });
     }
     else {
@@ -2187,8 +2325,24 @@ function moveInputEntered() {
         });
     }
 }
+function moveClicked(algeb, e) {
+    //console.log(algeb)
+    emit({
+        t: "makemove",
+        algeb: algeb
+    });
+}
 function boardPosChanged() {
-    legalmoves.h(gboard.b.legalAlgebMoves().join("<br>"));
+    let lalgebs = gboard.b.legalAlgebMoves().sort();
+    legalmoves.x.a(lalgebs.map(algeb => new Div().h(algeb).cp().setColor("#00f").ul().
+        addEventListener("mousedown", moveClicked.bind(null, algeb))));
+}
+function dragMoveCallback(algeb) {
+    //console.log("drag move",algeb)
+    emit({
+        t: "makemove",
+        algeb: algeb
+    });
 }
 function buildApp() {
     intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
@@ -2196,7 +2350,10 @@ function buildApp() {
     gboard = new GuiBoard().setPosChangedCallback(boardPosChanged);
     play = new Div().a([
         gboard.build(),
-        moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered)
+        moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
+        new Button("Del").onClick((e) => emit({ t: "delmove" })),
+        new Button("Flip").onClick((e) => gboard.doFlip()),
+        new Button("Reset").onClick((e) => emit({ t: "reset" })),
     ]);
     legalmoves = new Div();
     let legalmovesTd = new Td().a([
@@ -2260,7 +2417,9 @@ function buildApp() {
     Layers.init();
     Layers.root.a([tabpane]);
     setLoggedUser();
+    legalmoves.setHeightRem(gboard.totalBoardHeight()).setOverflow("scroll");
     gboard.b.posChanged();
+    gboard.setDragMoveCallback(dragMoveCallback);
 }
 buildApp();
 let b = new Board().setFromFen();

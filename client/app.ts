@@ -139,7 +139,7 @@ function setLoggedUser(){
     ])    
     lichessUsernameDiv.h(loggedUser==undefined?"?":loggedUser)
     tabpane.setCaptionByKey("profile",loggedUser==undefined?"Profile":loggedUser)
-    tabpane.selectTab(loggedUser==undefined?"profile":"play")
+    tabpane.selectTab(loggedUser==undefined?"play":"play")
 }
 
 function setUserList(){
@@ -191,13 +191,11 @@ function moveInputEntered(){
     moveInput.clear()
     if(algeb=="reset"){
         emit({
-            t:"reset",
-            algeb:algeb
+            t:"reset"
         })
     }else if(algeb=="del"){
         emit({
-            t:"delmove",
-            algeb:algeb
+            t:"delmove"
         })
     }
     else{
@@ -208,8 +206,28 @@ function moveInputEntered(){
     }    
 }
 
+function moveClicked(algeb:string,e:Event){
+    //console.log(algeb)
+    emit({
+        t:"makemove",
+        algeb:algeb
+    })
+}
+
 function boardPosChanged(){
-    legalmoves.h(gboard.b.legalAlgebMoves().join("<br>"))
+    let lalgebs=gboard.b.legalAlgebMoves().sort()
+    legalmoves.x.a(lalgebs.map(algeb=>
+        new Div().h(algeb).cp().setColor("#00f").ul().
+        addEventListener("mousedown",moveClicked.bind(null,algeb))
+    ))
+}
+
+function dragMoveCallback(algeb:string){
+    //console.log("drag move",algeb)
+    emit({
+        t:"makemove",
+        algeb:algeb
+    })
 }
 
 function buildApp(){
@@ -224,7 +242,10 @@ function buildApp(){
 
     play=new Div().a([
         gboard.build(),
-        moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered)
+        moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered),
+        new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
+        new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
+        new Button("Reset").onClick((e:Event)=>emit({t:"reset"})),        
     ])
 
     legalmoves=new Div()
@@ -303,7 +324,11 @@ function buildApp(){
 
     setLoggedUser()
 
+    legalmoves.setHeightRem(gboard.totalBoardHeight()).setOverflow("scroll")
+
     gboard.b.posChanged()
+
+    gboard.setDragMoveCallback(dragMoveCallback)
 }
 
 buildApp()

@@ -180,6 +180,7 @@ class Board {
         return this.BOARD_HEIGHT - 1 - this.pawnFromStart(sq, color);
     }
     posChanged() {
+        //console.log("pos changed",this.hist)     
         this.genLegalMoves();
         if (this.posChangedCallback != undefined) {
             this.posChangedCallback();
@@ -345,6 +346,7 @@ class Board {
         return true;
     }
     del() {
+        //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
             let fen = this.hist[this.hist.length - 1];
@@ -420,6 +422,9 @@ class Board {
     setPosChangedCallback(posChangedCallback) {
         this.posChangedCallback = posChangedCallback;
         return this;
+    }
+    isAlgebMoveLegal(algeb) {
+        return this.isMoveLegal(this.moveFromAlgeb(algeb));
     }
 }
 if (!DOM_DEFINED) {
