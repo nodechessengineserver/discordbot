@@ -253,7 +253,9 @@ class ChatItem{
 let chatItems:ChatItem[]=[]
 
 function showChat(){
-    chatDiv.x.h(chatItems.map(item=>`<span class="chatuser">${item.user}</span> : <span class="chattext">${item.text}</span>`).join("<hr>"))    
+    chatDiv.x.h(chatItems.map(item=>
+        `<span class="chatuser">${item.user}</span> : <span class="chattext">${item.text}</span>`
+    ).join("<br>"))    
 }
 
 function chatInputCallback(){

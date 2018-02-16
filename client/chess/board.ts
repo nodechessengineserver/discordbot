@@ -97,10 +97,77 @@ class Move{
 
 const INVALID_MOVE=new Move(INVALID_SQUARE,INVALID_SQUARE)
 
+class CastlingRight{
+    color:number
+    kingFrom:Square
+    kingTo:Square
+    rookFrom:Square
+    rookTo:Square
+    emptySqs:Square[]
+    passingSq:Square
+    fenLetter:string
+
+    constructor(color:number,
+    kingFrom:Square,
+    kingTo:Square,
+    rookFrom:Square,
+    rookTo:Square,
+    emptySqs:Square[],    
+    fenLetter:string){
+        this.color=color
+        this.kingFrom=kingFrom
+        this.kingTo=kingTo
+        this.rookFrom=rookFrom
+        this.rookTo=rookTo
+        this.emptySqs=emptySqs        
+        this.fenLetter=fenLetter
+    }
+}
+
+const CASTLING_RIGHTS:CastlingRight[]=[
+    new CastlingRight(
+        WHITE,
+        new Square(4,7),
+        new Square(6,7),
+        new Square(7,7),
+        new Square(5,7),
+        [new Square(5,7),new Square(6,7)],        
+        "K"
+    ),
+    new CastlingRight(
+        WHITE,
+        new Square(4,7),
+        new Square(2,7),
+        new Square(0,7),
+        new Square(3,7),
+        [new Square(3,7),new Square(2,7),new Square(1,7)],        
+        "Q"
+    ),new CastlingRight(
+        BLACK,
+        new Square(4,0),
+        new Square(6,0),
+        new Square(7,0),
+        new Square(5,0),
+        [new Square(5,0),new Square(6,0)],        
+        "k"
+    ),
+    new CastlingRight(
+        BLACK,
+        new Square(4,0),
+        new Square(2,0),
+        new Square(0,0),
+        new Square(3,0),
+        [new Square(3,0),new Square(2,0),new Square(1,0)],        
+        "q"
+    )
+]
+
 class Board{
     variant:string
 
     turn:number
+
+    rights:boolean[]=[true,true,true,true]
 
     hist:string[]=[]
 
@@ -120,6 +187,7 @@ class Board{
         this.hist=[]        
         this.fullmoveNumber=1
         this.halfmoveClock=0
+        this.rights=[true,true,true,true]
     }
 
     constructor(variant:string=DEFAULT_VARIANT){
@@ -185,6 +253,17 @@ class Board{
 
         if(turn==undefined) return false
 
+        let castlefen=parts[2]
+
+        b.rights=[false,false,false,false]
+
+        if(castlefen!="-") for(let i=0;i<4;i++){
+            if("KQkq".indexOf(castlefen.charAt(i))<0) return false
+            if(castlefen.indexOf(CASTLING_RIGHTS[i].fenLetter)>=0){
+                b.rights[i]=true
+            }
+        }
+
         let epfen=parts[3]
         if(epfen=="-"){
             b.epSquare=INVALID_SQUARE
@@ -212,6 +291,7 @@ class Board{
         
         this.rep=b.rep
         this.turn=b.turn
+        this.rights=b.rights
         this.epSquare=b.epSquare
         this.fullmoveNumber=b.fullmoveNumber
         this.halfmoveClock=b.halfmoveClock
@@ -286,6 +366,21 @@ class Board{
             b.makeMove(m,false)                        
             if(!b.isInCheck(this.turn)){
                 this.lms.push(m)
+            }
+        }
+        for(let i=0;i<4;i++){
+            let cr=CASTLING_RIGHTS[i]
+            if((cr.color==this.turn)&&(this.rights[i])){
+                if((cr.emptySqs.filter(sq=>!this.isSqEmpty(sq))).length<=0){
+                    if(!(
+                        this.isSquareInCheck(cr.kingFrom,this.turn)||
+                        this.isSquareInCheck(cr.kingTo,this.turn)||
+                        this.isSquareInCheck(cr.rookTo,this.turn)
+                    )){
+                        let cm=new Move(cr.kingFrom,cr.kingTo)
+                        this.lms.push(cm)
+                    }
+                }
             }
         }
     }
@@ -430,10 +525,11 @@ class Board{
         let fSq=m.fromSq
         let tSq=m.toSq
         let deltaR=tSq.r-fSq.r
+        let deltaF=tSq.f-fSq.f
         let fp=this.getSq(fSq)
         let tp=this.getSq(tSq)
         this.setSq(fSq)
-        let normal=tp.empty()        
+        let normal=tp.empty()                
         if((fp.kind==PAWN)&&(m.toSq.e(this.epSquare))){
             // ep capture
             normal=false
@@ -458,6 +554,33 @@ class Board{
             }
             this.setSq(tSq)
         }        
+        if(fp.kind==KING){
+            if(this.turn==WHITE){
+                this.rights[0]=false
+                this.rights[1]=false
+            }else{
+                this.rights[2]=false
+                this.rights[3]=false
+            }
+        }
+        for(let i=0;i<4;i++){
+            let cr=CASTLING_RIGHTS[i]
+            if(cr.color==this.turn){
+                if(fSq.e(cr.rookFrom)||tSq.e(cr.rookFrom)) this.rights[i]=false
+                if(this.isSqEmpty(cr.rookFrom)) this.rights[i]=false
+            }
+        }
+        if((fp.kind==KING)&&(Math.abs(deltaF)>1)){
+            // castling
+            let crs=CASTLING_RIGHTS.filter(cr=>cr.kingTo.e(tSq))
+            if(crs.length==1){
+                let cr=crs[0]
+                this.setSq(cr.rookFrom)
+                this.setSq(cr.rookTo,new Piece(ROOK,this.turn))
+            }else{
+                console.log("invalid castling")
+            }
+        }
         this.turn=INV_COLOR(this.turn)
         if(this.turn==WHITE) this.fullmoveNumber++
         this.halfmoveClock++
@@ -508,7 +631,14 @@ class Board{
             if(r<(this.BOARD_HEIGHT-1)) fen+="/"
         }
 
-        return `${fen} ${(this.turn==WHITE?"w":"b")} KQkq ${this.epSquare.invalid()?"-":this.squareToAlgeb(this.epSquare)} ${this.halfmoveClock} ${this.fullmoveNumber}`
+        let crs=""
+        for(let i=0;i<4;i++){
+            if(this.rights[i]) crs+=CASTLING_RIGHTS[i].fenLetter
+        }
+
+        if(crs=="") crs="-"
+
+        return `${fen} ${(this.turn==WHITE?"w":"b")} ${crs} ${this.epSquare.invalid()?"-":this.squareToAlgeb(this.epSquare)} ${this.halfmoveClock} ${this.fullmoveNumber}`
     }
 
     squareFromAlgeb(algeb:string):Square{
