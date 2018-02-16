@@ -185,6 +185,15 @@ class Board{
 
         if(turn==undefined) return false
 
+        let epfen=parts[3]
+        if(epfen=="-"){
+            b.epSquare=INVALID_SQUARE
+        }else{
+            let sq=this.squareFromAlgeb(epfen)            
+            if(sq.invalid()) return false
+            b.epSquare=sq
+        }
+
         b.turn=turn
 
         let halfmoveFen=parts[4]
@@ -203,6 +212,7 @@ class Board{
         
         this.rep=b.rep
         this.turn=b.turn
+        this.epSquare=b.epSquare
         this.fullmoveNumber=b.fullmoveNumber
         this.halfmoveClock=b.halfmoveClock
 
@@ -355,6 +365,9 @@ class Board{
                 let csq=sq.p(pdir).p(new Square(df,0))
                 if(this.isSqOpp(csq,p.color)){                    
                     createPawnMoves(csq)
+                }else if(csq.e(this.epSquare)){
+                    let m=new Move(sq,csq)
+                    moves.push(m)                    
                 }
             }
         }else{
@@ -416,10 +429,18 @@ class Board{
         if(check) if(!this.isMoveLegal(m)) return false
         let fSq=m.fromSq
         let tSq=m.toSq
+        let deltaR=tSq.r-fSq.r
         let fp=this.getSq(fSq)
         let tp=this.getSq(tSq)
         this.setSq(fSq)
-        if(tp.empty()){
+        let normal=tp.empty()        
+        if((fp.kind==PAWN)&&(m.toSq.e(this.epSquare))){
+            // ep capture
+            normal=false
+            let epCaptSq=this.epSquare.p(new Square(0,-deltaR))
+            this.setSq(epCaptSq)
+        }
+        if(normal){
             if(m.promPiece.empty()){
                 this.setSq(tSq,fp)
             }else{
@@ -436,17 +457,24 @@ class Board{
                 }
             }
             this.setSq(tSq)
-        }
+        }        
         this.turn=INV_COLOR(this.turn)
         if(this.turn==WHITE) this.fullmoveNumber++
         this.halfmoveClock++
         if(fp.kind==PAWN) this.halfmoveClock=0
-        if(tp.kind!=EMPTY) this.halfmoveClock=0
+        if(tp.kind!=EMPTY) this.halfmoveClock=0        
+        this.epSquare=INVALID_SQUARE
+        if((fp.kind==PAWN)&&(Math.abs(deltaR)==2)){
+            let epsq=new Square(m.fromSq.f,m.fromSq.r+(deltaR/2))
+            this.epSquare=epsq
+        }
         let fen=this.reportFen()
         this.hist.push(fen)        
         this.posChanged()
         return true
     }
+
+    epSquare:Square=INVALID_SQUARE
 
     del(){
         //console.log("del",this.hist)
@@ -480,7 +508,7 @@ class Board{
             if(r<(this.BOARD_HEIGHT-1)) fen+="/"
         }
 
-        return `${fen} ${(this.turn==WHITE?"w":"b")} KQkq - ${this.halfmoveClock} ${this.fullmoveNumber}`
+        return `${fen} ${(this.turn==WHITE?"w":"b")} KQkq ${this.epSquare.invalid()?"-":this.squareToAlgeb(this.epSquare)} ${this.halfmoveClock} ${this.fullmoveNumber}`
     }
 
     squareFromAlgeb(algeb:string):Square{
