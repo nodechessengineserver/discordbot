@@ -77,11 +77,49 @@ class GuiBoard extends DomElement<GuiBoard>{
 
                 pDiv.e.setAttribute("draggable","true")
 
-                pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
+                if(!this.promMode) pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
 
                 this.pDivs.push(pDiv)
 
                 this.bDiv.a([sqDiv,pDiv])
+
+                if(this.promMode){
+                    let promToSq=this.promMove.toSq
+                    let promToSqFlipped=this.rotateSquare(promToSq,this.flip)
+                    let f=promToSqFlipped.f
+                    let r=promToSqFlipped.r
+                    let dir=r<4?1:-1                    
+                    let i
+                    for(i=0;i<this.proms.length;i++){
+                        let promSqDiv=new Div().pa().r(
+                            f*this.SQUARE_SIZE,(r+i*dir)*this.SQUARE_SIZE,
+                            this.SQUARE_SIZE,this.SQUARE_SIZE
+                        ).bcol("#ff7").zIndexNumber(200)
+                        let pkind=this.proms[i]
+                        let cn=PIECE_TO_STYLE[pkind]+" "+COLOR_TO_STYLE[this.b.turn]
+                        let promPDiv=new Div().pa().cp().r(
+                            this.PIECE_MARGIN,this.PIECE_MARGIN,
+                            this.PIECE_SIZE,this.PIECE_SIZE
+                        ).ac(cn).addEventListener("mousedown",this.promDivClicked.bind(this,pkind))
+                        promSqDiv.a([
+                            promPDiv
+                        ])
+                        this.bDiv.a([
+                            promSqDiv
+                        ])
+                    }
+                    let cancelDiv=new Div().pa().cp().r(
+                        f*this.SQUARE_SIZE,(r+i*dir)*this.SQUARE_SIZE,
+                        this.SQUARE_SIZE,this.SQUARE_SIZE
+                    ).bcol("#f77").zIndexNumber(200).ta("center").
+                    addEventListener("mousedown",this.cancelDivClicked.bind(this)).a([
+                        new Div().mt(this.SQUARE_SIZE/3).h("Cancel").cp()
+                    ])
+
+                    this.bDiv.a([
+                        cancelDiv
+                    ])
+                }
             }
         }
 
@@ -93,6 +131,22 @@ class GuiBoard extends DomElement<GuiBoard>{
         this.bDiv.addEventListener("mouseup",this.boardmouseup.bind(this))
 
         return this
+    }
+
+    cancelDivClicked(){
+        this.promMode=false
+        this.build()
+    }
+
+    promDivClicked(kind:string,e:Event){
+        let m=this.promMove
+        if(kind!=this.promOrig) m.promPiece=new Piece(kind)
+        this.promMode=false
+        if(this.dragMoveCallback==undefined){
+            this.b.makeMove(m)
+        }else{
+            this.dragMoveCallback(this.b.moveToAlgeb(m))
+        }
     }
 
     draggedSq:Square
@@ -169,7 +223,17 @@ class GuiBoard extends DomElement<GuiBoard>{
             let algeb=this.b.moveToAlgeb(m)
             //console.log(algeb)
             if(this.dragMoveCallback!=undefined){
-                this.dragMoveCallback(algeb)
+                let legalAlgebs=this.b.legalAlgebMoves().filter(talgeb=>talgeb.substring(0,4)==algeb)                
+                let p=this.b.getSq(this.draggedSq)
+                this.proms=legalAlgebs.map(lalgeb=>(lalgeb+p.kind).substring(4,5))
+                if(this.proms.length>1){
+                    this.promMode=true
+                    this.promOrig=p.kind
+                    this.promMove=m
+                    this.build()
+                }else{
+                    this.dragMoveCallback(algeb)
+                }                
             }else{
                 this.b.makeAlgebMove(algeb)
             }
@@ -179,5 +243,10 @@ class GuiBoard extends DomElement<GuiBoard>{
     setDragMoveCallback(dragMoveCallback:any){
         this.dragMoveCallback=dragMoveCallback
     }
+
+    proms:string[]=[]
+    promMode:boolean=false
+    promMove:Move
+    promOrig:string
 }
 

@@ -274,6 +274,26 @@ class DomElement<T>{
     p(rem:number):DomElement<T>{
         return this.setPaddingRem(rem)
     }
+    setPaddingTop(value:string):DomElement<T>{
+        this.e.style.paddingTop=value
+        return this
+    }
+    setPaddingTopRem(rem:number):DomElement<T>{
+        return this.setPaddingTop(`${rem}rem`)
+    }
+    pt(rem:number):DomElement<T>{
+        return this.setPaddingTopRem(rem)
+    }
+    setMarginTop(value:string):DomElement<T>{
+        this.e.style.marginTop=value
+        return this
+    }
+    setMarginTopRem(rem:number):DomElement<T>{
+        return this.setMarginTop(`${rem}rem`)
+    }
+    mt(rem:number):DomElement<T>{
+        return this.setMarginTopRem(rem)
+    }
     //////////////////////////////////////////////
     setInnerHTML(content:string):DomElement<T>{
         this.e.innerHTML=content
@@ -325,6 +345,20 @@ class DomElement<T>{
     }
     ul():DomElement<T>{
         return this.textDecoration("underline")
+    }
+    setVerticalAlign(value:string):DomElement<T>{
+        this.e.style.verticalAlign=value
+        return this
+    }
+    va(value:string):DomElement<T>{
+        return this.setVerticalAlign(value)
+    }
+    setTextAlgin(value:string):DomElement<T>{
+        this.e.style.textAlign=value
+        return this
+    }
+    ta(value:string):DomElement<T>{
+        return this.setTextAlgin(value)
     }
     //////////////////////////////////////////////
     setFontSize(value:string):DomElement<T>{
@@ -457,6 +491,12 @@ class DomElement<T>{
 class Div extends DomElement<Div>{
     constructor(){
         super("div")
+    }
+}
+
+class Label extends DomElement<Div>{
+    constructor(){
+        super("label")
     }
 }
 

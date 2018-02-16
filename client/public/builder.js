@@ -412,6 +412,26 @@ class DomElement {
     p(rem) {
         return this.setPaddingRem(rem);
     }
+    setPaddingTop(value) {
+        this.e.style.paddingTop = value;
+        return this;
+    }
+    setPaddingTopRem(rem) {
+        return this.setPaddingTop(`${rem}rem`);
+    }
+    pt(rem) {
+        return this.setPaddingTopRem(rem);
+    }
+    setMarginTop(value) {
+        this.e.style.marginTop = value;
+        return this;
+    }
+    setMarginTopRem(rem) {
+        return this.setMarginTop(`${rem}rem`);
+    }
+    mt(rem) {
+        return this.setMarginTopRem(rem);
+    }
     //////////////////////////////////////////////
     setInnerHTML(content) {
         this.e.innerHTML = content;
@@ -463,6 +483,20 @@ class DomElement {
     }
     ul() {
         return this.textDecoration("underline");
+    }
+    setVerticalAlign(value) {
+        this.e.style.verticalAlign = value;
+        return this;
+    }
+    va(value) {
+        return this.setVerticalAlign(value);
+    }
+    setTextAlgin(value) {
+        this.e.style.textAlign = value;
+        return this;
+    }
+    ta(value) {
+        return this.setTextAlgin(value);
     }
     //////////////////////////////////////////////
     setFontSize(value) {
@@ -593,6 +627,11 @@ class DomElement {
 class Div extends DomElement {
     constructor() {
         super("div");
+    }
+}
+class Label extends DomElement {
+    constructor() {
+        super("label");
     }
 }
 class LocalStorageDomStoreDriver {
@@ -1568,7 +1607,8 @@ let KING = "k";
 let IS_PIECE = { "p": true, "n": true, "b": true, "r": true, "q": true, "k": true };
 let ALL_PIECES = Object.keys(IS_PIECE);
 let ALL_CHECK_PIECES = ["p", "n", "b", "r", "q"];
-let PROM_PIECE = { "n": true, "b": true, "r": true, "q": true };
+let IS_PROM_PIECE = { "n": true, "b": true, "r": true, "q": true };
+let ALL_PROMOTION_PIECES = Object.keys(IS_PROM_PIECE);
 let MOVE_LETTER_TO_TURN = { "w": WHITE, "b": BLACK };
 let VARIANT_PROPERTIES = {
     "promoatomic": {
@@ -1781,7 +1821,7 @@ class Board {
         let ams = [];
         for (let m of this.plms) {
             let fp = this.getSq(m.fromSq);
-            if (PROM_PIECE[fp.kind]) {
+            if (IS_PROM_PIECE[fp.kind]) {
                 if (fp.kind == BISHOP) {
                     ams.push(new Move(m.fromSq, m.toSq, new Piece(KNIGHT)));
                 }
@@ -1814,9 +1854,21 @@ class Board {
         if (p.kind == PAWN) {
             let pdir = this.pawnDir(p.color);
             let pushOne = sq.p(pdir);
+            let promdist = this.pawnFromProm(sq, p.color);
+            let isprom = promdist == 1;
+            let targetKinds = ["p"];
+            if (isprom)
+                targetKinds = ALL_PROMOTION_PIECES;
+            function createPawnMoves(targetSq) {
+                for (let targetKind of targetKinds) {
+                    let m = new Move(sq, targetSq);
+                    if (isprom)
+                        m.promPiece = new Piece(targetKind);
+                    moves.push(m);
+                }
+            }
             if (this.isSqEmpty(pushOne)) {
-                let m = new Move(sq, pushOne);
-                moves.push(m);
+                createPawnMoves(pushOne);
                 let pushTwo = pushOne.p(pdir);
                 if (this.isSqEmpty(pushTwo) && (this.pawnFromStart(sq, p.color) == 1)) {
                     let m = new Move(sq, pushTwo);
@@ -1826,8 +1878,7 @@ class Board {
             for (let df = -1; df <= 1; df += 2) {
                 let csq = sq.p(pdir).p(new Square(df, 0));
                 if (this.isSqOpp(csq, p.color)) {
-                    let m = new Move(sq, csq);
-                    moves.push(m);
+                    createPawnMoves(csq);
                 }
             }
         }
@@ -1983,7 +2034,7 @@ class Board {
         if (algeb.length == 4)
             return rm;
         let pk = algeb.charAt(4);
-        if (!PROM_PIECE[pk])
+        if (!IS_PROM_PIECE[pk])
             return INVALID_MOVE;
         rm.promPiece = new Piece(pk, NO_COL);
         return rm;
@@ -2083,6 +2134,8 @@ class GuiBoard extends DomElement {
         this.PIECE_SIZE = this.SQUARE_SIZE - 2 * this.PIECE_MARGIN;
         this.pDivs = [];
         this.flip = 0;
+        this.proms = [];
+        this.promMode = false;
         this.b = new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this));
     }
     boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
@@ -2125,9 +2178,37 @@ class GuiBoard extends DomElement {
                     pDiv.ac(cn);
                 }
                 pDiv.e.setAttribute("draggable", "true");
-                pDiv.addEventListener("dragstart", this.piecedragstart.bind(this, sq, pDiv));
+                if (!this.promMode)
+                    pDiv.addEventListener("dragstart", this.piecedragstart.bind(this, sq, pDiv));
                 this.pDivs.push(pDiv);
                 this.bDiv.a([sqDiv, pDiv]);
+                if (this.promMode) {
+                    let promToSq = this.promMove.toSq;
+                    let promToSqFlipped = this.rotateSquare(promToSq, this.flip);
+                    let f = promToSqFlipped.f;
+                    let r = promToSqFlipped.r;
+                    let dir = r < 4 ? 1 : -1;
+                    let i;
+                    for (i = 0; i < this.proms.length; i++) {
+                        let promSqDiv = new Div().pa().r(f * this.SQUARE_SIZE, (r + i * dir) * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE).bcol("#ff7").zIndexNumber(200);
+                        let pkind = this.proms[i];
+                        let cn = PIECE_TO_STYLE[pkind] + " " + COLOR_TO_STYLE[this.b.turn];
+                        let promPDiv = new Div().pa().cp().r(this.PIECE_MARGIN, this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE).ac(cn).addEventListener("mousedown", this.promDivClicked.bind(this, pkind));
+                        promSqDiv.a([
+                            promPDiv
+                        ]);
+                        this.bDiv.a([
+                            promSqDiv
+                        ]);
+                    }
+                    let cancelDiv = new Div().pa().cp().r(f * this.SQUARE_SIZE, (r + i * dir) * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE).bcol("#f77").zIndexNumber(200).ta("center").
+                        addEventListener("mousedown", this.cancelDivClicked.bind(this)).a([
+                        new Div().mt(this.SQUARE_SIZE / 3).h("Cancel").cp()
+                    ]);
+                    this.bDiv.a([
+                        cancelDiv
+                    ]);
+                }
             }
         }
         this.a([
@@ -2136,6 +2217,22 @@ class GuiBoard extends DomElement {
         this.bDiv.addEventListener("mousemove", this.boardmousemove.bind(this));
         this.bDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
         return this;
+    }
+    cancelDivClicked() {
+        this.promMode = false;
+        this.build();
+    }
+    promDivClicked(kind, e) {
+        let m = this.promMove;
+        if (kind != this.promOrig)
+            m.promPiece = new Piece(kind);
+        this.promMode = false;
+        if (this.dragMoveCallback == undefined) {
+            this.b.makeMove(m);
+        }
+        else {
+            this.dragMoveCallback(this.b.moveToAlgeb(m));
+        }
     }
     piecedragstart(sq, pDiv, e) {
         let me = e;
@@ -2204,7 +2301,18 @@ class GuiBoard extends DomElement {
             let algeb = this.b.moveToAlgeb(m);
             //console.log(algeb)
             if (this.dragMoveCallback != undefined) {
-                this.dragMoveCallback(algeb);
+                let legalAlgebs = this.b.legalAlgebMoves().filter(talgeb => talgeb.substring(0, 4) == algeb);
+                let p = this.b.getSq(this.draggedSq);
+                this.proms = legalAlgebs.map(lalgeb => (lalgeb + p.kind).substring(4, 5));
+                if (this.proms.length > 1) {
+                    this.promMode = true;
+                    this.promOrig = p.kind;
+                    this.promMove = m;
+                    this.build();
+                }
+                else {
+                    this.dragMoveCallback(algeb);
+                }
             }
             else {
                 this.b.makeAlgebMove(algeb);

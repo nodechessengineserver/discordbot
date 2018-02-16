@@ -18,7 +18,8 @@ let KING="k"
 let IS_PIECE:{[id:string]:boolean}={"p":true,"n":true,"b":true,"r":true,"q":true,"k":true}
 let ALL_PIECES=Object.keys(IS_PIECE)
 let ALL_CHECK_PIECES=["p","n","b","r","q"]
-let PROM_PIECE:{[id:string]:boolean}={"n":true,"b":true,"r":true,"q":true}
+let IS_PROM_PIECE:{[id:string]:boolean}={"n":true,"b":true,"r":true,"q":true}
+let ALL_PROMOTION_PIECES=Object.keys(IS_PROM_PIECE)
 let MOVE_LETTER_TO_TURN:{[id:string]:number}={"w":WHITE,"b":BLACK}
 
 let VARIANT_PROPERTIES:{[id:string]:any}={
@@ -276,7 +277,7 @@ class Board{
         let ams=[]
         for(let m of this.plms){
             let fp=this.getSq(m.fromSq)
-            if(PROM_PIECE[fp.kind]){
+            if(IS_PROM_PIECE[fp.kind]){
                 if(fp.kind==BISHOP){
                     ams.push(new Move(m.fromSq,m.toSq,new Piece(KNIGHT)))
                 }
@@ -312,20 +313,29 @@ class Board{
         if(p.kind==PAWN){
             let pdir=this.pawnDir(p.color)
             let pushOne=sq.p(pdir)
+            let promdist=this.pawnFromProm(sq,p.color)
+            let isprom=promdist==1
+            let targetKinds=["p"]
+            if(isprom) targetKinds=ALL_PROMOTION_PIECES
+            function createPawnMoves(targetSq:Square){
+                for(let targetKind of targetKinds){
+                    let m=new Move(sq,targetSq)
+                    if(isprom) m.promPiece=new Piece(targetKind)
+                    moves.push(m)
+                }
+            }
             if(this.isSqEmpty(pushOne)){
-                let m=new Move(sq,pushOne)
-                moves.push(m)
+                createPawnMoves(pushOne)
                 let pushTwo=pushOne.p(pdir)
                 if(this.isSqEmpty(pushTwo)&&(this.pawnFromStart(sq,p.color)==1)){
                     let m=new Move(sq,pushTwo)
-                    moves.push(m)
+                    moves.push(m)                    
                 }
             }
             for(let df=-1;df<=1;df+=2){
                 let csq=sq.p(pdir).p(new Square(df,0))
-                if(this.isSqOpp(csq,p.color)){
-                    let m=new Move(sq,csq)
-                    moves.push(m)
+                if(this.isSqOpp(csq,p.color)){                    
+                    createPawnMoves(csq)
                 }
             }
         }else{
@@ -471,7 +481,7 @@ class Board{
         let rm=new Move(fromSq,toSq)
         if(algeb.length==4) return rm
         let pk=algeb.charAt(4)
-        if(!PROM_PIECE[pk]) return INVALID_MOVE
+        if(!IS_PROM_PIECE[pk]) return INVALID_MOVE
         rm.promPiece=new Piece(pk,NO_COL)
         return rm
     }
