@@ -92,6 +92,9 @@ function strongSocket(){
                 userlist=json.userlist                
                 console.log(`set userlist`,userlist)
                 setUserList()
+            }else if(t=="setboard"){
+                let fen=json.fen
+                gboard.b.setFromFen(fen)
             }
         }catch(err){console.log(err)}
     }
@@ -187,12 +190,21 @@ function moveInputEntered(){
     let algeb=moveInput.getText()
     moveInput.clear()
     if(algeb=="reset"){
-        gboard.b.setFromFen()
+        emit({
+            t:"reset",
+            algeb:algeb
+        })
     }else if(algeb=="del"){
-        gboard.b.del()
+        emit({
+            t:"delmove",
+            algeb:algeb
+        })
     }
     else{
-        gboard.b.makeAlgebMove(algeb)    
+        emit({
+            t:"makemove",
+            algeb:algeb
+        })
     }    
 }
 

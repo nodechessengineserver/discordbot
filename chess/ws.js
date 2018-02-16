@@ -1,21 +1,90 @@
 // local
-let utils = require("./utils")
-let users = require("./users")
-let board = require("./board")
+const utils = require("./utils")
+const users = require("./users")
+const board = require("./board")
+const GLOBALS = require("../globals")
+
+let SOCKET_TIMEOUT=GLOBALS.ONE_SECOND*60
+let SOCKET_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*60
 
 let b=new board.Board().setFromFen()
 
+let sockets={}
+
+function maintainSockets(){    
+    try{
+        let delsris=[]
+        for(let sri in sockets){
+            let socket=sockets[sri]
+            let now=new Date().getTime()
+            let lastping=socket.ping||0
+            let elapsed=now-lastping            
+            if(elapsed>SOCKET_TIMEOUT){
+                try{
+                    if(socket.OPEN){
+                        socket.close(1000)
+                    }
+                    delsris.push(sri)
+                }catch(err){
+                    console.log("socket close",err)
+                }
+            }            
+        }
+
+        if(delsris.length>0){
+            console.log("sockets to delete",delsris)
+            for(let sri of delsris){
+                delete sockets[sri]
+            }
+            //console.log("sockets",sockets)
+        }
+    }catch(err){
+        console.log(err)
+    }
+}
+
+setInterval(maintainSockets,SOCKET_MAINTAIN_INTERVAL)
+
 function send(ws,json){
     try{
-        let jsontext=JSON.stringify(json)
-        //console.log("sending",jsontext)
-        ws.send(jsontext)
+        if(ws.OPEN){
+            let jsontext=JSON.stringify(json)
+            //console.log("sending",jsontext)
+            ws.send(jsontext)
+        }
     }catch(err){console.log(err)}
+}
+
+function broadcast(json){
+    for(let sri in sockets){
+        let socket=sockets[sri]
+        let ws=socket.ws
+        send(ws,json)
+    }
 }
 
 function handleWs(ws,req){    
     try{        
-        console.log("websocket connected",req.url)
+        let ru=req.url
+        let sri="unknown sri"
+        console.log("websocket connected",ru)
+
+        let parts=ru.split("sri=")
+        if(parts.length>1){
+            sri=parts[1]
+            let now=new Date().getTime()
+            sockets[sri]={
+                ws:ws,
+                ping:now
+            }
+            //console.log(sockets)
+
+            let fen=b.reportFen()
+            send(ws,{
+                t:"setboard",
+                fen:fen
+            })
+        }
 
         let headers=req.headers
         let cookies={}
@@ -66,6 +135,7 @@ function handleWs(ws,req){
                         t:"pong",
                         time:json.time
                     })
+                    sockets[sri]["ping"]=new Date().getTime()
                 }else if(t=="lichesslogin"){
                     console.log(t)
                     let username=json.username
@@ -111,6 +181,32 @@ function handleWs(ws,req){
                         username:username,
                         cookie:cookie
                     })
+                }else if(t=="makemove"){
+                    let algeb=json.algeb
+                    let ok=b.makeAlgebMove(algeb)
+                    console.log("makemove",algeb)
+                    if(ok){                        
+                        let fen=b.reportFen()                        
+                        console.log("legal",fen)
+                        broadcast({
+                            t:"setboard",
+                            fen:fen
+                        })
+                    }
+                }else if(t=="delmove"){
+                    b.del()
+                    let fen=b.reportFen()
+                    broadcast({
+                        t:"setboard",
+                        fen:fen
+                    })
+                }else if(t=="reset"){
+                    b.setFromFen()
+                    let fen=b.reportFen()
+                    broadcast({
+                        t:"setboard",
+                        fen:fen
+                    })
                 }
             }catch(err){console.log(err)}
         })
@@ -118,7 +214,7 @@ function handleWs(ws,req){
             console.log(error)
         })
         ws.on('close', function(){
-            console.log("websocket closed")
+            console.log("websocket closed",sri)
         })
     }catch(err){
         console.log(err)
