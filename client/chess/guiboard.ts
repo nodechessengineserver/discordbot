@@ -9,7 +9,9 @@ class GuiBoard extends DomElement<GuiBoard>{
     PIECE_MARGIN=4
     PIECE_SIZE=this.SQUARE_SIZE-2*this.PIECE_MARGIN
 
-    bDiv:Div
+    boardSquareDiv:Div
+    boardArrowDiv:Div
+    boardPieceDiv:Div
 
     dragstart:Vect
 	dragstartst:Vect
@@ -57,14 +59,32 @@ class GuiBoard extends DomElement<GuiBoard>{
         return pDiv
     }
 
+    drawBoardArrow(algeb:string){
+        let m=this.b.moveFromAlgeb(algeb)
+        let fSqR=this.rotateSquare(m.fromSq,this.flip)
+        let tSqR=this.rotateSquare(m.toSq,this.flip)
+        let fSqV=new Vect(fSqR.f*this.SQUARE_SIZE,fSqR.r*this.SQUARE_SIZE).p(this.HALF_SQUARE_SIZE_VECT())
+        let tSqV=new Vect(tSqR.f*this.SQUARE_SIZE,tSqR.r*this.SQUARE_SIZE).p(this.HALF_SQUARE_SIZE_VECT())
+        let arrow=new Arrow(fSqV,tSqV,{
+            constantwidth:8
+        })
+        let aDiv=new Div().pa().op(0.75).o(arrow.svgorig.x,arrow.svgorig.y).
+            h(arrow.svg)
+        this.boardArrowDiv.x.a([aDiv])        
+    }
+
     build():GuiBoard{
         let term=this.b.isTerminated()
 
         this.x.pr().z(this.totalBoardWidth(),this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg")
 
-        this.bDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight()).
+        this.boardSquareDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight()).
             burl("assets/images/backgrounds/wood.jpg")
+
+        this.boardArrowDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight())
+
+        this.boardPieceDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight())
 
         this.pDivs=[]
 
@@ -96,15 +116,15 @@ class GuiBoard extends DomElement<GuiBoard>{
                     if(this.promCr!=undefined) dopush=dopush&&(!sq.e(this.promCr.rookFrom))
                 }
                 
-                this.bDiv.a([sqDiv])
+                this.boardSquareDiv.a([sqDiv])
 
-                if(dopush) this.bDiv.a([pDiv])
+                if(dopush) this.boardPieceDiv.a([pDiv])
 
                 if(this.promMode){
                     if(this.promCr!=undefined){
                         let kingToSqFlipped=this.rotateSquare(this.promCr.kingTo,this.flip)
                         let kDiv=this.createPDiv(new Piece(KING,this.b.turn),kingToSqFlipped.f,kingToSqFlipped.r)
-                        this.bDiv.a([kDiv])
+                        this.boardPieceDiv.a([kDiv])
                     }
                     let promToSq=this.promMove.toSq
                     if(this.promCr!=undefined){
@@ -120,18 +140,15 @@ class GuiBoard extends DomElement<GuiBoard>{
                             f*this.SQUARE_SIZE,(r+i*dir)*this.SQUARE_SIZE,
                             this.SQUARE_SIZE,this.SQUARE_SIZE
                         ).bcol("#ff7").zIndexNumber(200)
-                        let pkind=this.proms[i]
+                        let pkind=this.proms[i]                        
                         let cn=PIECE_TO_STYLE[pkind]+" "+COLOR_TO_STYLE[this.b.turn]
-                        let promPDiv=new Div().pa().cp().r(
-                            this.PIECE_MARGIN,this.PIECE_MARGIN,
+                        let promPDiv=new Div().pa().r(
+                            f*this.SQUARE_SIZE+this.PIECE_MARGIN,(r+i*dir)*this.SQUARE_SIZE+this.PIECE_MARGIN,
                             this.PIECE_SIZE,this.PIECE_SIZE
-                        ).ac(cn).addEventListener("mousedown",this.promDivClicked.bind(this,pkind))
-                        promSqDiv.a([
-                            promPDiv
-                        ])
-                        this.bDiv.a([
-                            promSqDiv
-                        ])
+                        ).cp().ac(cn).addEventListener("mousedown",this.promDivClicked.bind(this,pkind)).zIndexNumber(200)
+                        
+                        this.boardPieceDiv.a([promSqDiv])
+                        this.boardPieceDiv.a([promPDiv])
                     }
                     let cancelDiv=new Div().pa().cp().r(
                         f*this.SQUARE_SIZE,(r+i*dir)*this.SQUARE_SIZE,
@@ -141,19 +158,26 @@ class GuiBoard extends DomElement<GuiBoard>{
                         new Div().mt(this.SQUARE_SIZE/3).h("Cancel").cp()
                     ])
 
-                    this.bDiv.a([
-                        cancelDiv
-                    ])
+                    this.boardPieceDiv.a([cancelDiv])
                 }
             }
         }
 
         this.a([
-            this.bDiv
+            this.boardSquareDiv,
+            this.boardArrowDiv,
+            this.boardPieceDiv
         ])
 
-        this.bDiv.addEventListener("mousemove",this.boardmousemove.bind(this))
-        this.bDiv.addEventListener("mouseup",this.boardmouseup.bind(this))
+        this.boardPieceDiv.addEventListener("mousemove",this.boardmousemove.bind(this))
+        this.boardPieceDiv.addEventListener("mouseup",this.boardmouseup.bind(this))
+
+        let genAlgeb=this.b.genAlgeb
+        let genMove=this.b.moveFromAlgeb(genAlgeb)
+
+        if(!genMove.invalid()){
+            this.drawBoardArrow(genAlgeb)
+        }
 
         return this
     }
@@ -261,8 +285,7 @@ class GuiBoard extends DomElement<GuiBoard>{
             let fromsqorig=this.rotateSquare(this.draggedSq,this.flip)
             let tosq=this.rotateSquare(fromsqorig.p(dsq),-this.flip)            
             let m=new Move(this.draggedSq,tosq)     
-            let algeb=this.b.moveToAlgeb(m)
-            //console.log(algeb)
+            let algeb=this.b.moveToAlgeb(m)            
             if(this.dragMoveCallback!=undefined){
                 let cr=b.getCastlingRight(m)
                 if(this.b.isMoveCapture(m)){

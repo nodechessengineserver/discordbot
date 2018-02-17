@@ -796,8 +796,7 @@ class Board{
         return this.hist[this.hist.length-1]
     }
 
-    del(){
-        //console.log("del",this.hist)
+    del(){        
         if(this.hist.length>1){
 
             this.hist.pop()            
@@ -987,13 +986,17 @@ class Board{
         return gn
     }
 
-    fromGameNode(gn:GameNode,clearHist:boolean=false):Board{
+    genAlgeb:string=""
+
+    fromGameNode(gn:GameNode,clearHist:boolean=false):Board{        
         let fen=gn.fen        
 
         this.gameStatus=gn.status
+
+        this.genAlgeb=gn.genAlgeb
         
         // set from fen has to be called last so that the callback has correct status
-        this.setFromFen(fen,clearHist)        
+        this.setFromFen(fen,clearHist)                
 
         return this
     }

@@ -515,6 +515,13 @@ class DomElement {
     ta(value) {
         return this.setTextAlgin(value);
     }
+    setOpacity(value) {
+        this.e.style.opacity = value;
+        return this;
+    }
+    op(value) {
+        return this.setOpacity("" + value);
+    }
     //////////////////////////////////////////////
     setFontSize(value) {
         this.e.style.fontSize = value;
@@ -1760,6 +1767,7 @@ class Board {
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
+        this.genAlgeb = "";
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -2285,7 +2293,6 @@ class Board {
         return this.hist[this.hist.length - 1];
     }
     del() {
-        //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
             this.fromGameNode(this.getCurrentGameNode());
@@ -2477,6 +2484,7 @@ class Board {
     fromGameNode(gn, clearHist = false) {
         let fen = gn.fen;
         this.gameStatus = gn.status;
+        this.genAlgeb = gn.genAlgeb;
         // set from fen has to be called last so that the callback has correct status
         this.setFromFen(fen, clearHist);
         return this;
@@ -2527,12 +2535,27 @@ class GuiBoard extends DomElement {
         }
         return pDiv;
     }
+    drawBoardArrow(algeb) {
+        let m = this.b.moveFromAlgeb(algeb);
+        let fSqR = this.rotateSquare(m.fromSq, this.flip);
+        let tSqR = this.rotateSquare(m.toSq, this.flip);
+        let fSqV = new Vect(fSqR.f * this.SQUARE_SIZE, fSqR.r * this.SQUARE_SIZE).p(this.HALF_SQUARE_SIZE_VECT());
+        let tSqV = new Vect(tSqR.f * this.SQUARE_SIZE, tSqR.r * this.SQUARE_SIZE).p(this.HALF_SQUARE_SIZE_VECT());
+        let arrow = new Arrow(fSqV, tSqV, {
+            constantwidth: 8
+        });
+        let aDiv = new Div().pa().op(0.75).o(arrow.svgorig.x, arrow.svgorig.y).
+            h(arrow.svg);
+        this.boardArrowDiv.x.a([aDiv]);
+    }
     build() {
         let term = this.b.isTerminated();
         this.x.pr().z(this.totalBoardWidth(), this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg");
-        this.bDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight()).
+        this.boardSquareDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight()).
             burl("assets/images/backgrounds/wood.jpg");
+        this.boardArrowDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight());
+        this.boardPieceDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight());
         this.pDivs = [];
         for (let nr = 0; nr < this.b.BOARD_WIDTH; nr++) {
             for (let nf = 0; nf < this.b.BOARD_HEIGHT; nf++) {
@@ -2556,14 +2579,14 @@ class GuiBoard extends DomElement {
                     if (this.promCr != undefined)
                         dopush = dopush && (!sq.e(this.promCr.rookFrom));
                 }
-                this.bDiv.a([sqDiv]);
+                this.boardSquareDiv.a([sqDiv]);
                 if (dopush)
-                    this.bDiv.a([pDiv]);
+                    this.boardPieceDiv.a([pDiv]);
                 if (this.promMode) {
                     if (this.promCr != undefined) {
                         let kingToSqFlipped = this.rotateSquare(this.promCr.kingTo, this.flip);
                         let kDiv = this.createPDiv(new Piece(KING, this.b.turn), kingToSqFlipped.f, kingToSqFlipped.r);
-                        this.bDiv.a([kDiv]);
+                        this.boardPieceDiv.a([kDiv]);
                     }
                     let promToSq = this.promMove.toSq;
                     if (this.promCr != undefined) {
@@ -2578,29 +2601,30 @@ class GuiBoard extends DomElement {
                         let promSqDiv = new Div().pa().r(f * this.SQUARE_SIZE, (r + i * dir) * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE).bcol("#ff7").zIndexNumber(200);
                         let pkind = this.proms[i];
                         let cn = PIECE_TO_STYLE[pkind] + " " + COLOR_TO_STYLE[this.b.turn];
-                        let promPDiv = new Div().pa().cp().r(this.PIECE_MARGIN, this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE).ac(cn).addEventListener("mousedown", this.promDivClicked.bind(this, pkind));
-                        promSqDiv.a([
-                            promPDiv
-                        ]);
-                        this.bDiv.a([
-                            promSqDiv
-                        ]);
+                        let promPDiv = new Div().pa().r(f * this.SQUARE_SIZE + this.PIECE_MARGIN, (r + i * dir) * this.SQUARE_SIZE + this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE).cp().ac(cn).addEventListener("mousedown", this.promDivClicked.bind(this, pkind)).zIndexNumber(200);
+                        this.boardPieceDiv.a([promSqDiv]);
+                        this.boardPieceDiv.a([promPDiv]);
                     }
                     let cancelDiv = new Div().pa().cp().r(f * this.SQUARE_SIZE, (r + i * dir) * this.SQUARE_SIZE, this.SQUARE_SIZE, this.SQUARE_SIZE).bcol("#f77").zIndexNumber(200).ta("center").
                         addEventListener("mousedown", this.cancelDivClicked.bind(this)).a([
                         new Div().mt(this.SQUARE_SIZE / 3).h("Cancel").cp()
                     ]);
-                    this.bDiv.a([
-                        cancelDiv
-                    ]);
+                    this.boardPieceDiv.a([cancelDiv]);
                 }
             }
         }
         this.a([
-            this.bDiv
+            this.boardSquareDiv,
+            this.boardArrowDiv,
+            this.boardPieceDiv
         ]);
-        this.bDiv.addEventListener("mousemove", this.boardmousemove.bind(this));
-        this.bDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
+        this.boardPieceDiv.addEventListener("mousemove", this.boardmousemove.bind(this));
+        this.boardPieceDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
+        let genAlgeb = this.b.genAlgeb;
+        let genMove = this.b.moveFromAlgeb(genAlgeb);
+        if (!genMove.invalid()) {
+            this.drawBoardArrow(genAlgeb);
+        }
         return this;
     }
     resetPromMode() {
@@ -2691,7 +2715,6 @@ class GuiBoard extends DomElement {
             let tosq = this.rotateSquare(fromsqorig.p(dsq), -this.flip);
             let m = new Move(this.draggedSq, tosq);
             let algeb = this.b.moveToAlgeb(m);
-            //console.log(algeb)
             if (this.dragMoveCallback != undefined) {
                 let cr = b.getCastlingRight(m);
                 if (this.b.isMoveCapture(m)) {
@@ -2861,7 +2884,7 @@ function strongSocket() {
             }
             else if (t == "setboard") {
                 let boardJson = json.boardJson;
-                gboard.b.fromGameNode(new GameNode().fromJson(boardJson));
+                gboard.b.fromGameNode(new GameNode().fromJson(boardJson), true);
             }
             else if (t == "chat") {
                 chatItems.unshift(new ChatItem(json.user, json.text));

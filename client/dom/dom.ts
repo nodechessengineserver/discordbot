@@ -377,6 +377,13 @@ class DomElement<T>{
     ta(value:string):DomElement<T>{
         return this.setTextAlgin(value)
     }
+    setOpacity(value:string):DomElement<T>{
+        this.e.style.opacity=value
+        return this
+    }
+    op(value:number):DomElement<T>{
+        return this.setOpacity(""+value)
+    }
     //////////////////////////////////////////////
     setFontSize(value:string):DomElement<T>{
         this.e.style.fontSize=value

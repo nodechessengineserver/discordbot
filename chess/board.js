@@ -157,6 +157,7 @@ class Board {
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
+        this.genAlgeb = "";
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -682,7 +683,6 @@ class Board {
         return this.hist[this.hist.length - 1];
     }
     del() {
-        //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
             this.fromGameNode(this.getCurrentGameNode());
@@ -874,6 +874,7 @@ class Board {
     fromGameNode(gn, clearHist = false) {
         let fen = gn.fen;
         this.gameStatus = gn.status;
+        this.genAlgeb = gn.genAlgeb;
         // set from fen has to be called last so that the callback has correct status
         this.setFromFen(fen, clearHist);
         return this;

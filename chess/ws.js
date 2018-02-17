@@ -74,7 +74,7 @@ function broadcast(json){
 function setBoardJson(){
     return ({
         t:"setboard",
-        boardJson:b.toGameNode().toJson()
+        boardJson:b.getCurrentGameNode().toJson()
     })
 }
 

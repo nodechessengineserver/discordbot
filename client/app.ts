@@ -94,7 +94,7 @@ function strongSocket(){
                 setUserList()
             }else if(t=="setboard"){                
                 let boardJson=json.boardJson
-                gboard.b.fromGameNode(new GameNode().fromJson(boardJson))
+                gboard.b.fromGameNode(new GameNode().fromJson(boardJson),true)
             }else if(t=="chat"){
                 chatItems.unshift(new ChatItem(json.user,json.text))
                 showChat()
