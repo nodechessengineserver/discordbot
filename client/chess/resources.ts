@@ -24,7 +24,7 @@ The rules are the same as of variant Atomic, except that on every non pawn move 
     or
     <li>promote the piece incrementally B -&gt; N -&gt; R -&gt; Q</li>
     or
-    <li>promote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
+    <li>underpromote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
 </ul>
 
 <p>

@@ -1603,6 +1603,8 @@ class MongoColl extends DomElement {
         return this;
     }
 }
+let THREEFOLD_REPETITION = 3;
+let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
 let BLACK = 0;
 let NO_COL = -1;
@@ -1720,6 +1722,29 @@ class GameStatus {
         this.isResigned = json.isResigned;
         this.isDrawAgreed = json.isDrawAgreed;
         this.isFlagged = json.isFlagged;
+        return this;
+    }
+}
+class GameNode {
+    constructor() {
+        this.status = new GameStatus();
+        this.genAlgeb = "";
+        this.fen = "";
+        this.tfen = "";
+    }
+    toJson() {
+        return ({
+            status: this.status.toJson(),
+            genAlgeb: this.genAlgeb,
+            fen: this.fen,
+            tfen: this.tfen
+        });
+    }
+    fromJson(json) {
+        this.status = new GameStatus().fromJson(json.status);
+        this.genAlgeb = json.genAlgeb;
+        this.fen = json.fen;
+        this.tfen = json.tfen;
         return this;
     }
 }
@@ -1850,7 +1875,7 @@ class Board {
         this.fullmoveNumber = b.fullmoveNumber;
         this.halfmoveClock = b.halfmoveClock;
         if (clearHist)
-            this.hist = [this.toJson()];
+            this.hist = [this.toGameNode()];
         this.posChanged();
         return true;
     }
@@ -1917,8 +1942,6 @@ class Board {
     obtainStatus() {
         this.gameStatus.isStaleMate = false;
         this.gameStatus.isMate = false;
-        this.gameStatus.isFiftyMoveRule = false;
-        this.gameStatus.isThreeFoldRepetition = false;
         if (this.gameStatus.isResigned || this.gameStatus.isFlagged) {
             let reason = this.gameStatus.isResigned ? "resigned" : "flagged";
             if (this.turn == WHITE) {
@@ -1952,6 +1975,34 @@ class Board {
                 this.gameStatus.scoreReason = "stalemate";
             }
         }
+        else if (this.isDrawByThreefoldRepetition()) {
+            this.gameStatus.isThreeFoldRepetition = true;
+            this.gameStatus.score = "1/2-1/2";
+            this.gameStatus.scoreReason = "threefold repetition";
+        }
+        else if (this.halfmoveClock >= (FIFTYMOVE_RULE * 2)) {
+            this.gameStatus.isFiftyMoveRule = true;
+            this.gameStatus.score = "1/2-1/2";
+            this.gameStatus.scoreReason = "fifty move rule";
+        }
+    }
+    isDrawByThreefoldRepetition() {
+        let tfens = {};
+        for (let gn of this.hist) {
+            let tfen = gn.tfen;
+            if (tfens[tfen] == undefined) {
+                tfens[tfen] = 1;
+            }
+            else {
+                let cnt = tfens[tfen];
+                cnt++;
+                tfens[tfen] = cnt;
+                if (cnt >= THREEFOLD_REPETITION) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     isTerminated() {
         return this.gameStatus.isStaleMate ||
@@ -2140,7 +2191,10 @@ class Board {
         if (check)
             if (!this.isMoveLegal(m))
                 return false;
+        if (this.isTerminated())
+            return false;
         // calculate some useful values
+        let algeb = this.moveToAlgeb(m);
         let fSq = m.fromSq;
         let tSq = m.toSq;
         let deltaR = tSq.r - fSq.r;
@@ -2222,18 +2276,26 @@ class Board {
             this.epSquare = epsq;
         }
         // update history        
-        this.hist.push(this.toJson());
+        this.hist.push(this.toGameNode(algeb));
         // position changed callback
         this.posChanged();
         return true;
+    }
+    getCurrentGameNode() {
+        return this.hist[this.hist.length - 1];
     }
     del() {
         //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
-            let boardJson = this.hist[this.hist.length - 1];
-            this.fromJson(boardJson);
+            this.fromGameNode(this.getCurrentGameNode());
         }
+    }
+    reportTruncFen() {
+        let fen = this.reportFen();
+        let parts = fen.split(" ");
+        let tfen = parts.slice(0, 4).join(" ");
+        return tfen;
     }
     reportFen() {
         let fen = "";
@@ -2402,19 +2464,19 @@ class Board {
             return true;
         return false;
     }
-    toJson() {
+    toGameNode(genAlgeb = "") {
         let fen = this.reportFen();
-        let statusJson = this.gameStatus.toJson();
-        let json = {
-            fen: fen,
-            status: statusJson
-        };
-        return json;
+        let tfen = this.reportTruncFen();
+        let gn = new GameNode();
+        gn.fen = fen;
+        gn.tfen = tfen;
+        gn.genAlgeb = genAlgeb;
+        gn.status = new GameStatus().fromJson(this.gameStatus.toJson());
+        return gn;
     }
-    fromJson(json, clearHist = false) {
-        let fen = json.fen;
-        let statusJson = json.status;
-        this.gameStatus.fromJson(statusJson);
+    fromGameNode(gn, clearHist = false) {
+        let fen = gn.fen;
+        this.gameStatus = gn.status;
         // set from fen has to be called last so that the callback has correct status
         this.setFromFen(fen, clearHist);
         return this;
@@ -2466,6 +2528,7 @@ class GuiBoard extends DomElement {
         return pDiv;
     }
     build() {
+        let term = this.b.isTerminated();
         this.x.pr().z(this.totalBoardWidth(), this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg");
         this.bDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight()).
@@ -2483,7 +2546,8 @@ class GuiBoard extends DomElement {
                 let p = this.b.getFR(nf, nr);
                 let pDiv = this.createPDiv(p, f, r);
                 pDiv.e.setAttribute("draggable", "true");
-                if (!this.promMode)
+                // don't allow drag in prom mode, or if game has terminated
+                if ((!this.promMode) && (!term))
                     pDiv.addEventListener("dragstart", this.piecedragstart.bind(this, sq, pDiv));
                 let dopush = true;
                 if (this.promMode) {
@@ -2690,7 +2754,7 @@ The rules are the same as of variant Atomic, except that on every non pawn move 
     or
     <li>promote the piece incrementally B -&gt; N -&gt; R -&gt; Q</li>
     or
-    <li>promote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
+    <li>underpromote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
 </ul>
 
 <p>
@@ -2797,7 +2861,7 @@ function strongSocket() {
             }
             else if (t == "setboard") {
                 let boardJson = json.boardJson;
-                gboard.b.fromJson(boardJson);
+                gboard.b.fromGameNode(new GameNode().fromJson(boardJson));
             }
             else if (t == "chat") {
                 chatItems.unshift(new ChatItem(json.user, json.text));

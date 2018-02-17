@@ -58,6 +58,8 @@ class GuiBoard extends DomElement<GuiBoard>{
     }
 
     build():GuiBoard{
+        let term=this.b.isTerminated()
+
         this.x.pr().z(this.totalBoardWidth(),this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg")
 
@@ -82,9 +84,10 @@ class GuiBoard extends DomElement<GuiBoard>{
                 
                 let pDiv=this.createPDiv(p,f,r)
 
-                pDiv.e.setAttribute("draggable","true")
+                pDiv.e.setAttribute("draggable","true")                
 
-                if(!this.promMode) pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
+                // don't allow drag in prom mode, or if game has terminated
+                if((!this.promMode)&&(!term)) pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
 
                 let dopush=true
 

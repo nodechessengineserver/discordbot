@@ -1,3 +1,6 @@
+let THREEFOLD_REPETITION=3
+let FIFTYMOVE_RULE=50
+
 let WHITE=1
 let BLACK=0
 let NO_COL=-1
@@ -196,6 +199,30 @@ class GameStatus{
     }
 }
 
+class GameNode{
+    status:GameStatus=new GameStatus()
+    genAlgeb=""
+    fen:string=""
+    tfen:string=""
+
+    toJson():any{
+        return ({
+            status:this.status.toJson(),
+            genAlgeb:this.genAlgeb,
+            fen:this.fen,
+            tfen:this.tfen
+        })
+    }
+
+    fromJson(json:any):GameNode{
+        this.status=new GameStatus().fromJson(json.status)
+        this.genAlgeb=json.genAlgeb
+        this.fen=json.fen
+        this.tfen=json.tfen
+        return this
+    }
+}
+
 class Board{
     variant:string
 
@@ -203,7 +230,7 @@ class Board{
 
     rights:boolean[]=[true,true,true,true]
 
-    hist:any[]=[]
+    hist:GameNode[]=[]
 
     PROPS:any
     BOARD_WIDTH:number
@@ -333,7 +360,7 @@ class Board{
         this.fullmoveNumber=b.fullmoveNumber
         this.halfmoveClock=b.halfmoveClock
 
-        if(clearHist) this.hist=[this.toJson()]
+        if(clearHist) this.hist=[this.toGameNode()]
         this.posChanged()
         return true
     }
@@ -418,9 +445,7 @@ class Board{
     obtainStatus(){
 
         this.gameStatus.isStaleMate=false
-        this.gameStatus.isMate=false
-        this.gameStatus.isFiftyMoveRule=false
-        this.gameStatus.isThreeFoldRepetition=false        
+        this.gameStatus.isMate=false        
 
         if(this.gameStatus.isResigned||this.gameStatus.isFlagged){
             let reason=this.gameStatus.isResigned?"resigned":"flagged"
@@ -450,8 +475,34 @@ class Board{
                 this.gameStatus.score="1/2-1/2"
                 this.gameStatus.scoreReason="stalemate"
             }
+        }else if(this.isDrawByThreefoldRepetition()){
+            this.gameStatus.isThreeFoldRepetition=true
+            this.gameStatus.score="1/2-1/2"
+            this.gameStatus.scoreReason="threefold repetition"
+        }else if(this.halfmoveClock>=(FIFTYMOVE_RULE*2)){
+            this.gameStatus.isFiftyMoveRule=true
+            this.gameStatus.score="1/2-1/2"
+            this.gameStatus.scoreReason="fifty move rule"
         }
 
+    }
+
+    isDrawByThreefoldRepetition(){
+        let tfens:any={}
+        for(let gn of this.hist){
+            let tfen=gn.tfen
+            if(tfens[tfen]==undefined){
+                tfens[tfen]=1
+            }else{
+                let cnt=tfens[tfen]
+                cnt++
+                tfens[tfen]=cnt
+                if(cnt>=THREEFOLD_REPETITION){
+                    return true
+                }
+            }
+        }        
+        return false
     }
 
     isTerminated():boolean{
@@ -646,7 +697,10 @@ class Board{
     makeMove(m:Move,check:boolean=true):boolean{
         if(check) if(!this.isMoveLegal(m)) return false
 
+        if(this.isTerminated()) return false
+
         // calculate some useful values
+        let algeb=this.moveToAlgeb(m)
         let fSq=m.fromSq
         let tSq=m.toSq
         let deltaR=tSq.r-fSq.r
@@ -729,7 +783,7 @@ class Board{
         }
 
         // update history        
-        this.hist.push(this.toJson())
+        this.hist.push(this.toGameNode(algeb))
 
         // position changed callback
         this.posChanged()
@@ -738,13 +792,26 @@ class Board{
 
     epSquare:Square=INVALID_SQUARE
 
+    getCurrentGameNode():GameNode{
+        return this.hist[this.hist.length-1]
+    }
+
     del(){
         //console.log("del",this.hist)
         if(this.hist.length>1){
+
             this.hist.pop()            
-            let boardJson=this.hist[this.hist.length-1]            
-            this.fromJson(boardJson)
+
+            this.fromGameNode(this.getCurrentGameNode())
+
         }
+    }
+
+    reportTruncFen():string{
+        let fen=this.reportFen()
+        let parts=fen.split(" ")
+        let tfen=parts.slice(0,4).join(" ")
+        return tfen
     }
 
     reportFen():string{
@@ -906,23 +973,24 @@ class Board{
         return false
     }
 
-    toJson():any{
+    toGameNode(genAlgeb:string=""):any{
         let fen=this.reportFen()        
-        let statusJson=this.gameStatus.toJson()
+        let tfen=this.reportTruncFen()
 
-        let json={
-            fen:fen,
-            status:statusJson
-        }
+        let gn=new GameNode()
 
-        return json
+        gn.fen=fen
+        gn.tfen=tfen
+        gn.genAlgeb=genAlgeb
+        gn.status=new GameStatus().fromJson(this.gameStatus.toJson())        
+
+        return gn
     }
 
-    fromJson(json:any,clearHist:boolean=false):Board{
-        let fen=json.fen
-        let statusJson=json.status
+    fromGameNode(gn:GameNode,clearHist:boolean=false):Board{
+        let fen=gn.fen        
 
-        this.gameStatus.fromJson(statusJson)
+        this.gameStatus=gn.status
         
         // set from fen has to be called last so that the callback has correct status
         this.setFromFen(fen,clearHist)        
