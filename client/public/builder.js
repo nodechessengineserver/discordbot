@@ -432,6 +432,23 @@ class DomElement {
     mt(rem) {
         return this.setMarginTopRem(rem);
     }
+    setMarginLeft(value) {
+        this.e.style.marginLeft = value;
+        return this;
+    }
+    setMarginLeftRem(rem) {
+        return this.setMarginLeft(`${rem}rem`);
+    }
+    ml(rem) {
+        return this.setMarginLeftRem(rem);
+    }
+    setDisplay(value) {
+        this.e.style.display = value;
+        return this;
+    }
+    ib() {
+        return this.setDisplay("inline-block");
+    }
     //////////////////////////////////////////////
     setInnerHTML(content) {
         this.e.innerHTML = content;
@@ -1675,6 +1692,37 @@ const CASTLING_RIGHTS = [
     new CastlingRight(WHITE, new Square(4, 7), new Square(2, 7), new Square(0, 7), new Square(3, 7), [new Square(3, 7), new Square(2, 7), new Square(1, 7)], "Q"), new CastlingRight(BLACK, new Square(4, 0), new Square(6, 0), new Square(7, 0), new Square(5, 0), [new Square(5, 0), new Square(6, 0)], "k"),
     new CastlingRight(BLACK, new Square(4, 0), new Square(2, 0), new Square(0, 0), new Square(3, 0), [new Square(3, 0), new Square(2, 0), new Square(1, 0)], "q")
 ];
+class GameStatus {
+    constructor() {
+        // game status
+        this.score = "*";
+        this.scoreReason = "";
+        // termination by rules
+        this.isStaleMate = false;
+        this.isMate = false;
+        this.isFiftyMoveRule = false;
+        this.isThreeFoldRepetition = false;
+        // termination by player
+        this.isResigned = false;
+        this.isDrawAgreed = false;
+        this.isFlagged = false;
+    }
+    toJson() {
+        return JSON.parse(JSON.stringify(this));
+    }
+    fromJson(json) {
+        this.score = json.score;
+        this.scoreReason = json.scoreReason;
+        this.isStaleMate = json.isStaleMate;
+        this.isMate = json.isMate;
+        this.isFiftyMoveRule = json.isFiftyMoveRule;
+        this.isThreeFoldRepetition = json.isThreeFoldRepetition;
+        this.isResigned = json.isResigned;
+        this.isDrawAgreed = json.isDrawAgreed;
+        this.isFlagged = json.isFlagged;
+        return this;
+    }
+}
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
         this.rights = [true, true, true, true];
@@ -1683,6 +1731,7 @@ class Board {
         this.plms = [];
         this.lms = [];
         this.debug = false;
+        this.gameStatus = new GameStatus();
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
@@ -1852,6 +1901,66 @@ class Board {
             this.posChangedCallback();
         }
     }
+    newGame() {
+        this.gameStatus.score = "*";
+        this.gameStatus.scoreReason = "";
+        this.gameStatus.isStaleMate = false;
+        this.gameStatus.isMate = false;
+        this.gameStatus.isFiftyMoveRule = false;
+        this.gameStatus.isThreeFoldRepetition = false;
+        this.gameStatus.isResigned = false;
+        this.gameStatus.isDrawAgreed = false;
+        this.gameStatus.isFlagged = false;
+        this.setFromFen();
+    }
+    obtainStatus() {
+        this.gameStatus.isStaleMate = false;
+        this.gameStatus.isMate = false;
+        this.gameStatus.isFiftyMoveRule = false;
+        this.gameStatus.isThreeFoldRepetition = false;
+        if (this.gameStatus.isResigned || this.gameStatus.isFlagged) {
+            let reason = this.gameStatus.isResigned ? "resigned" : "flagged";
+            if (this.turn == WHITE) {
+                this.gameStatus.score = "0-1";
+                this.gameStatus.scoreReason = "white " + reason;
+            }
+            else {
+                this.gameStatus.score = "1-0";
+                this.gameStatus.scoreReason = "black " + reason;
+            }
+        }
+        else if (this.gameStatus.isDrawAgreed) {
+            this.gameStatus.score = "1/2-1/2";
+            this.gameStatus.scoreReason = "draw agreed";
+        }
+        else if (this.lms.length <= 0) {
+            if (this.isInCheck(this.turn)) {
+                this.gameStatus.isMate = true;
+                if (this.turn == WHITE) {
+                    this.gameStatus.score = "0-1";
+                    this.gameStatus.scoreReason = "white mated";
+                }
+                else {
+                    this.gameStatus.score = "1-0";
+                    this.gameStatus.scoreReason = "black mated";
+                }
+            }
+            else {
+                this.gameStatus.isStaleMate = true;
+                this.gameStatus.score = "1/2-1/2";
+                this.gameStatus.scoreReason = "stalemate";
+            }
+        }
+    }
+    isTerminated() {
+        return this.gameStatus.isStaleMate ||
+            this.gameStatus.isMate ||
+            this.gameStatus.isFiftyMoveRule ||
+            this.gameStatus.isThreeFoldRepetition ||
+            this.gameStatus.isResigned ||
+            this.gameStatus.isDrawAgreed ||
+            this.gameStatus.isFlagged;
+    }
     genLegalMoves() {
         this.genPseudoLegalMoves();
         this.lms = [];
@@ -1871,10 +1980,16 @@ class Board {
                         this.isSquareInCheck(cr.rookTo, this.turn))) {
                         let cm = new Move(cr.kingFrom, cr.kingTo);
                         this.lms.push(cm);
+                        let cmpn = new Move(cr.kingFrom, cr.kingTo, new Piece(KNIGHT, this.turn));
+                        this.lms.push(cmpn);
+                        let cmpq = new Move(cr.kingFrom, cr.kingTo, new Piece(QUEEN, this.turn));
+                        this.lms.push(cmpq);
                     }
                 }
             }
         }
+        // obtain status
+        this.obtainStatus();
     }
     genPseudoLegalMoves() {
         this.plms = [];
@@ -2010,26 +2125,41 @@ class Board {
         let flms = this.lms.filter((tm) => tm.e(m));
         return flms.length > 0;
     }
+    clearCastlingRights(color) {
+        if (color == WHITE) {
+            this.rights[0] = false;
+            this.rights[1] = false;
+        }
+        else {
+            this.rights[2] = false;
+            this.rights[3] = false;
+        }
+    }
     makeMove(m, check = true) {
         if (check)
             if (!this.isMoveLegal(m))
                 return false;
+        // calculate some useful values
         let fSq = m.fromSq;
         let tSq = m.toSq;
         let deltaR = tSq.r - fSq.r;
         let deltaF = tSq.f - fSq.f;
         let fp = this.getSq(fSq);
         let tp = this.getSq(tSq);
-        this.setSq(fSq);
+        let cr = this.getCastlingRight(m);
+        let isCastling = (cr != undefined);
         let normal = tp.empty();
+        // remove from piece
+        this.setSq(fSq);
+        // ep capture
         if ((fp.kind == PAWN) && (m.toSq.e(this.epSquare))) {
-            // ep capture
             normal = false;
             let epCaptSq = this.epSquare.p(new Square(0, -deltaR));
             this.setSq(epCaptSq);
         }
+        // set target piece
         if (normal) {
-            if (m.promPiece.empty()) {
+            if (m.promPiece.empty() || isCastling) {
                 this.setSq(tSq, fp);
             }
             else {
@@ -2049,16 +2179,21 @@ class Board {
             }
             this.setSq(tSq);
         }
-        if (fp.kind == KING) {
-            if (this.turn == WHITE) {
-                this.rights[0] = false;
-                this.rights[1] = false;
-            }
-            else {
-                this.rights[2] = false;
-                this.rights[3] = false;
+        // castling
+        if (cr != undefined) {
+            this.setSq(cr.rookFrom);
+            this.setSq(cr.rookTo, new Piece(ROOK, this.turn));
+            if (!m.promPiece.empty()) {
+                this.setSq(cr.rookTo, new Piece(m.promPiece.kind, this.turn));
             }
         }
+        // update castling rights
+        if (fp.kind == KING)
+            this.clearCastlingRights(this.turn);
+        if (this.isExploded(WHITE))
+            this.clearCastlingRights(WHITE);
+        if (this.isExploded(BLACK))
+            this.clearCastlingRights(BLACK);
         for (let i = 0; i < 4; i++) {
             let cr = CASTLING_RIGHTS[i];
             if (cr.color == this.turn) {
@@ -2068,33 +2203,27 @@ class Board {
                     this.rights[i] = false;
             }
         }
-        if ((fp.kind == KING) && (Math.abs(deltaF) > 1)) {
-            // castling
-            let crs = CASTLING_RIGHTS.filter(cr => cr.kingTo.e(tSq));
-            if (crs.length == 1) {
-                let cr = crs[0];
-                this.setSq(cr.rookFrom);
-                this.setSq(cr.rookTo, new Piece(ROOK, this.turn));
-            }
-            else {
-                console.log("invalid castling");
-            }
-        }
+        // advance turn
         this.turn = INV_COLOR(this.turn);
+        // advance fullmove number
         if (this.turn == WHITE)
             this.fullmoveNumber++;
+        // advance halfmove clock
         this.halfmoveClock++;
         if (fp.kind == PAWN)
             this.halfmoveClock = 0;
         if (tp.kind != EMPTY)
             this.halfmoveClock = 0;
+        // set ep square
         this.epSquare = INVALID_SQUARE;
         if ((fp.kind == PAWN) && (Math.abs(deltaR) == 2)) {
             let epsq = new Square(m.fromSq.f, m.fromSq.r + (deltaR / 2));
             this.epSquare = epsq;
         }
+        // update history
         let fen = this.reportFen();
         this.hist.push(fen);
+        // position changed callback
         this.posChanged();
         return true;
     }
@@ -2244,11 +2373,51 @@ class Board {
         return false;
     }
     isInCheck(color = this.turn) {
+        // adjacent kings - no check
         if (this.kingsAdjacent())
             return false;
+        // I'm exploded - always bad
         if (this.isExploded(color))
             return true;
+        // I'm not exploded, opponent exploded - no check there
+        if (this.isExploded(INV_COLOR(color)))
+            return false;
+        // none of the above, fall back to regular check
         return this.isSquareInCheck(this.whereIsKing(color), color);
+    }
+    getCastlingRight(m) {
+        let fp = this.getSq(m.fromSq);
+        if (fp.kind != KING)
+            return undefined;
+        let deltaF = m.toSq.f - m.fromSq.f;
+        if (Math.abs(deltaF) < 2)
+            return undefined;
+        let index = CASTLING_RIGHTS.findIndex(cr => cr.kingFrom.e(m.fromSq));
+        if (index < 0)
+            return undefined; // this should not happen
+        return CASTLING_RIGHTS[index];
+    }
+    isMoveCapture(m) {
+        if (!this.getSq(m.toSq).empty())
+            return true;
+        return false;
+    }
+    toJson() {
+        let fen = this.reportFen();
+        let statusJson = this.gameStatus.toJson();
+        let json = {
+            fen: fen,
+            status: statusJson
+        };
+        return json;
+    }
+    fromJson(json) {
+        let fen = json.fen;
+        let statusJson = json.status;
+        this.gameStatus.fromJson(statusJson);
+        // set from fen has to be called last so that the callback has correct status
+        this.setFromFen(fen);
+        return this;
     }
 }
 if (!DOM_DEFINED) {
@@ -2288,6 +2457,14 @@ class GuiBoard extends DomElement {
         this.b = new Board(variant).setFromFen();
         return this.build();
     }
+    createPDiv(p, f, r) {
+        let pDiv = new Div().pa().r(f * this.SQUARE_SIZE + this.PIECE_MARGIN, r * this.SQUARE_SIZE + this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE);
+        if (!p.empty()) {
+            let cn = PIECE_TO_STYLE[p.kind] + " " + COLOR_TO_STYLE[p.color];
+            pDiv.ac(cn);
+        }
+        return pDiv;
+    }
     build() {
         this.x.pr().z(this.totalBoardWidth(), this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg");
@@ -2304,20 +2481,30 @@ class GuiBoard extends DomElement {
                 sqDiv.e.style.opacity = "0.1";
                 sqDiv.e.style.backgroundColor = ((r + f) % 2) == 0 ? "#fff" : "#777";
                 let p = this.b.getFR(nf, nr);
-                let pDiv = new Div().pa().r(f * this.SQUARE_SIZE + this.PIECE_MARGIN, r * this.SQUARE_SIZE + this.PIECE_MARGIN, this.PIECE_SIZE, this.PIECE_SIZE);
-                if (!p.empty()) {
-                    let cn = PIECE_TO_STYLE[p.kind] + " " + COLOR_TO_STYLE[p.color];
-                    pDiv.ac(cn);
-                }
+                let pDiv = this.createPDiv(p, f, r);
                 pDiv.e.setAttribute("draggable", "true");
                 if (!this.promMode)
                     pDiv.addEventListener("dragstart", this.piecedragstart.bind(this, sq, pDiv));
-                let dopush = !(this.promMode && sq.e(this.promMove.fromSq));
+                let dopush = true;
+                if (this.promMode) {
+                    if (sq.e(this.promMove.fromSq))
+                        dopush = false;
+                    if (this.promCr != undefined)
+                        dopush = dopush && (!sq.e(this.promCr.rookFrom));
+                }
                 this.bDiv.a([sqDiv]);
                 if (dopush)
                     this.bDiv.a([pDiv]);
                 if (this.promMode) {
+                    if (this.promCr != undefined) {
+                        let kingToSqFlipped = this.rotateSquare(this.promCr.kingTo, this.flip);
+                        let kDiv = this.createPDiv(new Piece(KING, this.b.turn), kingToSqFlipped.f, kingToSqFlipped.r);
+                        this.bDiv.a([kDiv]);
+                    }
                     let promToSq = this.promMove.toSq;
+                    if (this.promCr != undefined) {
+                        promToSq = this.promCr.rookTo;
+                    }
                     let promToSqFlipped = this.rotateSquare(promToSq, this.flip);
                     let f = promToSqFlipped.f;
                     let r = promToSqFlipped.r;
@@ -2435,17 +2622,31 @@ class GuiBoard extends DomElement {
             let algeb = this.b.moveToAlgeb(m);
             //console.log(algeb)
             if (this.dragMoveCallback != undefined) {
-                let legalAlgebs = this.b.legalAlgebMoves().filter(talgeb => talgeb.substring(0, 4) == algeb);
-                let p = this.b.getSq(this.draggedSq);
-                this.proms = legalAlgebs.map(lalgeb => (lalgeb + p.kind).substring(4, 5));
-                if (this.proms.length > 1) {
+                let cr = b.getCastlingRight(m);
+                if (this.b.isMoveCapture(m)) {
+                    this.dragMoveCallback(algeb);
+                }
+                else if (cr != undefined) {
+                    this.promCr = cr;
                     this.promMode = true;
-                    this.promOrig = p.kind;
+                    this.proms = ["n", "r", "q"];
+                    this.promOrig = "r";
                     this.promMove = m;
                     this.build();
                 }
                 else {
-                    this.dragMoveCallback(algeb);
+                    let legalAlgebs = this.b.legalAlgebMoves().filter(talgeb => talgeb.substring(0, 4) == algeb);
+                    let p = this.b.getSq(this.draggedSq);
+                    this.proms = legalAlgebs.map(lalgeb => (lalgeb + p.kind).substring(4, 5));
+                    if (this.proms.length > 1) {
+                        this.promMode = true;
+                        this.promOrig = p.kind;
+                        this.promMove = m;
+                        this.build();
+                    }
+                    else {
+                        this.dragMoveCallback(algeb);
+                    }
                 }
             }
             else {
@@ -2457,6 +2658,42 @@ class GuiBoard extends DomElement {
         this.dragMoveCallback = dragMoveCallback;
     }
 }
+const INTRO_HTML = `
+<h1>Chess playing interface of ACT Discord Server</h1>
+
+<p>
+Provides an opportunity to play variant Promotion Atomic online.
+</p>
+
+<br>
+
+<p>
+The site is under construction.
+</p>
+`;
+const PROMOTION_ATOMIC_RULES_HTML = `
+<h1>Rules of variant Promotion Atomic</h1>
+
+<p>
+The rules are the same as of variant Atomic, except that on every non pawn move you can
+</p>
+
+<ul>
+    <li>leave the piece unchanged</li>
+    or
+    <li>promote the piece incrementally B -&gt; N -&gt; R -&gt; Q</li>
+    or
+    <li>promote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
+</ul>
+
+<p>
+On castling you can promote the rook.
+</p>
+
+<p>
+Promotion to king is not possible.
+</p>
+`;
 DEBUG = false;
 let PING_INTERVAL = 5000;
 let SOCKET_TIMEOUT = 30000;
@@ -2552,12 +2789,15 @@ function strongSocket() {
                 setUserList();
             }
             else if (t == "setboard") {
-                let fen = json.fen;
-                gboard.b.setFromFen(fen);
+                let boardJson = json.boardJson;
+                gboard.b.fromJson(boardJson);
             }
             else if (t == "chat") {
                 chatItems.unshift(new ChatItem(json.user, json.text));
                 showChat();
+            }
+            else if (t == "reset") {
+                gboard.b.newGame();
             }
         }
         catch (err) {
@@ -2575,11 +2815,13 @@ function clog(json) {
 }
 ///////////////////////////////////////////////////////////
 let intro;
+let rules;
 let playtable;
 let play;
 let legalmoves;
 let gboard;
 let boardInfoDiv;
+let gameStatusDiv;
 let moveInput;
 let chatDiv;
 let chatInput;
@@ -2610,7 +2852,7 @@ function setUserList() {
     for (let username in userlist) {
         let user = userlist[username];
         users.a([
-            new Div().h(user.username)
+            new Div().ac("user").h(user.username)
         ]);
     }
 }
@@ -2680,6 +2922,7 @@ function boardPosChanged() {
         new TextInput("boardinfo").setText(gboard.b.reportFen()).
             w(gboard.totalBoardWidth() + 60).fs(10)
     ]);
+    gameStatusDiv.h(gboard.b.gameStatus.score + " " + gboard.b.gameStatus.scoreReason);
 }
 function dragMoveCallback(algeb) {
     //console.log("drag move",algeb)
@@ -2711,7 +2954,8 @@ function chatButtonClicked() {
     chatInputCallback();
 }
 function buildApp() {
-    intro = new Div().h(`Chess playing interface of ACT Discord Server. Under construction.`);
+    intro = new Div().ac("contentdiv").h(INTRO_HTML);
+    rules = new Div().ac("contentdiv").h(PROMOTION_ATOMIC_RULES_HTML);
     users = new Div();
     gboard = new GuiBoard().setPosChangedCallback(boardPosChanged);
     play = new Div().a([
@@ -2739,6 +2983,7 @@ function buildApp() {
                 new Button("Del").onClick((e) => emit({ t: "delmove" })),
                 new Button("Flip").onClick((e) => gboard.doFlip()),
                 new Button("Reset").onClick((e) => emit({ t: "reset" })),
+                gameStatusDiv = new Div().ib().ml(5),
                 boardInfoDiv = new Div().mt(3)
             ]),
             new Td().a([
@@ -2784,10 +3029,10 @@ function buildApp() {
     tabpane = new Tabpane("maintabpane").
         setTabs([
         new Tab("intro", "Intro", intro),
+        new Tab("rules", "Rules", rules),
         new Tab("users", "Users", users),
         new Tab("play", "Play", playtable),
         new Tab("profile", "Profile", profile),
-        new Tab("log", "Log", log)
     ]).
         snapToWindow().
         build();

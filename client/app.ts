@@ -92,12 +92,14 @@ function strongSocket(){
                 userlist=json.userlist                
                 console.log(`set userlist`,userlist)
                 setUserList()
-            }else if(t=="setboard"){
-                let fen=json.fen
-                gboard.b.setFromFen(fen)
+            }else if(t=="setboard"){                
+                let boardJson=json.boardJson
+                gboard.b.fromJson(boardJson)
             }else if(t=="chat"){
                 chatItems.unshift(new ChatItem(json.user,json.text))
                 showChat()
+            }else if(t=="reset"){
+                gboard.b.newGame()
             }
         }catch(err){console.log(err)}
     }
@@ -116,11 +118,13 @@ function clog(json:any){
 ///////////////////////////////////////////////////////////
 
 let intro:Div
+let rules:Div
 let playtable:Table
 let play:Div
 let legalmoves:Div
 let gboard:GuiBoard
 let boardInfoDiv:Div
+let gameStatusDiv:Div
 let moveInput:TextInput
 let chatDiv:Div
 let chatInput:TextInput
@@ -153,7 +157,7 @@ function setUserList(){
     for(let username in userlist){
         let user=userlist[username]
         users.a([
-            new Div().h(user.username)
+            new Div().ac("user").h(user.username)
         ])
     }
 }
@@ -220,7 +224,7 @@ function moveClicked(algeb:string,e:Event){
     })
 }
 
-function boardPosChanged(){
+function boardPosChanged(){    
     let lalgebs=gboard.b.legalAlgebMoves().sort()
     legalmoves.x.a(lalgebs.map(algeb=>
         new Div().h(algeb).cp().setColor("#00f").ul().
@@ -230,6 +234,7 @@ function boardPosChanged(){
         new TextInput("boardinfo").setText(gboard.b.reportFen()).
         w(gboard.totalBoardWidth()+60).fs(10)
     ])
+    gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
 }
 
 function dragMoveCallback(algeb:string){
@@ -274,9 +279,9 @@ function chatButtonClicked(){
 
 function buildApp(){
 
-    intro=new Div().h(
-        `Chess playing interface of ACT Discord Server. Under construction.`
-    )
+    intro=new Div().ac("contentdiv").h(INTRO_HTML)
+
+    rules=new Div().ac("contentdiv").h(PROMOTION_ATOMIC_RULES_HTML)
 
     users=new Div()
 
@@ -310,6 +315,7 @@ function buildApp(){
                 new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
                 new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
                 new Button("Reset").onClick((e:Event)=>emit({t:"reset"})),        
+                gameStatusDiv=new Div().ib().ml(5),
                 boardInfoDiv=new Div().mt(3)
             ]),
             new Td().a([
@@ -360,10 +366,11 @@ function buildApp(){
     tabpane=(<Tabpane>new Tabpane("maintabpane").
         setTabs([
             new Tab("intro","Intro",intro),
+            new Tab("rules","Rules",rules),
             new Tab("users","Users",users),
             new Tab("play","Play",playtable),
             new Tab("profile","Profile",profile),
-            new Tab("log","Log",log)            
+            /*new Tab("log","Log",log)*/            
         ]).
         snapToWindow()).
         build()    

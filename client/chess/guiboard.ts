@@ -46,6 +46,17 @@ class GuiBoard extends DomElement<GuiBoard>{
 
     pDivs:Div[]=[]
 
+    createPDiv(p:Piece,f:number,r:number):Div{
+        let pDiv=new Div().pa().r(f*this.SQUARE_SIZE+this.PIECE_MARGIN,r*this.SQUARE_SIZE+this.PIECE_MARGIN,this.PIECE_SIZE,this.PIECE_SIZE)
+              
+        if(!p.empty()){
+            let cn=PIECE_TO_STYLE[p.kind]+" "+COLOR_TO_STYLE[p.color]
+            pDiv.ac(cn)
+        }
+
+        return pDiv
+    }
+
     build():GuiBoard{
         this.x.pr().z(this.totalBoardWidth(),this.totalBoardHeight()).
             burl("assets/images/backgrounds/wood.jpg")
@@ -68,25 +79,34 @@ class GuiBoard extends DomElement<GuiBoard>{
                 sqDiv.e.style.backgroundColor=((r+f)%2)==0?"#fff":"#777"
 
                 let p=this.b.getFR(nf,nr)
-                let pDiv=new Div().pa().r(f*this.SQUARE_SIZE+this.PIECE_MARGIN,r*this.SQUARE_SIZE+this.PIECE_MARGIN,this.PIECE_SIZE,this.PIECE_SIZE)
-              
-                if(!p.empty()){
-                    let cn=PIECE_TO_STYLE[p.kind]+" "+COLOR_TO_STYLE[p.color]
-                    pDiv.ac(cn)
-                }
+                
+                let pDiv=this.createPDiv(p,f,r)
 
                 pDiv.e.setAttribute("draggable","true")
 
                 if(!this.promMode) pDiv.addEventListener("dragstart",this.piecedragstart.bind(this,sq,pDiv))
 
-                let dopush=!(this.promMode&&sq.e(this.promMove.fromSq))                                
+                let dopush=true
 
+                if(this.promMode){
+                    if(sq.e(this.promMove.fromSq)) dopush=false
+                    if(this.promCr!=undefined) dopush=dopush&&(!sq.e(this.promCr.rookFrom))
+                }
+                
                 this.bDiv.a([sqDiv])
 
                 if(dopush) this.bDiv.a([pDiv])
 
                 if(this.promMode){
+                    if(this.promCr!=undefined){
+                        let kingToSqFlipped=this.rotateSquare(this.promCr.kingTo,this.flip)
+                        let kDiv=this.createPDiv(new Piece(KING,this.b.turn),kingToSqFlipped.f,kingToSqFlipped.r)
+                        this.bDiv.a([kDiv])
+                    }
                     let promToSq=this.promMove.toSq
+                    if(this.promCr!=undefined){
+                        promToSq=this.promCr.rookTo
+                    }
                     let promToSqFlipped=this.rotateSquare(promToSq,this.flip)
                     let f=promToSqFlipped.f
                     let r=promToSqFlipped.r
@@ -220,22 +240,35 @@ class GuiBoard extends DomElement<GuiBoard>{
                 leftPx(nsv.x).
                 topPx(nsv.y)            
             let fromsqorig=this.rotateSquare(this.draggedSq,this.flip)
-            let tosq=this.rotateSquare(fromsqorig.p(dsq),-this.flip)
+            let tosq=this.rotateSquare(fromsqorig.p(dsq),-this.flip)            
             let m=new Move(this.draggedSq,tosq)     
             let algeb=this.b.moveToAlgeb(m)
             //console.log(algeb)
             if(this.dragMoveCallback!=undefined){
-                let legalAlgebs=this.b.legalAlgebMoves().filter(talgeb=>talgeb.substring(0,4)==algeb)                
-                let p=this.b.getSq(this.draggedSq)
-                this.proms=legalAlgebs.map(lalgeb=>(lalgeb+p.kind).substring(4,5))
-                if(this.proms.length>1){
+                let cr=b.getCastlingRight(m)
+                if(this.b.isMoveCapture(m)){
+                    this.dragMoveCallback(algeb)
+                }
+                else if(cr!=undefined){                    
+                    this.promCr=cr
                     this.promMode=true
-                    this.promOrig=p.kind
+                    this.proms=["n","r","q"]
+                    this.promOrig="r"
                     this.promMove=m
                     this.build()
                 }else{
-                    this.dragMoveCallback(algeb)
-                }                
+                    let legalAlgebs=this.b.legalAlgebMoves().filter(talgeb=>talgeb.substring(0,4)==algeb)                
+                    let p=this.b.getSq(this.draggedSq)
+                    this.proms=legalAlgebs.map(lalgeb=>(lalgeb+p.kind).substring(4,5))
+                    if(this.proms.length>1){
+                        this.promMode=true
+                        this.promOrig=p.kind
+                        this.promMove=m
+                        this.build()
+                    }else{
+                        this.dragMoveCallback(algeb)
+                    }     
+                }           
             }else{
                 this.b.makeAlgebMove(algeb)
             }
@@ -250,5 +283,6 @@ class GuiBoard extends DomElement<GuiBoard>{
     promMode:boolean=false
     promMove:Move
     promOrig:string
+    promCr:CastlingRight
 }
 

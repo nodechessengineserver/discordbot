@@ -71,6 +71,16 @@ function broadcast(json){
     }
 }
 
+function setBoardJson(){
+    return ({
+        t:"setboard",
+        boardJson:b.toJson()
+    })
+}
+
+function sendBoard(ws){send(ws,setBoardJson())}
+function broadcastBoard(){broadcast(setBoardJson())}
+
 function handleWs(ws,req){    
     try{        
         let ru=req.url
@@ -79,19 +89,16 @@ function handleWs(ws,req){
 
         let parts=ru.split("sri=")
         if(parts.length>1){
+            // valid socket connected
             sri=parts[1]
             let now=new Date().getTime()
             sockets[sri]={
                 ws:ws,
                 ping:now
             }
-            //console.log(sockets)
-
-            let fen=b.reportFen()
-            send(ws,{
-                t:"setboard",
-                fen:fen
-            })
+            
+            // send board for first time
+            sendBoard(ws)
         }
 
         let headers=req.headers
@@ -197,27 +204,16 @@ function handleWs(ws,req){
                     if(ok){                        
                         fen=b.reportFen()                        
                         console.log("legal",fen)                        
-                    }
-                    broadcast({
-                        t:"setboard",
-                        fen:fen
-                    })
-                }else if(t=="delmove"){
+                    }                    
+                    broadcastBoard()
+                }else if(t=="delmove"){                    
                     console.log("del move")
                     b.del()
-                    let fen=b.reportFen()
-                    broadcast({
-                        t:"setboard",
-                        fen:fen
-                    })
+                    broadcastBoard()
                 }else if(t=="reset"){
                     console.log("reset board")
-                    b.setFromFen()
-                    let fen=b.reportFen()
-                    broadcast({
-                        t:"setboard",
-                        fen:fen
-                    })
+                    b.newGame()
+                    broadcastBoard()
                 }else if(t=="chat"){                    
                     console.log("chat")
                     broadcast(json)

@@ -294,6 +294,23 @@ class DomElement<T>{
     mt(rem:number):DomElement<T>{
         return this.setMarginTopRem(rem)
     }
+    setMarginLeft(value:string):DomElement<T>{
+        this.e.style.marginLeft=value
+        return this
+    }
+    setMarginLeftRem(rem:number):DomElement<T>{
+        return this.setMarginLeft(`${rem}rem`)
+    }
+    ml(rem:number):DomElement<T>{
+        return this.setMarginLeftRem(rem)
+    }
+    setDisplay(value:string):DomElement<T>{
+        this.e.style.display=value
+        return this
+    }
+    ib(){
+        return this.setDisplay("inline-block")
+    }
     //////////////////////////////////////////////
     setInnerHTML(content:string):DomElement<T>{
         this.e.innerHTML=content

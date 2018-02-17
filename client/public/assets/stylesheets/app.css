@@ -14,3 +14,49 @@
 .chattext{
     color: blue;
 }
+
+.contentdiv{
+    margin:5rem;
+    padding:8rem;
+    border-radius:5rem;
+}
+
+h1{
+    font-size:25rem;
+    margin-top:5rem;
+    margin-bottom:20rem;
+    font-weight: bold;
+    color: #007;
+}
+
+p{
+    font-size:20rem;
+    padding-top:4rem;
+    padding-bottom:4rem;
+}
+
+ul{
+    padding:5rem;
+}
+
+li{
+    font-size:20rem;
+    padding-top:4rem;
+    padding-bottom:4rem;
+    margin-left:5rem;
+    color:#070; 
+}
+
+.user{
+    margin:5rem;
+    padding:10rem;
+    border-style:solid;
+    border-radius: 5rem;
+    border-color:#777;
+    border-width:1rem;
+    background-color: #ffa;
+    font-size:20rem;
+    font-weight: bold;
+    color: #007;
+    width:300rem;
+}

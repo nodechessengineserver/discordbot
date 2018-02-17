@@ -72,6 +72,7 @@
     "dom/mongocoll.ts",
     "chess/board.ts",
     "chess/guiboard.ts",
+    "chess/resources.ts",
     "app.ts"
   ]
 }
