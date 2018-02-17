@@ -155,15 +155,31 @@ class GuiBoard extends DomElement<GuiBoard>{
         return this
     }
 
-    cancelDivClicked(){
+    promMode:boolean=false
+    proms:string[]=[]
+    promMove:Move
+    promOrig:string
+    promCr:CastlingRight
+
+    resetPromMode(){
         this.promMode=false
+        this.proms=[]
+        delete this.promMove
+        delete this.promOrig
+        delete this.promCr
+    }
+
+    cancelDivClicked(){
+        this.resetPromMode()
         this.build()
     }
 
     promDivClicked(kind:string,e:Event){
         let m=this.promMove
         if(kind!=this.promOrig) m.promPiece=new Piece(kind)
-        this.promMode=false
+
+        this.resetPromMode()
+
         if(this.dragMoveCallback==undefined){
             this.b.makeMove(m)
         }else{
@@ -278,11 +294,5 @@ class GuiBoard extends DomElement<GuiBoard>{
     setDragMoveCallback(dragMoveCallback:any){
         this.dragMoveCallback=dragMoveCallback
     }
-
-    proms:string[]=[]
-    promMode:boolean=false
-    promMove:Move
-    promOrig:string
-    promCr:CastlingRight
 }
 

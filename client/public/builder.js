@@ -2434,9 +2434,9 @@ class GuiBoard extends DomElement {
         this.PIECE_MARGIN = 4;
         this.PIECE_SIZE = this.SQUARE_SIZE - 2 * this.PIECE_MARGIN;
         this.pDivs = [];
-        this.flip = 0;
-        this.proms = [];
         this.promMode = false;
+        this.proms = [];
+        this.flip = 0;
         this.b = new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this));
     }
     boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
@@ -2539,15 +2539,22 @@ class GuiBoard extends DomElement {
         this.bDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
         return this;
     }
-    cancelDivClicked() {
+    resetPromMode() {
         this.promMode = false;
+        this.proms = [];
+        delete this.promMove;
+        delete this.promOrig;
+        delete this.promCr;
+    }
+    cancelDivClicked() {
+        this.resetPromMode();
         this.build();
     }
     promDivClicked(kind, e) {
         let m = this.promMove;
         if (kind != this.promOrig)
             m.promPiece = new Piece(kind);
-        this.promMode = false;
+        this.resetPromMode();
         if (this.dragMoveCallback == undefined) {
             this.b.makeMove(m);
         }
