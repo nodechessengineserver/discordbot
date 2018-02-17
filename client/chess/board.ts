@@ -203,7 +203,7 @@ class Board{
 
     rights:boolean[]=[true,true,true,true]
 
-    hist:string[]=[]
+    hist:any[]=[]
 
     PROPS:any
     BOARD_WIDTH:number
@@ -217,11 +217,14 @@ class Board{
         for(let i=0;i<this.BOARD_SIZE;i++){
             this.rep[i]=new Piece()
         }
-        this.turn=WHITE
-        this.hist=[]        
+
+        this.turn=WHITE        
+        this.rights=[false,false,false,false]
+        this.epSquare=INVALID_SQUARE
         this.fullmoveNumber=1
         this.halfmoveClock=0        
-        this.rights=[true,true,true,true]
+
+        this.hist=[]
     }
 
     constructor(variant:string=DEFAULT_VARIANT){
@@ -330,7 +333,7 @@ class Board{
         this.fullmoveNumber=b.fullmoveNumber
         this.halfmoveClock=b.halfmoveClock
 
-        if(clearHist) this.hist=[fen]
+        if(clearHist) this.hist=[this.toJson()]
         this.posChanged()
         return true
     }
@@ -725,9 +728,8 @@ class Board{
             this.epSquare=epsq
         }
 
-        // update history
-        let fen=this.reportFen()
-        this.hist.push(fen)        
+        // update history        
+        this.hist.push(this.toJson())
 
         // position changed callback
         this.posChanged()
@@ -740,8 +742,8 @@ class Board{
         //console.log("del",this.hist)
         if(this.hist.length>1){
             this.hist.pop()            
-            let fen=this.hist[this.hist.length-1]            
-            this.setFromFen(fen,false)
+            let boardJson=this.hist[this.hist.length-1]            
+            this.fromJson(boardJson)
         }
     }
 
@@ -916,14 +918,14 @@ class Board{
         return json
     }
 
-    fromJson(json:any):Board{
+    fromJson(json:any,clearHist:boolean=false):Board{
         let fen=json.fen
         let statusJson=json.status
 
         this.gameStatus.fromJson(statusJson)
         
         // set from fen has to be called last so that the callback has correct status
-        this.setFromFen(fen)        
+        this.setFromFen(fen,clearHist)        
 
         return this
     }

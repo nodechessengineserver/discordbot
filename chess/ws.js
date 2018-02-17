@@ -198,12 +198,10 @@ function handleWs(ws,req){
                     })
                 }else if(t=="makemove"){
                     let algeb=json.algeb
-                    let ok=b.makeAlgebMove(algeb)
-                    let fen=b.reportFen()                        
                     console.log("makemove",algeb)
-                    if(ok){                        
-                        fen=b.reportFen()                        
-                        console.log("legal",fen)                        
+                    let ok=b.makeAlgebMove(algeb)                    
+                    if(ok){                                                
+                        console.log("legal")                        
                     }                    
                     broadcastBoard()
                 }else if(t=="delmove"){                    

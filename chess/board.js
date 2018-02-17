@@ -146,10 +146,11 @@ class Board {
             this.rep[i] = new Piece();
         }
         this.turn = WHITE;
-        this.hist = [];
+        this.rights = [false, false, false, false];
+        this.epSquare = INVALID_SQUARE;
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
-        this.rights = [true, true, true, true];
+        this.hist = [];
     }
     setTest(test) {
         this.test = test;
@@ -246,7 +247,7 @@ class Board {
         this.fullmoveNumber = b.fullmoveNumber;
         this.halfmoveClock = b.halfmoveClock;
         if (clearHist)
-            this.hist = [fen];
+            this.hist = [this.toJson()];
         this.posChanged();
         return true;
     }
@@ -617,9 +618,8 @@ class Board {
             let epsq = new Square(m.fromSq.f, m.fromSq.r + (deltaR / 2));
             this.epSquare = epsq;
         }
-        // update history
-        let fen = this.reportFen();
-        this.hist.push(fen);
+        // update history        
+        this.hist.push(this.toJson());
         // position changed callback
         this.posChanged();
         return true;
@@ -628,8 +628,8 @@ class Board {
         //console.log("del",this.hist)
         if (this.hist.length > 1) {
             this.hist.pop();
-            let fen = this.hist[this.hist.length - 1];
-            this.setFromFen(fen, false);
+            let boardJson = this.hist[this.hist.length - 1];
+            this.fromJson(boardJson);
         }
     }
     reportFen() {
@@ -808,12 +808,12 @@ class Board {
         };
         return json;
     }
-    fromJson(json) {
+    fromJson(json, clearHist = false) {
         let fen = json.fen;
         let statusJson = json.status;
         this.gameStatus.fromJson(statusJson);
         // set from fen has to be called last so that the callback has correct status
-        this.setFromFen(fen);
+        this.setFromFen(fen, clearHist);
         return this;
     }
 }
