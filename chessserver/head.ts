@@ -9,8 +9,8 @@ const uniqid = require("uniqid")
 const mongodb = require("mongodb")
 
 // local
-const atombot=require("./atombot")
-const testbot=require("./testbot")
-const tourney=require("./tourney")
-const api=require("./api")
-const GLOBALS=require("./globals")
+const atombot = require("./discordbot/atombot")
+const testbot = require("./discordbot/testbot")
+const tourney = require("./discordbot/tourney")
+const api = require("./discordbot/api")
+const GLOBALS = require("./discordbot/globals")

@@ -6,6 +6,7 @@ const fetch = require('node-fetch');
 const FormData = require('form-data');
 const lichess = require('lichess-api');
 
+// local
 const GLOBALS = require('./globals')
 
 let LICHESS_USER=process.env.LICHESS_USER

@@ -4,8 +4,8 @@ const fs = require("fs")
 const lichess = require('lichess-api');
 
 // local
-const GLOBALS = require("../globals")
-const fetch = require("../fetch")
+const GLOBALS = require("./globals")
+const fetch = require("./fetch")
 const chart = require("./chart")
 
 function createLichessGamesStats(message,handle,games,variant){  

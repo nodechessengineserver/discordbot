@@ -54,7 +54,7 @@
   },  
   "files": [    
     "head.ts",
-    "../client/chess/board.ts",
+    "../chessclient/chess/board.ts",
     "utils.ts",
     "users.ts",
     "ws.ts",

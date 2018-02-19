@@ -9,11 +9,11 @@ const fetch_ = require("node-fetch");
 const uniqid = require("uniqid");
 const mongodb = require("mongodb");
 // local
-const atombot = require("./atombot");
-const testbot = require("./testbot");
-const tourney = require("./tourney");
-const api = require("./api");
-const GLOBALS = require("./globals");
+const atombot = require("./discordbot/atombot");
+const testbot = require("./discordbot/testbot");
+const tourney = require("./discordbot/tourney");
+const api = require("./discordbot/api");
+const GLOBALS = require("./discordbot/globals");
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
@@ -1245,8 +1245,6 @@ function handleWs(ws, req) {
         console.log(err);
     }
 }
-// system
-// local
 const PORT = process.env.PORT || 5000;
 ////////////////////////////////////////
 // Discord startup
@@ -1260,7 +1258,7 @@ if (GLOBALS.isProd())
 // Server startup
 const app = express()
     .use('/ajax', bodyParser.json({ limit: '1mb' }))
-    .use('/chess', express.static(path.join(__dirname, 'client/public')))
+    .use('/chess', express.static(path.join(__dirname, 'chessclient/public')))
     .use(express.static(path.join(__dirname, 'public')))
     .set('views', path.join(__dirname, 'views'))
     .set('view engine', 'ejs')

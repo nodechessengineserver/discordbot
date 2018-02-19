@@ -1,8 +1,3 @@
-// system
-
-// local
-
-
 const PORT = process.env.PORT || 5000
 
 ////////////////////////////////////////
@@ -21,7 +16,7 @@ if(GLOBALS.isProd()) setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 
 const app=express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))
-  .use('/chess',express.static(path.join(__dirname, 'client/public')))
+  .use('/chess',express.static(path.join(__dirname, 'chessclient/public')))
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')

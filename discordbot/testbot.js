@@ -15,8 +15,8 @@ const GLOBALS = require("./globals");
 const chess = require("./chess");
 const vplayers = require("./vplayers")
 const ws = require("./ws")
-const perf = require("./bot/perf")
-const chart = require("./bot/chart")
+const perf = require("./perf")
+const chart = require("./chart")
 
 ////////////////////////////////////////
 
