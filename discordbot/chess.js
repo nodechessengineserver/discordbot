@@ -57,7 +57,7 @@ function createImage(){
     var c = img2.getContext('2d');        
     for(let r=0;r<8;r++)for(let f=0;f<8;f++)
     {        
-        pimg.decodeJPEGFromStream(fs.createReadStream(__dirname+"/discordbot/chesspieces/"+board[r*8+f]+".jpg")).then((img) => {                            
+        pimg.decodeJPEGFromStream(fs.createReadStream(__dirname+"/chesspieces/"+board[r*8+f]+".jpg")).then((img) => {                            
             c.drawImage(img,
                 0, 0, img.width, img.height, // source dimensions
                 f*IMAGE_SIZE, r*IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE                 // destination dimensions
