@@ -1,19 +1,4 @@
 "use strict";
-// system
-const express = require('express');
-const WebSocket_ = require("ws");
-const http = require('http');
-const path = require('path');
-const bodyParser = require('body-parser');
-const fetch_ = require("node-fetch");
-const uniqid = require("uniqid");
-const mongodb = require("mongodb");
-// local
-const atombot = require("./atombot");
-const testbot = require("./testbot");
-const tourney = require("./tourney");
-const api = require("./api");
-const GLOBALS = require("./globals");
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
@@ -894,6 +879,21 @@ class Board {
         return this;
     }
 }
+// system
+const express = require('express');
+const WebSocket_ = require("ws");
+const http = require('http');
+const path = require('path');
+const bodyParser = require('body-parser');
+const fetch_ = require("node-fetch");
+const uniqid = require("uniqid");
+const mongodb = require("mongodb");
+// local
+const atombot = require("../atombot");
+const testbot = require("../testbot");
+const tourney = require("../tourney");
+const api = require("../api");
+const GLOBALS = require("../globals");
 function checkLichess(username, code, callback) {
     console.log(`checking lichess code ${username} ${code}`);
     fetch_(`https://lichess.org/@/${username}`).then((response) => response.text()).
@@ -1128,7 +1128,7 @@ function handleWs(ws, req) {
         }
         let loggedUser;
         let userCookie = cookies["user"];
-        checkCookie(userCookie, (result) => {
+        users.checkCookie(userCookie, (result) => {
             if (result.ok) {
                 loggedUser = result.user;
                 let username = loggedUser.username;
@@ -1142,7 +1142,7 @@ function handleWs(ws, req) {
         });
         send(ws, {
             t: "userlist",
-            userlist: userList()
+            userlist: users.userList()
         });
         ws.on('message', (message) => {
             try {
@@ -1160,7 +1160,7 @@ function handleWs(ws, req) {
                 else if (t == "lichesslogin") {
                     console.log(t);
                     let username = json.username;
-                    createLogin(username, (code) => {
+                    users.createLogin((username, code) => {
                         console.log(`sending code for ${username} ${code}`);
                         send(ws, {
                             t: "lichesscode",
@@ -1176,7 +1176,7 @@ function handleWs(ws, req) {
                     checkLichess(username, code, (ok) => {
                         console.log(`check result = ${ok}`);
                         if (ok) {
-                            registerUser(username, (cookie) => {
+                            users.registerUser((username, cookie) => {
                                 send(ws, {
                                     t: "userregistered",
                                     username: username,
@@ -1184,7 +1184,7 @@ function handleWs(ws, req) {
                                 });
                                 send(ws, {
                                     t: "userlist",
-                                    userlist: userList()
+                                    userlist: users.userList()
                                 });
                             });
                         }

@@ -1001,10 +1001,3 @@ class Board{
         return this
     }
 }
-
-declare let module:any
-
-if(!DOM_DEFINED){
-    module.exports.Piece=Piece
-    module.exports.Board=Board
-}

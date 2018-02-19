@@ -2490,10 +2490,6 @@ class Board {
         return this;
     }
 }
-if (!DOM_DEFINED) {
-    module.exports.Piece = Piece;
-    module.exports.Board = Board;
-}
 let PIECE_TO_STYLE = { "p": "pawn", "n": "knight", "b": "bishop", "r": "rook", "q": "queen", "k": "king" };
 let COLOR_TO_STYLE = { 0: "black", 1: "white" };
 class GuiBoard extends DomElement {
