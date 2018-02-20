@@ -287,7 +287,7 @@ class GuiBoard extends DomElement<GuiBoard>{
             let m=new Move(this.draggedSq,tosq)     
             let algeb=this.b.moveToAlgeb(m)            
             if(this.dragMoveCallback!=undefined){
-                let cr=b.getCastlingRight(m)
+                let cr=this.b.getCastlingRight(m)
                 if(this.b.isMoveCapture(m)){
                     this.dragMoveCallback(algeb)
                 }

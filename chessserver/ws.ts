@@ -117,19 +117,23 @@ function handleWs(ws:any,req:any){
             }    
         }
 
-        let loggedUser
+        let loggedUser:User
+
+        function setUser(){
+            console.log("setting user",loggedUser)
+            send(ws,({
+                t:"setuser",
+                u:loggedUser.toJson()
+            }))
+        }
 
         let userCookie:any=cookies["user"]
+
         checkCookie(userCookie,(result:any)=>{
             if(result.ok){
-                loggedUser=result.user                
-                let username=loggedUser.username
+                loggedUser=result.user                                
                 console.log(`logged user`,loggedUser)
-                send(ws,{
-                    t:"setuser",
-                    username:username,
-                    cookie:userCookie
-                })
+                setUser()
             }
         })
 
@@ -180,15 +184,10 @@ function handleWs(ws:any,req:any){
                             })
                         }
                     })
-                }else if(t=="userloggedin"){
-                    let username=json.username
-                    let cookie=json.cookie
-                    console.log(`logged in ${username} ${cookie}`)                    
-                    send(ws,{
-                        t:"setuser",
-                        username:username,
-                        cookie:cookie
-                    })
+                }else if(t=="userloggedin"){                                        
+                    loggedUser=users.getByCookie(json.cookie)
+                    console.log("logged in",loggedUser)                    
+                    setUser()
                 }else if(t=="makemove"){
                     let algeb=json.algeb
                     console.log("makemove",algeb)
@@ -208,6 +207,17 @@ function handleWs(ws:any,req:any){
                 }else if(t=="chat"){                    
                     console.log("chat")
                     broadcast(json)
+                }else if(t=="sitplayer"){
+                    let u=new User().fromJson(json.u)
+                    console.log("sit player",u)
+                    let color=json.color                    
+                    b.sitPlayer(color,u)                                        
+                    broadcastBoard()
+                }else if(t=="standplayer"){                    
+                    let color=json.color       
+                    console.log("stand player",color)             
+                    b.standPlayer(color)                                        
+                    broadcastBoard()
                 }
             }catch(err){console.log(err)}
         })

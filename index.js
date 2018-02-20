@@ -39,20 +39,21 @@ class User {
         return json;
     }
     fromJson(json) {
-        let u = new User();
+        if (json == undefined)
+            return this;
         if (json.username != undefined)
-            u.username = json.username;
+            this.username = json.username;
         if (json.cookie != undefined)
-            u.cookie = json.cookie;
+            this.cookie = json.cookie;
         if (json.rating != undefined)
-            u.rating = json.rating;
+            this.rating = json.rating;
         if (json.rd != undefined)
-            u.rd = json.rd;
+            this.rd = json.rd;
         if (json.registeredAt != undefined)
-            u.registeredAt = json.registeredAt;
+            this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
-            u.lastSeenAt = json.lastSeenAt;
-        return u;
+            this.lastSeenAt = json.lastSeenAt;
+        return this;
     }
 }
 class UserList {
@@ -70,6 +71,8 @@ class UserList {
     fromJson(json) {
         this.users = {};
         this.cookies = {};
+        if (json == undefined)
+            return this;
         for (let userJson of json) {
             let u = new User().fromJson(userJson);
             this.users[u.username] = u;
@@ -79,7 +82,7 @@ class UserList {
     }
     setUser(u) {
         this.users[u.username] = u;
-        this.cookies[u.username] = u;
+        this.cookies[u.cookie] = u;
     }
     getByCookie(cookie) {
         return this.cookies[cookie];
@@ -179,6 +182,108 @@ const CASTLING_RIGHTS = [
     new CastlingRight(WHITE, new Square(4, 7), new Square(2, 7), new Square(0, 7), new Square(3, 7), [new Square(3, 7), new Square(2, 7), new Square(1, 7)], "Q"), new CastlingRight(BLACK, new Square(4, 0), new Square(6, 0), new Square(7, 0), new Square(5, 0), [new Square(5, 0), new Square(6, 0)], "k"),
     new CastlingRight(BLACK, new Square(4, 0), new Square(2, 0), new Square(0, 0), new Square(3, 0), [new Square(3, 0), new Square(2, 0), new Square(1, 0)], "q")
 ];
+class PlayerInfo {
+    constructor() {
+        this.u = new User();
+        this.color = BLACK;
+        this.time = 0;
+        this.canPlay = true;
+        this.canOfferDraw = false;
+        this.canAcceptDraw = false;
+        this.canResign = false;
+        this.canStand = false;
+    }
+    toJson() {
+        let json = ({
+            u: this.u.toJson(true),
+            color: this.color,
+            time: this.time,
+            canPlay: this.canPlay,
+            canOfferDraw: this.canOfferDraw,
+            canAcceptDraw: this.canAcceptDraw,
+            canResign: this.canResign,
+            canStand: this.canStand
+        });
+        return json;
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.u != undefined)
+            this.u = new User().fromJson(json.u);
+        if (json.color != undefined)
+            this.color = json.color;
+        if (json.time != undefined)
+            this.time = json.time;
+        if (json.canPlay != undefined)
+            this.canPlay = json.canPlay;
+        if (json.canOfferDraw != undefined)
+            this.canOfferDraw = json.canOfferDraw;
+        if (json.canAcceptDraw != undefined)
+            this.canAcceptDraw = json.canAcceptDraw;
+        if (json.canResign != undefined)
+            this.canResign = json.canResign;
+        if (json.canStand != undefined)
+            this.canStand = json.canStand;
+        return this;
+    }
+    sitPlayer(u) {
+        this.u = u;
+        this.canAcceptDraw = false;
+        this.canOfferDraw = false;
+        this.canPlay = false;
+        this.canResign = false;
+        this.canStand = true;
+        return this;
+    }
+    standPlayer() {
+        this.u = new User();
+        this.canAcceptDraw = false;
+        this.canOfferDraw = false;
+        this.canPlay = true;
+        this.canResign = false;
+        this.canStand = false;
+        return this;
+    }
+}
+class PlayersInfo {
+    constructor() {
+        this.playersinfo = [
+            new PlayerInfo().fromJson({ color: BLACK }),
+            new PlayerInfo().fromJson({ color: WHITE })
+        ];
+    }
+    toJson() {
+        let json = this.playersinfo.map(pi => pi.toJson());
+        return json;
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        this.playersinfo = json.map((piJson) => new PlayerInfo().fromJson(piJson));
+        return this;
+    }
+    getByColor(color) {
+        for (let pi of this.playersinfo) {
+            if (pi.color == color)
+                return pi;
+        }
+        return this.playersinfo[0];
+    }
+    sitPlayer(color, u) {
+        for (let pi of this.playersinfo) {
+            if (pi.u.username == u.username)
+                pi.standPlayer();
+        }
+        this.getByColor(color).sitPlayer(u);
+    }
+    standPlayer(color) {
+        for (let pi of this.playersinfo) {
+            if (pi.color == color)
+                pi.standPlayer();
+        }
+    }
+}
 class GameStatus {
     constructor() {
         // game status
@@ -193,11 +298,26 @@ class GameStatus {
         this.isResigned = false;
         this.isDrawAgreed = false;
         this.isFlagged = false;
+        // players info    
+        this.playersinfo = new PlayersInfo();
     }
     toJson() {
-        return JSON.parse(JSON.stringify(this));
+        let json = ({
+            score: this.score,
+            scoreReason: this.scoreReason,
+            isStaleMate: this.isStaleMate,
+            isMate: this.isMate,
+            isFiftyMoveRule: this.isFiftyMoveRule,
+            isThreeFoldRepetition: this.isThreeFoldRepetition,
+            isResigned: this.isResigned,
+            isDrawAgreed: this.isDrawAgreed,
+            playersinfo: this.playersinfo.toJson()
+        });
+        return json;
     }
     fromJson(json) {
+        if (json == undefined)
+            return this;
         this.score = json.score;
         this.scoreReason = json.scoreReason;
         this.isStaleMate = json.isStaleMate;
@@ -207,6 +327,7 @@ class GameStatus {
         this.isResigned = json.isResigned;
         this.isDrawAgreed = json.isDrawAgreed;
         this.isFlagged = json.isFlagged;
+        this.playersinfo = new PlayersInfo().fromJson(json.playersinfo);
         return this;
     }
 }
@@ -226,6 +347,8 @@ class GameNode {
         });
     }
     fromJson(json) {
+        if (json == undefined)
+            return this;
         this.status = new GameStatus().fromJson(json.status);
         this.genAlgeb = json.genAlgeb;
         this.fen = json.fen;
@@ -242,10 +365,10 @@ class Board {
         this.lms = [];
         this.debug = false;
         this.gameStatus = new GameStatus();
+        this.genAlgeb = "";
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
-        this.genAlgeb = "";
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -767,6 +890,9 @@ class Board {
         this.posChanged();
         return true;
     }
+    actualizeHistory() {
+        this.hist[this.hist.length - 1] = this.toGameNode(this.genAlgeb);
+    }
     getCurrentGameNode() {
         return this.hist[this.hist.length - 1];
     }
@@ -965,6 +1091,16 @@ class Board {
         this.genAlgeb = gn.genAlgeb;
         // set from fen has to be called last so that the callback has correct status
         this.setFromFen(fen, clearHist);
+        return this;
+    }
+    sitPlayer(color, u) {
+        this.gameStatus.playersinfo.sitPlayer(color, u);
+        this.actualizeHistory();
+        return this;
+    }
+    standPlayer(color) {
+        this.gameStatus.playersinfo.standPlayer(color);
+        this.actualizeHistory();
         return this;
     }
 }
@@ -1182,17 +1318,19 @@ function handleWs(ws, req) {
             }
         }
         let loggedUser;
+        function setUser() {
+            console.log("setting user", loggedUser);
+            send(ws, ({
+                t: "setuser",
+                u: loggedUser.toJson()
+            }));
+        }
         let userCookie = cookies["user"];
         checkCookie(userCookie, (result) => {
             if (result.ok) {
                 loggedUser = result.user;
-                let username = loggedUser.username;
                 console.log(`logged user`, loggedUser);
-                send(ws, {
-                    t: "setuser",
-                    username: username,
-                    cookie: userCookie
-                });
+                setUser();
             }
         });
         sendUserlist(ws);
@@ -1246,14 +1384,9 @@ function handleWs(ws, req) {
                     });
                 }
                 else if (t == "userloggedin") {
-                    let username = json.username;
-                    let cookie = json.cookie;
-                    console.log(`logged in ${username} ${cookie}`);
-                    send(ws, {
-                        t: "setuser",
-                        username: username,
-                        cookie: cookie
-                    });
+                    loggedUser = users.getByCookie(json.cookie);
+                    console.log("logged in", loggedUser);
+                    setUser();
                 }
                 else if (t == "makemove") {
                     let algeb = json.algeb;
@@ -1277,6 +1410,19 @@ function handleWs(ws, req) {
                 else if (t == "chat") {
                     console.log("chat");
                     broadcast(json);
+                }
+                else if (t == "sitplayer") {
+                    let u = new User().fromJson(json.u);
+                    console.log("sit player", u);
+                    let color = json.color;
+                    b.sitPlayer(color, u);
+                    broadcastBoard();
+                }
+                else if (t == "standplayer") {
+                    let color = json.color;
+                    console.log("stand player", color);
+                    b.standPlayer(color);
+                    broadcastBoard();
                 }
             }
             catch (err) {

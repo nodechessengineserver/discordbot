@@ -4,9 +4,12 @@ let PING_INTERVAL=5000
 let SOCKET_TIMEOUT=30000
 let USER_COOKIE_EXPIRY=365
 
+let CHATDIV_HEIGHT=225
+let CHATDIV_WIDTH=375
+
 let WS_URL=`ws://${document.location.host}/ws`
 
-let loggedUser:any
+let loggedUser:User|undefined
 
 //localStorage.clear()
 
@@ -82,11 +85,9 @@ function strongSocket(){
                 let username=json.username
                 console.log(`check for ${username} failed`)
             }else if(t=="setuser"){
-                let username=json.username
-                let cookie=json.cookie
-                console.log(`set user ${username} ${cookie}`)
-                setCookie("user",cookie,USER_COOKIE_EXPIRY)
-                loggedUser=username
+                loggedUser=new User().fromJson(json.u)
+                console.log(`set user ${loggedUser}`)
+                setCookie("user",loggedUser.cookie,USER_COOKIE_EXPIRY)
                 setLoggedUser()
             }else if(t=="userlist"){                
                 userlist=json.userlist                
@@ -117,6 +118,48 @@ function clog(json:any){
 
 ///////////////////////////////////////////////////////////
 
+function playClicked(pi:PlayerInfo){
+    if(loggedUser==undefined){
+        new AckInfoWindow("You have to be logged in to play!").build()
+    }else{        
+        emit({
+            t:"sitplayer",
+            color:pi.color,
+            u:loggedUser
+        })
+    }
+}
+
+function offerDrawClicked(pi:PlayerInfo){
+
+}
+
+function acceptDrawClicked(pi:PlayerInfo){
+
+}
+
+function standClicked(pi:PlayerInfo){
+    emit({
+        t:"standplayer",
+        color:pi.color
+    })
+}
+
+function resignClicked(pi:PlayerInfo){
+
+}
+
+function createGuiPlayerInfo(color:number):GuiPlayerInfo{
+    let gpi=new GuiPlayerInfo().
+    setPlayColor(color).
+    setPlayCallback(playClicked).
+    setAcceptDrawCallback(acceptDrawClicked).
+    setOfferDrawCallback(offerDrawClicked).
+    setStandCallback(standClicked).
+    setResignCallback(resignClicked)
+    return gpi
+}
+
 let intro:Div
 let rules:Div
 let playtable:Table
@@ -127,6 +170,11 @@ let boardInfoDiv:Div
 let gameStatusDiv:Div
 let moveInput:TextInput
 let chatDiv:Div
+let playerDiv:Div
+let guiPlayerInfos:GuiPlayerInfo[]=[
+    createGuiPlayerInfo(BLACK),
+    createGuiPlayerInfo(WHITE)
+]
 let chatInput:TextInput
 let users:Div
 let profile:Div
@@ -147,8 +195,8 @@ function setLoggedUser(){
         new Button("Login").onClick(lichessLogin):
         new Button("Logout").onClick(lichessLogout)
     ])    
-    lichessUsernameDiv.h(loggedUser==undefined?"?":loggedUser)
-    tabpane.setCaptionByKey("profile",loggedUser==undefined?"Profile":loggedUser)
+    lichessUsernameDiv.h(loggedUser==undefined?"?":loggedUser.username)
+    tabpane.setCaptionByKey("profile",loggedUser==undefined?"Profile":loggedUser.username)
     tabpane.selectTab(loggedUser==undefined?"play":"play")
 }
 
@@ -235,6 +283,9 @@ function boardPosChanged(){
         w(gboard.totalBoardWidth()+60).fs(10)
     ])
     gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
+    for(let i=0;i<guiPlayerInfos.length;i++){        
+        guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i])
+    }
 }
 
 function dragMoveCallback(algeb:string){
@@ -291,8 +342,22 @@ function buildApp(){
         gboard.build()
     ])
 
-    chatDiv=new Div().z(gboard.totalBoardWidth()-20,gboard.totalBoardHeight()).
+    chatDiv=new Div().z(CHATDIV_WIDTH,CHATDIV_HEIGHT).
         bcol("#eef").setOverflow("scroll")
+
+    playerDiv=new Div().a([
+        new Table().bs().a([
+            new Tr().a([
+                guiPlayerInfos[gboard.flip==0?0:1].build()
+            ]),
+            new Tr().a([
+                chatDiv
+            ]),
+            new Tr().a([
+                guiPlayerInfos[gboard.flip==0?1:0].build()
+            ])
+        ])
+    ])
 
     chatInput=new TextInput("chatinput").setEnterCallback(chatInputCallback)
     chatInput.w(gboard.totalBoardWidth()-70)
@@ -306,7 +371,9 @@ function buildApp(){
                 legalmoves=new Div()
             ]).setVerticalAlign("top"),
             new Td().pr().a([
-                chatDiv.pa().o(3,3)
+                new Div().pa().o(3,3).a([
+                    playerDiv
+                ])
             ])            
         ]),
         new Tr().a([

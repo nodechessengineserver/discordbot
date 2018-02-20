@@ -303,3 +303,11 @@ class TextInputWindow extends DraggableWindow{
             fs(getCssFloatProperty("--textinputwindowtextinputfontrelsize",1.25)*FONT_SIZE)
     }
 }
+
+class AckInfoWindow extends DraggableWindow{        
+    constructor(content:string){
+        super("ackinfo")
+        this.content=new Div().ac("ackinfotext").h(content)
+        this.setTitle("Info")
+    }
+}

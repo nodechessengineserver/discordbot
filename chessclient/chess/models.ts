@@ -23,15 +23,16 @@ class User{
         return json
     }
 
-    fromJson(json:any):User{
-        let u=new User()
-        if(json.username!=undefined) u.username=json.username
-        if(json.cookie!=undefined) u.cookie=json.cookie
-        if(json.rating!=undefined) u.rating=json.rating
-        if(json.rd!=undefined) u.rd=json.rd
-        if(json.registeredAt!=undefined) u.registeredAt=json.registeredAt
-        if(json.lastSeenAt!=undefined) u.lastSeenAt=json.lastSeenAt
-        return u
+    fromJson(json:any):User{        
+        if(json==undefined) return this
+
+        if(json.username!=undefined) this.username=json.username
+        if(json.cookie!=undefined) this.cookie=json.cookie
+        if(json.rating!=undefined) this.rating=json.rating
+        if(json.rd!=undefined) this.rd=json.rd
+        if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
+        if(json.lastSeenAt!=undefined) this.lastSeenAt=json.lastSeenAt
+        return this
     }
 }
 
@@ -53,6 +54,8 @@ class UserList{
         this.users={}
         this.cookies={}
 
+        if(json==undefined) return this
+
         for(let userJson of json){
             let u=new User().fromJson(userJson)
 
@@ -65,7 +68,7 @@ class UserList{
 
     setUser(u:User){
         this.users[u.username]=u
-        this.cookies[u.username]=u
+        this.cookies[u.cookie]=u
     }
 
     getByCookie(cookie:string):User{
