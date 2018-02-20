@@ -70,6 +70,7 @@
     "dom/project.ts",
     "dom/mongodoc.ts",
     "dom/mongocoll.ts",
+    "chess/models.ts",
     "chess/board.ts",
     "chess/guiboard.ts",
     "chess/resources.ts",

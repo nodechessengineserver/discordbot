@@ -69,6 +69,13 @@ function setBoardJson(){
     })
 }
 
+function sendUserlist(ws:any){    
+    send(ws,{
+        t:"userlist",
+        userlist:users.toJson(true) // don't send cookies
+    })
+}
+
 function sendBoard(ws:any){send(ws,setBoardJson())}
 function broadcastBoard(){broadcast(setBoardJson())}
 
@@ -94,6 +101,7 @@ function handleWs(ws:any,req:any){
 
         let headers=req.headers
         let cookies:any={}
+
         if(headers!=undefined){
             let cookieAll=headers.cookie
             if(cookieAll!=undefined){            
@@ -125,10 +133,7 @@ function handleWs(ws:any,req:any){
             }
         })
 
-        send(ws,{
-            t:"userlist",
-            userlist:userList()
-        })
+        sendUserlist(ws)
 
         ws.on('message', (message:any)=>{
             try{
@@ -166,10 +171,7 @@ function handleWs(ws:any,req:any){
                                     username:username,
                                     cookie:cookie
                                 })
-                                send(ws,{
-                                    t:"userlist",
-                                    userlist:userList()
-                                })
+                                sendUserlist(ws)
                             })
                         }else{
                             send(ws,{

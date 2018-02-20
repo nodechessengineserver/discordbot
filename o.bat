@@ -1,5 +1,5 @@
 call code .
 cd chessclient
-timeout 20
+timeout 60
 call code .
 cd ..

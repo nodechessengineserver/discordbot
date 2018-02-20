@@ -1610,6 +1610,80 @@ class MongoColl extends DomElement {
         return this;
     }
 }
+let EPOCH = 1517443200000; // 2018-2-1
+class User {
+    constructor() {
+        this.username = "";
+        this.cookie = "";
+        this.rating = 1500;
+        this.rd = 350;
+        this.registeredAt = EPOCH;
+        this.lastSeenAt = EPOCH;
+    }
+    toJson(secure = false) {
+        let json = ({
+            username: this.username,
+            rating: this.rating,
+            rd: this.rd,
+            registeredAt: this.registeredAt,
+            lastSeenAt: this.lastSeenAt
+        });
+        // don't send user cookie to client
+        if (!secure) {
+            json.cookie = this.cookie;
+        }
+        return json;
+    }
+    fromJson(json) {
+        let u = new User();
+        if (json.username != undefined)
+            u.username = json.username;
+        if (json.cookie != undefined)
+            u.cookie = json.cookie;
+        if (json.rating != undefined)
+            u.rating = json.rating;
+        if (json.rd != undefined)
+            u.rd = json.rd;
+        if (json.registeredAt != undefined)
+            u.registeredAt = json.registeredAt;
+        if (json.lastSeenAt != undefined)
+            u.lastSeenAt = json.lastSeenAt;
+        return u;
+    }
+}
+class UserList {
+    constructor() {
+        this.users = {};
+        this.cookies = {};
+    }
+    toJson(secure = false) {
+        let usersJson = {};
+        for (let username in this.users) {
+            usersJson[username] = this.users[username].toJson(secure);
+        }
+        return usersJson;
+    }
+    fromJson(json) {
+        this.users = {};
+        this.cookies = {};
+        for (let userJson of json) {
+            let u = new User().fromJson(userJson);
+            this.users[u.username] = u;
+            this.cookies[u.cookie] = u;
+        }
+        return this;
+    }
+    setUser(u) {
+        this.users[u.username] = u;
+        this.cookies[u.username] = u;
+    }
+    getByCookie(cookie) {
+        return this.cookies[cookie];
+    }
+    getByUsername(username) {
+        return this.users[username];
+    }
+}
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;

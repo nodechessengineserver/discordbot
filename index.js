@@ -14,6 +14,80 @@ const testbot = require("./discordbot/testbot");
 const tourney = require("./discordbot/tourney");
 const api = require("./discordbot/api");
 const GLOBALS = require("./discordbot/globals");
+let EPOCH = 1517443200000; // 2018-2-1
+class User {
+    constructor() {
+        this.username = "";
+        this.cookie = "";
+        this.rating = 1500;
+        this.rd = 350;
+        this.registeredAt = EPOCH;
+        this.lastSeenAt = EPOCH;
+    }
+    toJson(secure = false) {
+        let json = ({
+            username: this.username,
+            rating: this.rating,
+            rd: this.rd,
+            registeredAt: this.registeredAt,
+            lastSeenAt: this.lastSeenAt
+        });
+        // don't send user cookie to client
+        if (!secure) {
+            json.cookie = this.cookie;
+        }
+        return json;
+    }
+    fromJson(json) {
+        let u = new User();
+        if (json.username != undefined)
+            u.username = json.username;
+        if (json.cookie != undefined)
+            u.cookie = json.cookie;
+        if (json.rating != undefined)
+            u.rating = json.rating;
+        if (json.rd != undefined)
+            u.rd = json.rd;
+        if (json.registeredAt != undefined)
+            u.registeredAt = json.registeredAt;
+        if (json.lastSeenAt != undefined)
+            u.lastSeenAt = json.lastSeenAt;
+        return u;
+    }
+}
+class UserList {
+    constructor() {
+        this.users = {};
+        this.cookies = {};
+    }
+    toJson(secure = false) {
+        let usersJson = {};
+        for (let username in this.users) {
+            usersJson[username] = this.users[username].toJson(secure);
+        }
+        return usersJson;
+    }
+    fromJson(json) {
+        this.users = {};
+        this.cookies = {};
+        for (let userJson of json) {
+            let u = new User().fromJson(userJson);
+            this.users[u.username] = u;
+            this.cookies[u.cookie] = u;
+        }
+        return this;
+    }
+    setUser(u) {
+        this.users[u.username] = u;
+        this.cookies[u.username] = u;
+    }
+    getByCookie(cookie) {
+        return this.cookies[cookie];
+    }
+    getByUsername(username) {
+        return this.users[username];
+    }
+}
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
@@ -896,6 +970,11 @@ class Board {
 }
 function checkLichess(username, code, callback) {
     console.log(`checking lichess code ${username} ${code}`);
+    if (GLOBALS.isDev()) {
+        console.log(`user ${username} ok in dev`);
+        callback(true);
+        return;
+    }
     fetch_(`https://lichess.org/@/${username}`).then((response) => response.text()).
         then((content) => {
         let index = content.indexOf(code);
@@ -910,7 +989,7 @@ function checkLichess(username, code, callback) {
             return;
         }
     }, (err) => {
-        console.log(err);
+        console.log(GLOBALS.handledError(err));
         callback(false);
     });
 }
@@ -918,23 +997,21 @@ let DATABASE_NAME = `mychessdb`;
 let USERS_COLL = `actusers`;
 let LOCAL_MONGO_URI = `mongodb://localhost:27017/${DATABASE_NAME}`;
 let MONGODB_URI = GLOBALS.isProd() ? process.env.MONGODB_URI : LOCAL_MONGO_URI;
-let users = {};
-let cookies = {};
 let db;
 try {
     mongodb.connect(MONGODB_URI, function (err, conn) {
         if (err) {
-            console.log(err);
+            console.log(GLOBALS.handledError(err));
         }
         else {
             db = conn.db(DATABASE_NAME);
             console.log(`chess connected to MongoDB database < ${db.databaseName} >`);
-            dbStartup();
+            dbUsersStartup();
         }
     });
 }
 catch (err) {
-    console.log(err);
+    console.log(GLOBALS.handledError(err));
 }
 function dbFindAsArray(collectionName, query, callback) {
     try {
@@ -945,42 +1022,35 @@ function dbFindAsArray(collectionName, query, callback) {
         });
     }
     catch (err) {
-        console.log(err);
+        callback([err, []]);
     }
 }
-function dbStartup() {
-    users = {};
+let users = new UserList();
+function dbUsersStartup() {
+    users = new UserList();
     if (db != null) {
         dbFindAsArray(USERS_COLL, {}, function (result) {
             if (result[0]) {
-                console.log("users startup failed", result[0]);
+                console.log("users startup failed", GLOBALS.handledError(result[0]));
             }
             else {
                 console.log(`users startup ok, ${result[1].length} user(s)`);
-                for (let obj of result[1]) {
-                    let username = obj.username;
-                    let cookie = obj.cookie;
-                    users[username] = obj;
-                    cookies[cookie] = {
-                        username: username
-                    };
-                }
+                users.fromJson(result[1]);
             }
         });
     }
 }
-function setUserDb(user) {
+function dbSetUser(user) {
     if (db != null) {
         try {
             const collection = db.collection(USERS_COLL);
             console.log(`updating user`, user);
-            collection.updateOne({ username: user.username }, { "$set": user }, { upsert: true }, (error, result) => {
+            collection.updateOne({ username: user.username }, { "$set": user.toJson() }, { upsert: true }, (error, result) => {
                 console.log(`updating user ${user.username} error = `, error);
-                console.log(error);
             });
         }
         catch (err) {
-            console.log(err);
+            console.log(GLOBALS.handledError(err));
         }
     }
 }
@@ -991,40 +1061,19 @@ function createLogin(username, callback) {
 }
 function registerUser(username, callback) {
     let cookie = uniqid();
-    let user = {
-        username: username,
-        cookie: cookie
-    };
-    users[username] = user;
-    cookies[cookie] = {
-        username: username
-    };
-    setUserDb(user);
+    let u = new User();
+    u.username = username;
+    u.cookie = cookie;
+    users.setUser(u);
+    dbSetUser(u);
     callback(cookie);
 }
 function checkCookie(cookie, callback) {
     console.log(`checking cookie ${cookie}`);
-    if (cookie == undefined) {
-        callback({ ok: false });
-        return;
-    }
-    let cookieRecord = cookies[cookie];
-    if (cookieRecord == undefined) {
-        callback({ ok: false });
-        return;
-    }
-    let username = cookieRecord.username;
-    let user = users[username];
-    callback({ ok: true, user: user });
-}
-function userList() {
-    let userlist = {};
-    for (let username in users) {
-        userlist[username] = {
-            username: username
-        };
-    }
-    return userlist;
+    let u = users.getByCookie(cookie);
+    callback(u == undefined ?
+        { ok: false } :
+        { ok: true, user: u });
 }
 let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
@@ -1092,6 +1141,12 @@ function setBoardJson() {
         boardJson: b.getCurrentGameNode().toJson()
     });
 }
+function sendUserlist(ws) {
+    send(ws, {
+        t: "userlist",
+        userlist: users.toJson(true) // don't send cookies
+    });
+}
 function sendBoard(ws) { send(ws, setBoardJson()); }
 function broadcastBoard() { broadcast(setBoardJson()); }
 function handleWs(ws, req) {
@@ -1140,10 +1195,7 @@ function handleWs(ws, req) {
                 });
             }
         });
-        send(ws, {
-            t: "userlist",
-            userlist: userList()
-        });
+        sendUserlist(ws);
         ws.on('message', (message) => {
             try {
                 //console.log(message)
@@ -1182,10 +1234,7 @@ function handleWs(ws, req) {
                                     username: username,
                                     cookie: cookie
                                 });
-                                send(ws, {
-                                    t: "userlist",
-                                    userlist: userList()
-                                });
+                                sendUserlist(ws);
                             });
                         }
                         else {
