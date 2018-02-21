@@ -273,3 +273,17 @@
     color: #700;
     font-family: monospace;
 }
+
+.gameclock{
+    font-size: 20rem;
+}
+
+.gameclockactive{
+    color: #007;
+    font-weight: bold;
+}
+
+.gameclockpassive{
+    color: #777;
+}
+

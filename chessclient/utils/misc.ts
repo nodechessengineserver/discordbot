@@ -57,3 +57,19 @@ function setCookie(name:any,value:any,days:any) {
     }
     document.cookie = name + "=" + (value || "")  + expires + "; path=/";
 }
+
+function toTwoDigits(n:number):string{
+    return (n<10?"0":"")+n
+}
+
+function formatDurationAsClock(dur:number):string{    
+    let msecsMod=dur%1000
+    let secs=(dur-msecsMod)/1000
+    let secsMod=secs%60
+    let mins=(secs-secsMod)/60
+    secs-=mins*60
+    let minsMod=mins%60
+    let hours=(mins-minsMod)/60
+    mins-=hours*60    
+    return `${toTwoDigits(hours)}:${toTwoDigits(mins)}:${toTwoDigits(secs)}`
+}

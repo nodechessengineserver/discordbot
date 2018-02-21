@@ -52,6 +52,20 @@ function setCookie(name, value, days) {
     }
     document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
+function toTwoDigits(n) {
+    return (n < 10 ? "0" : "") + n;
+}
+function formatDurationAsClock(dur) {
+    let msecsMod = dur % 1000;
+    let secs = (dur - msecsMod) / 1000;
+    let secsMod = secs % 60;
+    let mins = (secs - secsMod) / 60;
+    secs -= mins * 60;
+    let minsMod = mins % 60;
+    let hours = (mins - minsMod) / 60;
+    mins -= hours * 60;
+    return `${toTwoDigits(hours)}:${toTwoDigits(mins)}:${toTwoDigits(secs)}`;
+}
 class Vect {
     constructor(_x, _y) {
         this.x = _x;
@@ -1784,6 +1798,16 @@ let VARIANT_PROPERTIES = {
     }
 };
 let DEFAULT_VARIANT = "promoatomic";
+let ONE_SECOND = 1000;
+let ONE_MINUTE = 60 * ONE_SECOND;
+class TimeControl {
+    constructor(time = ONE_MINUTE * 5, inc = ONE_SECOND * 8) {
+        this.time = ONE_MINUTE * 5;
+        this.inc = ONE_SECOND * 8;
+        this.time = time;
+        this.inc = inc;
+    }
+}
 class Piece {
     constructor(kind = EMPTY, color = NO_COL) {
         this.kind = kind;
@@ -1844,16 +1868,20 @@ const CASTLING_RIGHTS = [
     new CastlingRight(BLACK, new Square(4, 0), new Square(2, 0), new Square(0, 0), new Square(3, 0), [new Square(3, 0), new Square(2, 0), new Square(1, 0)], "q")
 ];
 class PlayerInfo {
-    constructor() {
+    constructor(valid = true) {
         this.u = new User();
         this.color = BLACK;
         this.time = 0;
+        this.showTime = 0;
         this.seatedAt = new Date().getTime();
+        this.startedThinkingAt = new Date().getTime();
         this.canPlay = true;
         this.canOfferDraw = false;
         this.canAcceptDraw = false;
         this.canResign = false;
         this.canStand = false;
+        this.valid = true;
+        this.valid = valid;
     }
     colorName() {
         return this.color == WHITE ? "white" : "black";
@@ -1863,7 +1891,9 @@ class PlayerInfo {
             u: this.u.toJson(true),
             color: this.color,
             time: this.time,
+            showTime: this.showTime,
             seatedAt: this.seatedAt,
+            startedThinkingAt: this.startedThinkingAt,
             canPlay: this.canPlay,
             canOfferDraw: this.canOfferDraw,
             canAcceptDraw: this.canAcceptDraw,
@@ -1881,8 +1911,12 @@ class PlayerInfo {
             this.color = json.color;
         if (json.time != undefined)
             this.time = json.time;
+        if (json.showTime != undefined)
+            this.showTime = json.showTime;
         if (json.seatedAt != undefined)
             this.seatedAt = json.seatedAt;
+        if (json.startedThinkingAt != undefined)
+            this.startedThinkingAt = json.startedThinkingAt;
         if (json.canPlay != undefined)
             this.canPlay = json.canPlay;
         if (json.canOfferDraw != undefined)
@@ -1922,6 +1956,16 @@ class PlayersInfo {
             new PlayerInfo().fromJson({ color: WHITE })
         ];
     }
+    numSeated() {
+        let num = 0;
+        for (let pi of this.playersinfo)
+            if (!pi.u.empty())
+                num++;
+        return num;
+    }
+    noneSeated() { return this.numSeated() == 0; }
+    someSeated() { return this.numSeated() == 1; }
+    allSeated() { return this.numSeated() == 2; }
     toJson() {
         let json = this.playersinfo.map(pi => pi.toJson());
         return json;
@@ -1937,7 +1981,14 @@ class PlayersInfo {
             if (pi.color == color)
                 return pi;
         }
-        return this.playersinfo[0];
+        return new PlayerInfo(false);
+    }
+    getByUser(u) {
+        for (let pi of this.playersinfo) {
+            if (pi.u.e(u))
+                return pi;
+        }
+        return new PlayerInfo(false);
     }
     sitPlayer(color, u) {
         for (let pi of this.playersinfo) {
@@ -1956,6 +2007,10 @@ class PlayersInfo {
             }
         }
         return new PlayerInfo();
+    }
+    standPlayers() {
+        this.iterate((pi) => pi.standPlayer());
+        return this;
     }
     iterate(iterfunc) {
         for (let pi of this.playersinfo)
@@ -1991,6 +2046,7 @@ class GameStatus {
             isThreeFoldRepetition: this.isThreeFoldRepetition,
             isResigned: this.isResigned,
             isDrawAgreed: this.isDrawAgreed,
+            isFlagged: this.isFlagged,
             playersinfo: this.playersinfo.toJson()
         });
         return json;
@@ -2070,6 +2126,7 @@ class ChangeLog {
 }
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
+        this.timecontrol = new TimeControl(ONE_SECOND * 10, 0);
         this.rights = [true, true, true, true];
         this.hist = [];
         this.test = false;
@@ -2196,8 +2253,10 @@ class Board {
         this.epSquare = b.epSquare;
         this.fullmoveNumber = b.fullmoveNumber;
         this.halfmoveClock = b.halfmoveClock;
-        if (clearHist)
-            this.hist = [this.toGameNode()];
+        if (!this.test) {
+            if (clearHist)
+                this.hist = [this.toGameNode()];
+        }
         this.posChanged();
         return true;
     }
@@ -2259,9 +2318,25 @@ class Board {
         this.gameStatus.isResigned = false;
         this.gameStatus.isDrawAgreed = false;
         this.gameStatus.isFlagged = false;
+        this.gameStatus.playersinfo.iterate((pi) => {
+            pi.time = this.timecontrol.time;
+        });
         this.setFromFen();
+        this.genAlgeb = "";
+        return this;
+    }
+    startGame() {
+        this.gameStatus.started = true;
+        this.gameStatus.playersinfo.iterate((pi) => {
+            pi.canStand = false;
+            pi.canResign = true;
+            pi.canOfferDraw = true;
+        });
+        this.actualizeHistory();
     }
     obtainStatus() {
+        if (this.isTerminated())
+            return;
         this.gameStatus.isStaleMate = false;
         this.gameStatus.isMate = false;
         if (this.gameStatus.isResigned || this.gameStatus.isFlagged) {
@@ -2334,9 +2409,6 @@ class Board {
             this.gameStatus.isResigned ||
             this.gameStatus.isDrawAgreed ||
             this.gameStatus.isFlagged;
-    }
-    isPrestart() {
-        return (!this.gameStatus.started) && (!this.isTerminated());
     }
     genLegalMoves() {
         this.genPseudoLegalMoves();
@@ -2601,13 +2673,17 @@ class Board {
             this.epSquare = epsq;
         }
         // update history        
-        this.hist.push(this.toGameNode(algeb));
+        if (!this.test) {
+            this.genAlgeb = algeb;
+            this.hist.push(this.toGameNode(algeb));
+        }
         // position changed callback
         this.posChanged();
         return true;
     }
     actualizeHistory() {
         this.hist[this.hist.length - 1] = this.toGameNode(this.genAlgeb);
+        return this;
     }
     getCurrentGameNode() {
         return this.hist[this.hist.length - 1];
@@ -2827,10 +2903,67 @@ class Board {
         this.changeLog.u = u;
         return this;
     }
+    resignPlayer(color) {
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isResigned = true;
+        this.gameStatus.started = false;
+        if (color == WHITE) {
+            this.gameStatus.score = "0-1";
+            this.gameStatus.scoreReason = "white resigned";
+        }
+        else {
+            this.gameStatus.score = "1-0";
+            this.gameStatus.scoreReason = "black resigned";
+        }
+        this.actualizeHistory();
+        return this;
+    }
+    flagPlayer(color) {
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isFlagged = true;
+        this.gameStatus.started = false;
+        if (color == WHITE) {
+            this.gameStatus.score = "0-1";
+            this.gameStatus.scoreReason = "white flagged";
+        }
+        else {
+            this.gameStatus.score = "1-0";
+            this.gameStatus.scoreReason = "black flagged";
+        }
+        this.actualizeHistory();
+        return this;
+    }
     iteratePlayersinfo(iterfunc) {
         this.gameStatus.playersinfo.iterate(iterfunc);
     }
     clearChangeLog() { this.changeLog.clear(); }
+    noneSeated() { return this.gameStatus.playersinfo.noneSeated(); }
+    someSeated() { return this.gameStatus.playersinfo.someSeated(); }
+    allSeated() { return this.gameStatus.playersinfo.allSeated(); }
+    makeRandomMove() {
+        let n = this.lms.length;
+        if (n > 0) {
+            let i = Math.floor(Math.random() * n);
+            if (i >= n)
+                i = 0;
+            this.makeMove(this.lms[i]);
+            return true;
+        }
+        return false;
+    }
+    actualizeShowTime() {
+        this.gameStatus.playersinfo.iterate((pi) => {
+            if ((this.turn != pi.color) || (!this.gameStatus.started)) {
+                pi.showTime = pi.time;
+            }
+            else {
+                pi.showTime = pi.time - (new Date().getTime() - pi.startedThinkingAt);
+                if (pi.showTime < 0)
+                    pi.showTime = 0;
+            }
+        });
+        return this.actualizeHistory();
+    }
 }
 class GuiPlayerInfo extends DomElement {
     constructor() {
@@ -2865,20 +2998,27 @@ class GuiPlayerInfo extends DomElement {
         this.resignCallback(this); }
     standClicked() { if (this.standCallback != undefined)
         this.standCallback(this); }
-    build() {
+    build(addClockClass = undefined) {
         let buttons = [];
+        let authok = this.pi.u.e(loggedUser);
+        let botok = this.pi.u.isBot;
+        let authbotok = authok || botok;
         if (this.pi.canPlay)
             buttons.push(new Button("Play").onClick(this.playClicked.bind(this)));
         if (this.pi.canPlay)
             buttons.push(new Button("Play Bot").onClick(this.playBotClicked.bind(this)));
-        if (this.pi.canOfferDraw)
-            buttons.push(new Button("Offer draw").onClick(this.offerDrawClicked.bind(this)));
+        /*if(this.pi.canOfferDraw&&authbotok) buttons.push(
+            new Button("Offer draw").onClick(this.offerDrawClicked.bind(this))
+        )*/
         if (this.pi.canAcceptDraw)
             buttons.push(new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this)));
-        if (this.pi.canResign)
+        if (this.pi.canResign && authbotok)
             buttons.push(new Button("Resign").onClick(this.resignClicked.bind(this)));
-        if (((this.pi.canStand) && (this.pi.u.e(loggedUser))) || (this.pi.u.isBot))
+        if (this.pi.canStand && authbotok)
             buttons.push(new Button("Stand").onClick(this.standClicked.bind(this)));
+        let clockclass = "gameclock";
+        if (addClockClass != undefined)
+            clockclass = clockclass + " " + addClockClass;
         this.x.a([
             new Table().bs().a([
                 new Tr().a([
@@ -2889,7 +3029,8 @@ class GuiPlayerInfo extends DomElement {
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH, this.PLAYER_HEIGHT).
-                            h(`${this.pi.time}`)
+                            ac(clockclass).
+                            h(`${formatDurationAsClock(this.pi.showTime)}`)
                     ])
                 ]),
                 new Tr().a([
@@ -2916,7 +3057,7 @@ class GuiBoard extends DomElement {
         this.promMode = false;
         this.proms = [];
         this.flip = 0;
-        this.b = new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this));
+        this.b = new Board().newGame().setPosChangedCallback(this.posChanged.bind(this));
     }
     boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
     boardHeight() { return this.b.BOARD_HEIGHT * this.SQUARE_SIZE; }
@@ -3298,7 +3439,9 @@ function strongSocket() {
             }
             else if (t == "setboard") {
                 let boardJson = json.boardJson;
-                gboard.b.fromGameNode(new GameNode().fromJson(boardJson), true);
+                //console.log("setboard",boardJson)
+                let gn = new GameNode().fromJson(boardJson);
+                gboard.b.fromGameNode(gn, true);
                 handleChangeLog(new ChangeLog().fromJson(json.changeLog));
             }
             else if (t == "chat") {
@@ -3354,6 +3497,10 @@ function standClicked(pi) {
     });
 }
 function resignClicked(pi) {
+    emit({
+        t: "resign",
+        color: pi.color
+    });
 }
 function createGuiPlayerInfo(color) {
     let gpi = new GuiPlayerInfo().
@@ -3374,6 +3521,7 @@ let legalmoves;
 let gboard;
 let boardInfoDiv;
 let flipButtonSpan;
+let modposButtonSpan;
 let gameStatusDiv;
 let moveInput;
 let chatDiv;
@@ -3485,6 +3633,7 @@ function boardPosChanged() {
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i]);
     }
     buildFlipButtonSpan();
+    buildModposButtonSpan();
     buildPlayerDiv();
 }
 function dragMoveCallback(algeb) {
@@ -3579,9 +3728,8 @@ function buildApp() {
         new Tr().a([
             new Td().cs(2).a([
                 moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
-                new Button("Del").onClick((e) => emit({ t: "delmove" })),
                 flipButtonSpan = new Span(),
-                new Button("Reset").onClick((e) => emit({ t: "reset" })),
+                modposButtonSpan = new Span(),
                 gameStatusDiv = new Div().ib().ml(5),
                 boardInfoDiv = new Div().mt(3)
             ]),
@@ -3593,6 +3741,7 @@ function buildApp() {
     ]);
     buildPlayerDiv();
     buildFlipButtonSpan();
+    buildModposButtonSpan();
     profileTable = new Table().bs();
     profileTable.a([
         new Tr().a([
@@ -3661,10 +3810,32 @@ function buildFlipButtonSpan() {
             new Button("Flip").onClick((e) => gboard.doFlip())
     ]);
 }
+function buildModposButtonSpan() {
+    modposButtonSpan.x;
+    if (!gboard.b.allSeated())
+        modposButtonSpan.a([
+            new Button("Del").onClick((e) => emit({ t: "delmove" })),
+            new Button("Reset").onClick((e) => emit({ t: "reset" }))
+        ]);
+}
 function playSound(id) {
     let e = document.getElementById(id);
     if (e != null) {
         e.play();
+    }
+}
+setInterval(decClock, 1000);
+function decClock() {
+    if (gboard.b.gameStatus.started) {
+        for (let gpi of guiPlayerInfos) {
+            if (gpi.pi.color == gboard.b.turn) {
+                gpi.pi.showTime -= 1000;
+                gpi.build("gameclockactive");
+            }
+            else {
+                gpi.build("gameclockpassive");
+            }
+        }
     }
 }
 buildApp();

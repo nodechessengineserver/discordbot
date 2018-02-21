@@ -36,6 +36,19 @@ let VARIANT_PROPERTIES:{[id:string]:any}={
 
 let DEFAULT_VARIANT="promoatomic"
 
+let ONE_SECOND=1000
+let ONE_MINUTE=60*ONE_SECOND
+
+class TimeControl{
+    time:number=ONE_MINUTE*5
+    inc:number=ONE_SECOND*8
+
+    constructor(time:number=ONE_MINUTE*5,inc:number=ONE_SECOND*8){
+        this.time=time
+        this.inc=inc
+    }
+}
+
 class Piece{
     kind:string
     color:number
@@ -168,13 +181,21 @@ const CASTLING_RIGHTS:CastlingRight[]=[
 class PlayerInfo{
     u:User=new User()    
     color:number=BLACK
-    time:number=0
+    time:number=0    
+    showTime:number=0
     seatedAt:number=new Date().getTime()
+    startedThinkingAt:number=new Date().getTime()
     canPlay:boolean=true
     canOfferDraw:boolean=false
     canAcceptDraw:boolean=false
     canResign:boolean=false
     canStand:boolean=false
+
+    valid:boolean=true
+
+    constructor(valid:boolean=true){
+        this.valid=valid
+    }
 
     colorName():string{
         return this.color==WHITE?"white":"black"
@@ -185,7 +206,9 @@ class PlayerInfo{
             u:this.u.toJson(true),
             color:this.color,
             time:this.time,
+            showTime:this.showTime,
             seatedAt:this.seatedAt,
+            startedThinkingAt:this.startedThinkingAt,
             canPlay:this.canPlay,
             canOfferDraw:this.canOfferDraw,
             canAcceptDraw:this.canAcceptDraw,
@@ -202,7 +225,9 @@ class PlayerInfo{
 
         if(json.color!=undefined) this.color=json.color
         if(json.time!=undefined) this.time=json.time
+        if(json.showTime!=undefined) this.showTime=json.showTime
         if(json.seatedAt!=undefined) this.seatedAt=json.seatedAt
+        if(json.startedThinkingAt!=undefined) this.startedThinkingAt=json.startedThinkingAt
         if(json.canPlay!=undefined) this.canPlay=json.canPlay
         if(json.canOfferDraw!=undefined) this.canOfferDraw=json.canOfferDraw
         if(json.canAcceptDraw!=undefined) this.canAcceptDraw=json.canAcceptDraw
@@ -237,6 +262,7 @@ class PlayerInfo{
 
         return this
     }
+
 }
 
 class PlayersInfo{
@@ -244,6 +270,16 @@ class PlayersInfo{
         new PlayerInfo().fromJson({color:BLACK}),
         new PlayerInfo().fromJson({color:WHITE})
     ]
+
+    numSeated():number{
+        let num=0
+        for(let pi of this.playersinfo) if(!pi.u.empty()) num++
+        return num
+    }
+
+    noneSeated():boolean{return this.numSeated()==0}
+    someSeated():boolean{return this.numSeated()==1}
+    allSeated():boolean{return this.numSeated()==2}
 
     toJson():any{
         let json=this.playersinfo.map(pi=>pi.toJson())
@@ -262,7 +298,14 @@ class PlayersInfo{
         for(let pi of this.playersinfo){
             if(pi.color==color) return pi
         }
-        return this.playersinfo[0]
+        return new PlayerInfo(false)
+    }
+
+    getByUser(u:User):PlayerInfo{
+        for(let pi of this.playersinfo){
+            if(pi.u.e(u)) return pi
+        }
+        return new PlayerInfo(false)
     }
 
     sitPlayer(color:number,u:User):PlayerInfo{
@@ -282,6 +325,11 @@ class PlayersInfo{
             }
         }
         return new PlayerInfo()
+    }
+
+    standPlayers():PlayersInfo{
+        this.iterate((pi:PlayerInfo)=>pi.standPlayer())
+        return this
     }
 
     iterate(iterfunc:any){
@@ -320,6 +368,7 @@ class GameStatus{
             isThreeFoldRepetition:this.isThreeFoldRepetition,
             isResigned:this.isResigned,
             isDrawAgreed:this.isDrawAgreed,
+            isFlagged:this.isFlagged,
 
             playersinfo:this.playersinfo.toJson()
         })
@@ -366,6 +415,7 @@ class GameNode{
         if(json==undefined) return this
 
         this.status=new GameStatus().fromJson(json.status)
+
         this.genAlgeb=json.genAlgeb
         this.fen=json.fen
         this.tfen=json.tfen
@@ -408,6 +458,8 @@ class Board{
     variant:string
 
     turn:number
+
+    timecontrol:TimeControl=new TimeControl(ONE_SECOND*10,0)
 
     rights:boolean[]=[true,true,true,true]
 
@@ -541,7 +593,10 @@ class Board{
         this.fullmoveNumber=b.fullmoveNumber
         this.halfmoveClock=b.halfmoveClock
 
-        if(clearHist) this.hist=[this.toGameNode()]
+        if(!this.test){
+            if(clearHist) this.hist=[this.toGameNode()]
+        }
+
         this.posChanged()
         return true
     }
@@ -607,7 +662,7 @@ class Board{
 
     genAlgeb:string=""
 
-    newGame(){
+    newGame():Board{
 
         this.gameStatus.score="*"
         this.gameStatus.scoreReason=""
@@ -621,11 +676,31 @@ class Board{
         this.gameStatus.isDrawAgreed=false
         this.gameStatus.isFlagged=false
 
+        this.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
+            pi.time=this.timecontrol.time
+        })
+
         this.setFromFen()
+
+        this.genAlgeb=""
+
+        return this
 
     }
 
+    startGame(){
+        this.gameStatus.started=true
+        this.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
+            pi.canStand=false
+            pi.canResign=true
+            pi.canOfferDraw=true
+        })
+        this.actualizeHistory()
+    }
+
     obtainStatus(){
+
+        if(this.isTerminated()) return
 
         this.gameStatus.isStaleMate=false
         this.gameStatus.isMate=false        
@@ -696,10 +771,6 @@ class Board{
             this.gameStatus.isResigned||
             this.gameStatus.isDrawAgreed||
             this.gameStatus.isFlagged
-    }
-
-    isPrestart():boolean{
-        return (!this.gameStatus.started)&&(!this.isTerminated())
     }
 
     genLegalMoves(){        
@@ -970,15 +1041,19 @@ class Board{
         }
 
         // update history        
-        this.hist.push(this.toGameNode(algeb))
+        if(!this.test){
+            this.genAlgeb=algeb
+            this.hist.push(this.toGameNode(algeb))
+        }
 
         // position changed callback
         this.posChanged()
         return true
     }
 
-    actualizeHistory(){
+    actualizeHistory():Board{
         this.hist[this.hist.length-1]=this.toGameNode(this.genAlgeb)
+        return this
     }
 
     epSquare:Square=INVALID_SQUARE
@@ -1209,6 +1284,36 @@ class Board{
         return this
     }
 
+    resignPlayer(color:number):Board{
+        this.gameStatus.playersinfo.standPlayers()
+        this.gameStatus.isResigned=true
+        this.gameStatus.started=false        
+        if(color==WHITE){
+            this.gameStatus.score="0-1"
+            this.gameStatus.scoreReason="white resigned"
+        }else{
+            this.gameStatus.score="1-0"
+            this.gameStatus.scoreReason="black resigned"
+        }        
+        this.actualizeHistory()        
+        return this
+    }
+
+    flagPlayer(color:number):Board{
+        this.gameStatus.playersinfo.standPlayers()
+        this.gameStatus.isFlagged=true
+        this.gameStatus.started=false        
+        if(color==WHITE){
+            this.gameStatus.score="0-1"
+            this.gameStatus.scoreReason="white flagged"
+        }else{
+            this.gameStatus.score="1-0"
+            this.gameStatus.scoreReason="black flagged"
+        }        
+        this.actualizeHistory()        
+        return this
+    }
+
     iteratePlayersinfo(iterfunc:any){
         this.gameStatus.playersinfo.iterate(iterfunc)
     }
@@ -1216,4 +1321,34 @@ class Board{
     changeLog:ChangeLog=new ChangeLog()
 
     clearChangeLog(){this.changeLog.clear()}
+
+    noneSeated():boolean{return this.gameStatus.playersinfo.noneSeated()}
+    someSeated():boolean{return this.gameStatus.playersinfo.someSeated()}
+    allSeated():boolean{return this.gameStatus.playersinfo.allSeated()}
+
+    makeRandomMove():boolean{
+        let n=this.lms.length
+        if(n>0){
+            let i=Math.floor(Math.random()*n)
+            if(i>=n) i=0
+            this.makeMove(this.lms[i])
+            return true
+        }
+        return false
+    }
+
+    actualizeShowTime():Board{
+        this.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
+            if((this.turn!=pi.color)||(!this.gameStatus.started)){
+                pi.showTime=pi.time
+            }else{
+                pi.showTime=pi.time-(new Date().getTime()-pi.startedThinkingAt)
+                if(pi.showTime<0) pi.showTime=0
+            }
+        })
+        return this.actualizeHistory()
+    }
+    
 }
+
+

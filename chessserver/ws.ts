@@ -1,16 +1,15 @@
 let SOCKET_TIMEOUT=GLOBALS.ONE_SECOND*60
 let SOCKET_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*60
 let UNSEAT_TIMEOUT=GLOBALS.ONE_MINUTE*2
-let BOARD_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*10
+let BOARD_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*1
 
-let b=new Board().setFromFen()
+let b=new Board().newGame()
 
 let sockets:any={}
 
 setInterval(maintainBoard,BOARD_MAINTAIN_INTERVAL)
 
-function maintainBoard(){
-    if(!b.isPrestart()) return
+function maintainBoard(){    
     let refresh=false
     b.iteratePlayersinfo((pi:PlayerInfo)=>{
         let now=new Date().getTime()
@@ -22,6 +21,18 @@ function maintainBoard(){
         }
     })
     if(refresh) broadcastBoard()
+    if(b.gameStatus.started){
+        b.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
+            if(b.turn==pi.color){
+                let diff=new Date().getTime()-pi.startedThinkingAt                
+                if(diff>pi.time){
+                    b.flagPlayer(pi.color)
+                    pi.time=0
+                    broadcastBoard()
+                }
+            }
+        })
+    }
 }
 
 function maintainSockets(){    
@@ -81,7 +92,8 @@ function broadcast(json:any){
     }
 }
 
-function setBoardJson(){
+function setBoardJson(){        
+    b.actualizeShowTime()
     return ({
         t:"setboard",
         boardJson:b.getCurrentGameNode().toJson(),
@@ -141,7 +153,7 @@ function handleWs(ws:any,req:any){
             }    
         }
 
-        let loggedUser:User
+        let loggedUser:User=new User()
 
         function setUser(){
             console.log("setting user",loggedUser)
@@ -149,6 +161,7 @@ function handleWs(ws:any,req:any){
                 t:"setuser",
                 u:loggedUser.toJson()
             }))
+            sendBoard(ws)
         }
 
         let userCookie:any=cookies["user"]
@@ -213,13 +226,53 @@ function handleWs(ws:any,req:any){
                     console.log("logged in",loggedUser)                    
                     setUser()
                 }else if(t=="makemove"){
+                    if(b.someSeated()||b.allSeated()){
+                        let pic=b.gameStatus.playersinfo.getByColor(b.turn)                        
+                        if(!pic.u.empty()){
+                            let pi=b.gameStatus.playersinfo.getByUser(loggedUser)
+                            if(!((pi.color==b.turn)&&(pi.u.e(loggedUser)))){
+                                console.log("not eligible")
+                                broadcastBoard()
+                                return
+                            }
+                        }
+                    }
                     let algeb=json.algeb
                     console.log("makemove",algeb)
-                    let ok=b.makeAlgebMove(algeb)                    
-                    if(ok){                                                
+                    let oldTurn=b.turn
+                    let ok=b.makeAlgebMove(algeb)                                
+                    if(ok){           
                         console.log("legal")                        
-                    }                    
-                    b.changeLog.kind="movemade"
+                        b.changeLog.kind="movemade"
+
+                        if(b.gameStatus.started){
+                            let picold=b.gameStatus.playersinfo.getByColor(oldTurn)
+                            picold.time=picold.time-(new Date().getTime()-picold.startedThinkingAt)+b.timecontrol.inc
+                            if(picold.time<0){
+                                b.del()                                
+                                b.flagPlayer(oldTurn)
+                                picold.time=0
+                                broadcastBoard()
+                                return
+                            }
+                        }                                     
+
+                        let pic=b.gameStatus.playersinfo.getByColor(b.turn)                        
+                        pic.startedThinkingAt=new Date().getTime()
+
+                        if(pic.u.isBot){
+                            b.makeRandomMove()
+
+                            let picafter=b.gameStatus.playersinfo.getByColor(b.turn)                        
+                            picafter.startedThinkingAt=new Date().getTime()
+                        }
+
+                        if(!b.gameStatus.started){
+                            if(b.fullmoveNumber>=2) b.startGame()
+                        }     
+
+                        b.actualizeHistory()
+                    }                        
                     broadcastBoard()
                 }else if(t=="delmove"){                    
                     console.log("del move")
@@ -237,12 +290,24 @@ function handleWs(ws:any,req:any){
                     let u=createUserFromJson(json.u)
                     console.log("sit player",u)
                     let color=json.color                    
-                    b.sitPlayer(color,u)                                 
+                    b.sitPlayer(color,u)       
+                    if(b.allSeated()){
+                        b.newGame()
+                        let pi=b.gameStatus.playersinfo.getByColor(WHITE)
+                        if(pi.u.isBot){
+                            b.makeRandomMove()
+                        }
+                    }
                     broadcastBoard()
                 }else if(t=="standplayer"){                    
                     let color=json.color       
                     console.log("stand player",color)             
                     b.standPlayer(color)                                                            
+                    broadcastBoard()
+                }else if(t=="resign"){
+                    let color=json.color
+                    console.log("resign",color)
+                    b.resignPlayer(color)                                                            
                     broadcastBoard()
                 }
             }catch(err){console.log(err)}

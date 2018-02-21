@@ -10,7 +10,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
         super("div")
     }
 
-    setPlayerInfo(pi:PlayerInfo):GuiPlayerInfo{
+    setPlayerInfo(pi:PlayerInfo):GuiPlayerInfo{        
         this.pi=pi
         return this.build()
     }
@@ -38,26 +38,31 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
     resignClicked(){if(this.resignCallback!=undefined) this.resignCallback(this)}
     standClicked(){if(this.standCallback!=undefined) this.standCallback(this)}
 
-    build():GuiPlayerInfo{
+    build(addClockClass:any=undefined):GuiPlayerInfo{
         let buttons:Button[]=[]
+        let authok=this.pi.u.e(loggedUser)
+        let botok=this.pi.u.isBot
+        let authbotok=authok||botok
         if(this.pi.canPlay) buttons.push(
             new Button("Play").onClick(this.playClicked.bind(this))
         )
         if(this.pi.canPlay) buttons.push(
             new Button("Play Bot").onClick(this.playBotClicked.bind(this))
         )
-        if(this.pi.canOfferDraw) buttons.push(
+        /*if(this.pi.canOfferDraw&&authbotok) buttons.push(
             new Button("Offer draw").onClick(this.offerDrawClicked.bind(this))
-        )
+        )*/
         if(this.pi.canAcceptDraw) buttons.push(
             new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this))
         )
-        if(this.pi.canResign) buttons.push(
+        if(this.pi.canResign&&authbotok) buttons.push(
             new Button("Resign").onClick(this.resignClicked.bind(this))
         )
-        if(((this.pi.canStand)&&(this.pi.u.e(loggedUser)))||(this.pi.u.isBot)) buttons.push(
+        if(this.pi.canStand&&authbotok) buttons.push(
             new Button("Stand").onClick(this.standClicked.bind(this))
         )
+        let clockclass="gameclock"
+        if(addClockClass!=undefined) clockclass=clockclass+" "+addClockClass
         this.x.a([
             new Table().bs().a([
                 new Tr().a([
@@ -68,7 +73,8 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH,this.PLAYER_HEIGHT).
-                        h(`${this.pi.time}`)
+                        ac(clockclass).
+                        h(`${formatDurationAsClock(this.pi.showTime)}`)
                     ])
                 ]),
                 new Tr().a([

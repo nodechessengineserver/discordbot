@@ -38,7 +38,7 @@ class GuiBoard extends DomElement<GuiBoard>{
 
     constructor(){
         super("div")
-        this.b=new Board().setFromFen().setPosChangedCallback(this.posChanged.bind(this))        
+        this.b=new Board().newGame().setPosChangedCallback(this.posChanged.bind(this))                
     }
 
     setVariant(variant:string=DEFAULT_VARIANT):GuiBoard{
@@ -328,5 +328,6 @@ class GuiBoard extends DomElement<GuiBoard>{
         if(this.flipCallback!=undefined) this.flipCallback()
         return this
     }
+
 }
 

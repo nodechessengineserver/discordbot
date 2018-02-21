@@ -176,6 +176,16 @@ let VARIANT_PROPERTIES = {
     }
 };
 let DEFAULT_VARIANT = "promoatomic";
+let ONE_SECOND = 1000;
+let ONE_MINUTE = 60 * ONE_SECOND;
+class TimeControl {
+    constructor(time = ONE_MINUTE * 5, inc = ONE_SECOND * 8) {
+        this.time = ONE_MINUTE * 5;
+        this.inc = ONE_SECOND * 8;
+        this.time = time;
+        this.inc = inc;
+    }
+}
 class Piece {
     constructor(kind = EMPTY, color = NO_COL) {
         this.kind = kind;
@@ -236,16 +246,20 @@ const CASTLING_RIGHTS = [
     new CastlingRight(BLACK, new Square(4, 0), new Square(2, 0), new Square(0, 0), new Square(3, 0), [new Square(3, 0), new Square(2, 0), new Square(1, 0)], "q")
 ];
 class PlayerInfo {
-    constructor() {
+    constructor(valid = true) {
         this.u = new User();
         this.color = BLACK;
         this.time = 0;
+        this.showTime = 0;
         this.seatedAt = new Date().getTime();
+        this.startedThinkingAt = new Date().getTime();
         this.canPlay = true;
         this.canOfferDraw = false;
         this.canAcceptDraw = false;
         this.canResign = false;
         this.canStand = false;
+        this.valid = true;
+        this.valid = valid;
     }
     colorName() {
         return this.color == WHITE ? "white" : "black";
@@ -255,7 +269,9 @@ class PlayerInfo {
             u: this.u.toJson(true),
             color: this.color,
             time: this.time,
+            showTime: this.showTime,
             seatedAt: this.seatedAt,
+            startedThinkingAt: this.startedThinkingAt,
             canPlay: this.canPlay,
             canOfferDraw: this.canOfferDraw,
             canAcceptDraw: this.canAcceptDraw,
@@ -273,8 +289,12 @@ class PlayerInfo {
             this.color = json.color;
         if (json.time != undefined)
             this.time = json.time;
+        if (json.showTime != undefined)
+            this.showTime = json.showTime;
         if (json.seatedAt != undefined)
             this.seatedAt = json.seatedAt;
+        if (json.startedThinkingAt != undefined)
+            this.startedThinkingAt = json.startedThinkingAt;
         if (json.canPlay != undefined)
             this.canPlay = json.canPlay;
         if (json.canOfferDraw != undefined)
@@ -314,6 +334,16 @@ class PlayersInfo {
             new PlayerInfo().fromJson({ color: WHITE })
         ];
     }
+    numSeated() {
+        let num = 0;
+        for (let pi of this.playersinfo)
+            if (!pi.u.empty())
+                num++;
+        return num;
+    }
+    noneSeated() { return this.numSeated() == 0; }
+    someSeated() { return this.numSeated() == 1; }
+    allSeated() { return this.numSeated() == 2; }
     toJson() {
         let json = this.playersinfo.map(pi => pi.toJson());
         return json;
@@ -329,7 +359,14 @@ class PlayersInfo {
             if (pi.color == color)
                 return pi;
         }
-        return this.playersinfo[0];
+        return new PlayerInfo(false);
+    }
+    getByUser(u) {
+        for (let pi of this.playersinfo) {
+            if (pi.u.e(u))
+                return pi;
+        }
+        return new PlayerInfo(false);
     }
     sitPlayer(color, u) {
         for (let pi of this.playersinfo) {
@@ -348,6 +385,10 @@ class PlayersInfo {
             }
         }
         return new PlayerInfo();
+    }
+    standPlayers() {
+        this.iterate((pi) => pi.standPlayer());
+        return this;
     }
     iterate(iterfunc) {
         for (let pi of this.playersinfo)
@@ -383,6 +424,7 @@ class GameStatus {
             isThreeFoldRepetition: this.isThreeFoldRepetition,
             isResigned: this.isResigned,
             isDrawAgreed: this.isDrawAgreed,
+            isFlagged: this.isFlagged,
             playersinfo: this.playersinfo.toJson()
         });
         return json;
@@ -462,6 +504,7 @@ class ChangeLog {
 }
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
+        this.timecontrol = new TimeControl(ONE_SECOND * 10, 0);
         this.rights = [true, true, true, true];
         this.hist = [];
         this.test = false;
@@ -588,8 +631,10 @@ class Board {
         this.epSquare = b.epSquare;
         this.fullmoveNumber = b.fullmoveNumber;
         this.halfmoveClock = b.halfmoveClock;
-        if (clearHist)
-            this.hist = [this.toGameNode()];
+        if (!this.test) {
+            if (clearHist)
+                this.hist = [this.toGameNode()];
+        }
         this.posChanged();
         return true;
     }
@@ -651,9 +696,25 @@ class Board {
         this.gameStatus.isResigned = false;
         this.gameStatus.isDrawAgreed = false;
         this.gameStatus.isFlagged = false;
+        this.gameStatus.playersinfo.iterate((pi) => {
+            pi.time = this.timecontrol.time;
+        });
         this.setFromFen();
+        this.genAlgeb = "";
+        return this;
+    }
+    startGame() {
+        this.gameStatus.started = true;
+        this.gameStatus.playersinfo.iterate((pi) => {
+            pi.canStand = false;
+            pi.canResign = true;
+            pi.canOfferDraw = true;
+        });
+        this.actualizeHistory();
     }
     obtainStatus() {
+        if (this.isTerminated())
+            return;
         this.gameStatus.isStaleMate = false;
         this.gameStatus.isMate = false;
         if (this.gameStatus.isResigned || this.gameStatus.isFlagged) {
@@ -726,9 +787,6 @@ class Board {
             this.gameStatus.isResigned ||
             this.gameStatus.isDrawAgreed ||
             this.gameStatus.isFlagged;
-    }
-    isPrestart() {
-        return (!this.gameStatus.started) && (!this.isTerminated());
     }
     genLegalMoves() {
         this.genPseudoLegalMoves();
@@ -993,13 +1051,17 @@ class Board {
             this.epSquare = epsq;
         }
         // update history        
-        this.hist.push(this.toGameNode(algeb));
+        if (!this.test) {
+            this.genAlgeb = algeb;
+            this.hist.push(this.toGameNode(algeb));
+        }
         // position changed callback
         this.posChanged();
         return true;
     }
     actualizeHistory() {
         this.hist[this.hist.length - 1] = this.toGameNode(this.genAlgeb);
+        return this;
     }
     getCurrentGameNode() {
         return this.hist[this.hist.length - 1];
@@ -1219,10 +1281,67 @@ class Board {
         this.changeLog.u = u;
         return this;
     }
+    resignPlayer(color) {
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isResigned = true;
+        this.gameStatus.started = false;
+        if (color == WHITE) {
+            this.gameStatus.score = "0-1";
+            this.gameStatus.scoreReason = "white resigned";
+        }
+        else {
+            this.gameStatus.score = "1-0";
+            this.gameStatus.scoreReason = "black resigned";
+        }
+        this.actualizeHistory();
+        return this;
+    }
+    flagPlayer(color) {
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isFlagged = true;
+        this.gameStatus.started = false;
+        if (color == WHITE) {
+            this.gameStatus.score = "0-1";
+            this.gameStatus.scoreReason = "white flagged";
+        }
+        else {
+            this.gameStatus.score = "1-0";
+            this.gameStatus.scoreReason = "black flagged";
+        }
+        this.actualizeHistory();
+        return this;
+    }
     iteratePlayersinfo(iterfunc) {
         this.gameStatus.playersinfo.iterate(iterfunc);
     }
     clearChangeLog() { this.changeLog.clear(); }
+    noneSeated() { return this.gameStatus.playersinfo.noneSeated(); }
+    someSeated() { return this.gameStatus.playersinfo.someSeated(); }
+    allSeated() { return this.gameStatus.playersinfo.allSeated(); }
+    makeRandomMove() {
+        let n = this.lms.length;
+        if (n > 0) {
+            let i = Math.floor(Math.random() * n);
+            if (i >= n)
+                i = 0;
+            this.makeMove(this.lms[i]);
+            return true;
+        }
+        return false;
+    }
+    actualizeShowTime() {
+        this.gameStatus.playersinfo.iterate((pi) => {
+            if ((this.turn != pi.color) || (!this.gameStatus.started)) {
+                pi.showTime = pi.time;
+            }
+            else {
+                pi.showTime = pi.time - (new Date().getTime() - pi.startedThinkingAt);
+                if (pi.showTime < 0)
+                    pi.showTime = 0;
+            }
+        });
+        return this.actualizeHistory();
+    }
 }
 function checkLichess(username, code, callback) {
     console.log(`checking lichess code ${username} ${code}`);
@@ -1334,13 +1453,11 @@ function checkCookie(cookie, callback) {
 let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
 let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
-let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 10;
-let b = new Board().setFromFen();
+let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 1;
+let b = new Board().newGame();
 let sockets = {};
 setInterval(maintainBoard, BOARD_MAINTAIN_INTERVAL);
 function maintainBoard() {
-    if (!b.isPrestart())
-        return;
     let refresh = false;
     b.iteratePlayersinfo((pi) => {
         let now = new Date().getTime();
@@ -1353,6 +1470,18 @@ function maintainBoard() {
     });
     if (refresh)
         broadcastBoard();
+    if (b.gameStatus.started) {
+        b.gameStatus.playersinfo.iterate((pi) => {
+            if (b.turn == pi.color) {
+                let diff = new Date().getTime() - pi.startedThinkingAt;
+                if (diff > pi.time) {
+                    b.flagPlayer(pi.color);
+                    pi.time = 0;
+                    broadcastBoard();
+                }
+            }
+        });
+    }
 }
 function maintainSockets() {
     try {
@@ -1411,6 +1540,7 @@ function broadcast(json) {
     }
 }
 function setBoardJson() {
+    b.actualizeShowTime();
     return ({
         t: "setboard",
         boardJson: b.getCurrentGameNode().toJson(),
@@ -1460,13 +1590,14 @@ function handleWs(ws, req) {
                 //console.log(cookies)
             }
         }
-        let loggedUser;
+        let loggedUser = new User();
         function setUser() {
             console.log("setting user", loggedUser);
             send(ws, ({
                 t: "setuser",
                 u: loggedUser.toJson()
             }));
+            sendBoard(ws);
         }
         let userCookie = cookies["user"];
         checkCookie(userCookie, (result) => {
@@ -1532,13 +1663,48 @@ function handleWs(ws, req) {
                     setUser();
                 }
                 else if (t == "makemove") {
+                    if (b.someSeated() || b.allSeated()) {
+                        let pic = b.gameStatus.playersinfo.getByColor(b.turn);
+                        if (!pic.u.empty()) {
+                            let pi = b.gameStatus.playersinfo.getByUser(loggedUser);
+                            if (!((pi.color == b.turn) && (pi.u.e(loggedUser)))) {
+                                console.log("not eligible");
+                                broadcastBoard();
+                                return;
+                            }
+                        }
+                    }
                     let algeb = json.algeb;
                     console.log("makemove", algeb);
+                    let oldTurn = b.turn;
                     let ok = b.makeAlgebMove(algeb);
                     if (ok) {
                         console.log("legal");
+                        b.changeLog.kind = "movemade";
+                        if (b.gameStatus.started) {
+                            let picold = b.gameStatus.playersinfo.getByColor(oldTurn);
+                            picold.time = picold.time - (new Date().getTime() - picold.startedThinkingAt) + b.timecontrol.inc;
+                            if (picold.time < 0) {
+                                b.del();
+                                b.flagPlayer(oldTurn);
+                                picold.time = 0;
+                                broadcastBoard();
+                                return;
+                            }
+                        }
+                        let pic = b.gameStatus.playersinfo.getByColor(b.turn);
+                        pic.startedThinkingAt = new Date().getTime();
+                        if (pic.u.isBot) {
+                            b.makeRandomMove();
+                            let picafter = b.gameStatus.playersinfo.getByColor(b.turn);
+                            picafter.startedThinkingAt = new Date().getTime();
+                        }
+                        if (!b.gameStatus.started) {
+                            if (b.fullmoveNumber >= 2)
+                                b.startGame();
+                        }
+                        b.actualizeHistory();
                     }
-                    b.changeLog.kind = "movemade";
                     broadcastBoard();
                 }
                 else if (t == "delmove") {
@@ -1561,12 +1727,25 @@ function handleWs(ws, req) {
                     console.log("sit player", u);
                     let color = json.color;
                     b.sitPlayer(color, u);
+                    if (b.allSeated()) {
+                        b.newGame();
+                        let pi = b.gameStatus.playersinfo.getByColor(WHITE);
+                        if (pi.u.isBot) {
+                            b.makeRandomMove();
+                        }
+                    }
                     broadcastBoard();
                 }
                 else if (t == "standplayer") {
                     let color = json.color;
                     console.log("stand player", color);
                     b.standPlayer(color);
+                    broadcastBoard();
+                }
+                else if (t == "resign") {
+                    let color = json.color;
+                    console.log("resign", color);
+                    b.resignPlayer(color);
                     broadcastBoard();
                 }
             }

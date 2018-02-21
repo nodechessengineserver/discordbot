@@ -95,7 +95,9 @@ function strongSocket(){
                 setUserList()
             }else if(t=="setboard"){                
                 let boardJson=json.boardJson
-                gboard.b.fromGameNode(new GameNode().fromJson(boardJson),true)
+                //console.log("setboard",boardJson)
+                let gn=new GameNode().fromJson(boardJson)                
+                gboard.b.fromGameNode(gn,true)                
                 handleChangeLog(new ChangeLog().fromJson(json.changeLog))
             }else if(t=="chat"){
                 let u=createUserFromJson(json.u)
@@ -156,7 +158,10 @@ function standClicked(pi:PlayerInfo){
 }
 
 function resignClicked(pi:PlayerInfo){
-
+    emit({
+        t:"resign",
+        color:pi.color
+    })
 }
 
 function createGuiPlayerInfo(color:number):GuiPlayerInfo{
@@ -179,6 +184,7 @@ let legalmoves:Div
 let gboard:GuiBoard
 let boardInfoDiv:Div
 let flipButtonSpan:Span
+let modposButtonSpan:Span
 let gameStatusDiv:Div
 let moveInput:TextInput
 let chatDiv:Div
@@ -299,6 +305,7 @@ function boardPosChanged(){
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i])
     }            
     buildFlipButtonSpan()
+    buildModposButtonSpan()
     buildPlayerDiv()    
 }
 
@@ -417,9 +424,8 @@ function buildApp(){
         new Tr().a([
             new Td().cs(2).a([
                 moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered),
-                new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
                 flipButtonSpan=new Span(),
-                new Button("Reset").onClick((e:Event)=>emit({t:"reset"})),        
+                modposButtonSpan=new Span(),                
                 gameStatusDiv=new Div().ib().ml(5),
                 boardInfoDiv=new Div().mt(3)
             ]),
@@ -432,6 +438,7 @@ function buildApp(){
 
     buildPlayerDiv()
     buildFlipButtonSpan()
+    buildModposButtonSpan()
 
     profileTable=new Table().bs()
 
@@ -516,11 +523,34 @@ function buildFlipButtonSpan(){
     ])
 }
 
+function buildModposButtonSpan(){
+    modposButtonSpan.x
+    if(!gboard.b.allSeated()) modposButtonSpan.a([
+        new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
+        new Button("Reset").onClick((e:Event)=>emit({t:"reset"}))
+    ])
+}
+
 function playSound(id:string){
     let e=document.getElementById(id)    
     if(e!=null){
         (<HTMLAudioElement>e).play()
     }    
+}
+
+setInterval(decClock,1000)
+
+function decClock(){
+    if(gboard.b.gameStatus.started){
+        for(let gpi of guiPlayerInfos){
+            if(gpi.pi.color==gboard.b.turn){
+                gpi.pi.showTime-=1000
+                gpi.build("gameclockactive")
+            }else{
+                gpi.build("gameclockpassive")
+            }
+        }        
+    }
 }
 
 buildApp()
