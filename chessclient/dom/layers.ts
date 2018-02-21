@@ -8,7 +8,7 @@ namespace Layers{
     export let root:DomElement<Div>
 
     export function init(){
-        body=document.querySelector("body")
+        body=document.querySelector("#root")
         
         body.innerHTML=""
 

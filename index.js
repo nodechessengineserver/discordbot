@@ -1495,6 +1495,7 @@ function handleWs(ws, req) {
                     if (ok) {
                         console.log("legal");
                     }
+                    b.changeLog.kind = "movemade";
                     broadcastBoard();
                 }
                 else if (t == "delmove") {
@@ -1505,6 +1506,7 @@ function handleWs(ws, req) {
                 else if (t == "reset") {
                     console.log("reset board");
                     b.newGame();
+                    b.changeLog.kind = "boardreset";
                     broadcastBoard();
                 }
                 else if (t == "chat") {

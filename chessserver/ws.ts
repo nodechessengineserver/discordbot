@@ -219,6 +219,7 @@ function handleWs(ws:any,req:any){
                     if(ok){                                                
                         console.log("legal")                        
                     }                    
+                    b.changeLog.kind="movemade"
                     broadcastBoard()
                 }else if(t=="delmove"){                    
                     console.log("del move")
@@ -227,6 +228,7 @@ function handleWs(ws:any,req:any){
                 }else if(t=="reset"){
                     console.log("reset board")
                     b.newGame()
+                    b.changeLog.kind="boardreset"
                     broadcastBoard()
                 }else if(t=="chat"){                    
                     console.log("chat")

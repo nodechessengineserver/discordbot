@@ -1030,7 +1030,7 @@ var Layers;
     let layers = [];
     let index = -1;
     function init() {
-        Layers.body = document.querySelector("body");
+        Layers.body = document.querySelector("#root");
         Layers.body.innerHTML = "";
         Layers.root = new Div().pr();
         Layers.body.appendChild(Layers.root.e);
@@ -3465,10 +3465,18 @@ function handleChangeLog(cl) {
     if (cl.kind == "sitplayer") {
         chatItems.unshift(new ChatItem(SU, `${u.username} has been seated as ${colorName}`));
         showChat();
+        playSound("newchallengesound");
     }
     else if (cl.kind == "standplayer") {
         chatItems.unshift(new ChatItem(SU, `${u.username} has been unseated as ${colorName} ${cl.reason}`));
         showChat();
+        playSound("defeatsound");
+    }
+    else if (cl.kind == "movemade") {
+        playSound("movesound");
+    }
+    else if (cl.kind == "boardreset") {
+        playSound("newchallengesound");
     }
 }
 function buildPlayerDiv() {
@@ -3596,6 +3604,13 @@ function buildFlipButtonSpan() {
         lseated ? new Span() :
             new Button("Flip").onClick((e) => gboard.doFlip())
     ]);
+}
+function playSound(id) {
+    let e = document.getElementById(id);
+    console.log("play sound", e);
+    if (e != null) {
+        e.play();
+    }
 }
 buildApp();
 DEBUG = true;

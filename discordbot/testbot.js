@@ -115,6 +115,10 @@ function getTestChannel(){
   return GLOBALS.getChannelByName(client,"test")
 }
 
+function getGameChannel(){
+  return GLOBALS.getChannelByName(client,"game")
+}
+
 function lichessStats(callback){
   try{
     let collection=db.collection("listats")
@@ -174,6 +178,16 @@ function purgeTestChannel(){
   setTimeout((e)=>{
     testchannel.send(
       `Channel purged at ${new Date().toLocaleString()}.`
+    )
+  },5000)
+}
+
+function purgeGameChannel(){
+  let gamechannel=getGameChannel()
+  GLOBALS.purgeChannel(gamechannel)
+  setTimeout((e)=>{
+    gamechannel.send(
+      `Please use this channel to play games on the server's board.`
     )
   },5000)
 }
@@ -370,6 +384,10 @@ client.on("message", async message => { try {
 
   if(GLOBALS.isProd()) if(command=="purgetest"){
     purgeTestChannel()
+  }
+
+  if(GLOBALS.isProd()) if(command=="purgegame"){
+    purgeGameChannel()
   }
 
   if(GLOBALS.isProd()||true) if(command=="users"){

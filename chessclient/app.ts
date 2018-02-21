@@ -340,12 +340,18 @@ function handleChangeLog(cl:ChangeLog){
             `${u.username} has been seated as ${colorName}`
         ))
         showChat()
+        playSound("newchallengesound")
     }else if(cl.kind=="standplayer"){
         chatItems.unshift(new ChatItem(SU,
             `${u.username} has been unseated as ${colorName} ${cl.reason}`
         ))
         showChat()
-    }    
+        playSound("defeatsound")
+    }else if(cl.kind=="movemade"){
+        playSound("movesound")
+    }else if(cl.kind=="boardreset"){
+        playSound("newchallengesound")
+    }
 }
 
 function buildPlayerDiv(){
@@ -499,6 +505,14 @@ function buildFlipButtonSpan(){
         lseated?new Span():
         new Button("Flip").onClick((e:Event)=>gboard.doFlip())
     ])
+}
+
+function playSound(id:string){
+    let e=document.getElementById(id)
+    console.log("play sound",e)
+    if(e!=null){
+        (<HTMLAudioElement>e).play()
+    }    
 }
 
 buildApp()
