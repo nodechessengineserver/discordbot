@@ -49,7 +49,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
         if(this.pi.canResign) buttons.push(
             new Button("Resign").onClick(this.resignClicked.bind(this))
         )
-        if(this.pi.canStand) buttons.push(
+        if((this.pi.canStand)&&(this.pi.u.e(loggedUser))) buttons.push(
             new Button("Stand").onClick(this.standClicked.bind(this))
         )
         this.x.a([

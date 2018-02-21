@@ -169,17 +169,23 @@ class PlayerInfo{
     u:User=new User()    
     color:number=BLACK
     time:number=0
+    seatedAt:number=new Date().getTime()
     canPlay:boolean=true
     canOfferDraw:boolean=false
     canAcceptDraw:boolean=false
     canResign:boolean=false
     canStand:boolean=false
 
+    colorName():string{
+        return this.color==WHITE?"white":"black"
+    }
+
     toJson():any{        
         let json=({
             u:this.u.toJson(true),
             color:this.color,
             time:this.time,
+            seatedAt:this.seatedAt,
             canPlay:this.canPlay,
             canOfferDraw:this.canOfferDraw,
             canAcceptDraw:this.canAcceptDraw,
@@ -196,6 +202,7 @@ class PlayerInfo{
 
         if(json.color!=undefined) this.color=json.color
         if(json.time!=undefined) this.time=json.time
+        if(json.seatedAt!=undefined) this.seatedAt=json.seatedAt
         if(json.canPlay!=undefined) this.canPlay=json.canPlay
         if(json.canOfferDraw!=undefined) this.canOfferDraw=json.canOfferDraw
         if(json.canAcceptDraw!=undefined) this.canAcceptDraw=json.canAcceptDraw
@@ -213,6 +220,8 @@ class PlayerInfo{
         this.canPlay=false
         this.canResign=false
         this.canStand=true
+
+        this.seatedAt=new Date().getTime()
 
         return this
     }
@@ -256,17 +265,27 @@ class PlayersInfo{
         return this.playersinfo[0]
     }
 
-    sitPlayer(color:number,u:User){
+    sitPlayer(color:number,u:User):PlayerInfo{
         for(let pi of this.playersinfo){
             if(pi.u.username==u.username) pi.standPlayer()
         }
-        this.getByColor(color).sitPlayer(u)
+        let pi=this.getByColor(color)
+        pi.sitPlayer(u)
+        return pi
     }
 
-    standPlayer(color:number){
+    standPlayer(color:number):PlayerInfo{
         for(let pi of this.playersinfo){
-            if(pi.color==color) pi.standPlayer()
+            if(pi.color==color){
+                pi.standPlayer()
+                return pi
+            }
         }
+        return new PlayerInfo()
+    }
+
+    iterate(iterfunc:any){
+        for(let pi of this.playersinfo) iterfunc(pi)
     }
 }
 
@@ -274,6 +293,7 @@ class GameStatus{
     // game status
     score:string="*"
     scoreReason:string=""
+    started:boolean=false
 
     // termination by rules
     isStaleMate=false
@@ -293,6 +313,7 @@ class GameStatus{
         let json=({
             score:this.score,
             scoreReason:this.scoreReason,
+            started:this.started,
             isStaleMate:this.isStaleMate,
             isMate:this.isMate,
             isFiftyMoveRule:this.isFiftyMoveRule,
@@ -311,6 +332,7 @@ class GameStatus{
 
         this.score=json.score
         this.scoreReason=json.scoreReason
+        this.started=json.started
         this.isStaleMate=json.isStaleMate
         this.isMate=json.isMate
         this.isFiftyMoveRule=json.isFiftyMoveRule
@@ -348,6 +370,33 @@ class GameNode{
         this.fen=json.fen
         this.tfen=json.tfen
 
+        return this
+    }
+}
+
+class ChangeLog{
+    kind:string=""
+    reason:string=""
+    
+    clear(){
+        this.kind=""
+        this.reason=""
+    }
+
+    pi:PlayerInfo=new PlayerInfo()
+
+    toJson():any{
+        return({
+            kind:this.kind,
+            reason:this.reason,
+            pi:this.pi.toJson()
+        })
+    }
+
+    fromJson(json:any):ChangeLog{
+        if(json.kind!=undefined) this.kind=json.kind
+        if(json.reason!=undefined) this.reason=json.reason
+        if(json.pi!=undefined) this.pi=new PlayerInfo().fromJson(json.pi)
         return this
     }
 }
@@ -644,6 +693,10 @@ class Board{
             this.gameStatus.isResigned||
             this.gameStatus.isDrawAgreed||
             this.gameStatus.isFlagged
+    }
+
+    isPrestart():boolean{
+        return (!this.gameStatus.started)&&(!this.isTerminated())
     }
 
     genLegalMoves(){        
@@ -1135,14 +1188,26 @@ class Board{
     }
 
     sitPlayer(color:number,u:User):Board{
-        this.gameStatus.playersinfo.sitPlayer(color,u)
-        this.actualizeHistory()
+        let pi=this.gameStatus.playersinfo.sitPlayer(color,u)
+        this.actualizeHistory()        
+        this.changeLog.kind="sitplayer"
+        this.changeLog.pi=pi
         return this
     }
 
     standPlayer(color:number):Board{
-        this.gameStatus.playersinfo.standPlayer(color)
-        this.actualizeHistory()
+        let pi=this.gameStatus.playersinfo.standPlayer(color)
+        this.actualizeHistory()        
+        this.changeLog.kind="standplayer"
+        this.changeLog.pi=pi
         return this
     }
+
+    iteratePlayersinfo(iterfunc:any){
+        this.gameStatus.playersinfo.iterate(iterfunc)
+    }
+
+    changeLog:ChangeLog=new ChangeLog()
+
+    clearChangeLog(){this.changeLog.clear()}
 }

@@ -267,7 +267,7 @@ class GuiBoard extends DomElement<GuiBoard>{
         return new Square(this.b.BOARD_WIDTH-1-sq.f,this.b.BOARD_HEIGHT-1-sq.r)
     }
     doFlip(){
-        this.flip=1-this.flip        
+        this.setFlip(1-this.flip)
         this.build()
     }
     boardmouseup(e:Event){        
@@ -316,9 +316,17 @@ class GuiBoard extends DomElement<GuiBoard>{
             }
         }
     }
+
     dragMoveCallback:any
-    setDragMoveCallback(dragMoveCallback:any){
-        this.dragMoveCallback=dragMoveCallback
+    setDragMoveCallback(dragMoveCallback:any):GuiBoard{this.dragMoveCallback=dragMoveCallback;return this}
+
+    flipCallback:any    
+    setFlipCallback(flipCallback:any):GuiBoard{this.flipCallback=flipCallback;return this}
+
+    setFlip(flip:number):GuiBoard{
+        this.flip=flip
+        if(this.flipCallback!=undefined) this.flipCallback()
+        return this
     }
 }
 

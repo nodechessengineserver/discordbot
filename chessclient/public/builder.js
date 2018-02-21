@@ -653,6 +653,11 @@ class Div extends DomElement {
         super("div");
     }
 }
+class Span extends DomElement {
+    constructor() {
+        super("span");
+    }
+}
 class Label extends DomElement {
     constructor() {
         super("label");
@@ -1627,6 +1632,18 @@ class User {
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
     }
+    empty() {
+        return this.username == "";
+    }
+    e(u) {
+        return this.username == u.username;
+    }
+    smartName() {
+        return this.username == "" ? "Anonymous" : this.username;
+    }
+    smartNameHtml() {
+        return this.username == "" ? `<span class="anonuser">${this.smartName()}</span>` : this.username;
+    }
     toJson(secure = false) {
         let json = ({
             username: this.username,
@@ -1657,6 +1674,11 @@ class User {
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
         return this;
+    }
+}
+class SystemUser extends User {
+    smartNameHtml() {
+        return `<span class="systemuser">system</span>`;
     }
 }
 class UserList {
@@ -1694,6 +1716,7 @@ class UserList {
         return this.users[username];
     }
 }
+let loggedUser = new User();
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
@@ -1790,17 +1813,22 @@ class PlayerInfo {
         this.u = new User();
         this.color = BLACK;
         this.time = 0;
+        this.seatedAt = new Date().getTime();
         this.canPlay = true;
         this.canOfferDraw = false;
         this.canAcceptDraw = false;
         this.canResign = false;
         this.canStand = false;
     }
+    colorName() {
+        return this.color == WHITE ? "white" : "black";
+    }
     toJson() {
         let json = ({
             u: this.u.toJson(true),
             color: this.color,
             time: this.time,
+            seatedAt: this.seatedAt,
             canPlay: this.canPlay,
             canOfferDraw: this.canOfferDraw,
             canAcceptDraw: this.canAcceptDraw,
@@ -1818,6 +1846,8 @@ class PlayerInfo {
             this.color = json.color;
         if (json.time != undefined)
             this.time = json.time;
+        if (json.seatedAt != undefined)
+            this.seatedAt = json.seatedAt;
         if (json.canPlay != undefined)
             this.canPlay = json.canPlay;
         if (json.canOfferDraw != undefined)
@@ -1837,6 +1867,7 @@ class PlayerInfo {
         this.canPlay = false;
         this.canResign = false;
         this.canStand = true;
+        this.seatedAt = new Date().getTime();
         return this;
     }
     standPlayer() {
@@ -1878,13 +1909,22 @@ class PlayersInfo {
             if (pi.u.username == u.username)
                 pi.standPlayer();
         }
-        this.getByColor(color).sitPlayer(u);
+        let pi = this.getByColor(color);
+        pi.sitPlayer(u);
+        return pi;
     }
     standPlayer(color) {
         for (let pi of this.playersinfo) {
-            if (pi.color == color)
+            if (pi.color == color) {
                 pi.standPlayer();
+                return pi;
+            }
         }
+        return new PlayerInfo();
+    }
+    iterate(iterfunc) {
+        for (let pi of this.playersinfo)
+            iterfunc(pi);
     }
 }
 class GameStatus {
@@ -1892,6 +1932,7 @@ class GameStatus {
         // game status
         this.score = "*";
         this.scoreReason = "";
+        this.started = false;
         // termination by rules
         this.isStaleMate = false;
         this.isMate = false;
@@ -1908,6 +1949,7 @@ class GameStatus {
         let json = ({
             score: this.score,
             scoreReason: this.scoreReason,
+            started: this.started,
             isStaleMate: this.isStaleMate,
             isMate: this.isMate,
             isFiftyMoveRule: this.isFiftyMoveRule,
@@ -1923,6 +1965,7 @@ class GameStatus {
             return this;
         this.score = json.score;
         this.scoreReason = json.scoreReason;
+        this.started = json.started;
         this.isStaleMate = json.isStaleMate;
         this.isMate = json.isMate;
         this.isFiftyMoveRule = json.isFiftyMoveRule;
@@ -1959,6 +2002,33 @@ class GameNode {
         return this;
     }
 }
+class ChangeLog {
+    constructor() {
+        this.kind = "";
+        this.reason = "";
+        this.pi = new PlayerInfo();
+    }
+    clear() {
+        this.kind = "";
+        this.reason = "";
+    }
+    toJson() {
+        return ({
+            kind: this.kind,
+            reason: this.reason,
+            pi: this.pi.toJson()
+        });
+    }
+    fromJson(json) {
+        if (json.kind != undefined)
+            this.kind = json.kind;
+        if (json.reason != undefined)
+            this.reason = json.reason;
+        if (json.pi != undefined)
+            this.pi = new PlayerInfo().fromJson(json.pi);
+        return this;
+    }
+}
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
         this.rights = [true, true, true, true];
@@ -1972,6 +2042,7 @@ class Board {
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
+        this.changeLog = new ChangeLog();
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -2224,6 +2295,9 @@ class Board {
             this.gameStatus.isResigned ||
             this.gameStatus.isDrawAgreed ||
             this.gameStatus.isFlagged;
+    }
+    isPrestart() {
+        return (!this.gameStatus.started) && (!this.isTerminated());
     }
     genLegalMoves() {
         this.genPseudoLegalMoves();
@@ -2697,15 +2771,23 @@ class Board {
         return this;
     }
     sitPlayer(color, u) {
-        this.gameStatus.playersinfo.sitPlayer(color, u);
+        let pi = this.gameStatus.playersinfo.sitPlayer(color, u);
         this.actualizeHistory();
+        this.changeLog.kind = "sitplayer";
+        this.changeLog.pi = pi;
         return this;
     }
     standPlayer(color) {
-        this.gameStatus.playersinfo.standPlayer(color);
+        let pi = this.gameStatus.playersinfo.standPlayer(color);
         this.actualizeHistory();
+        this.changeLog.kind = "standplayer";
+        this.changeLog.pi = pi;
         return this;
     }
+    iteratePlayersinfo(iterfunc) {
+        this.gameStatus.playersinfo.iterate(iterfunc);
+    }
+    clearChangeLog() { this.changeLog.clear(); }
 }
 class GuiPlayerInfo extends DomElement {
     constructor() {
@@ -2747,7 +2829,7 @@ class GuiPlayerInfo extends DomElement {
             buttons.push(new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this)));
         if (this.pi.canResign)
             buttons.push(new Button("Resign").onClick(this.resignClicked.bind(this)));
-        if (this.pi.canStand)
+        if ((this.pi.canStand) && (this.pi.u.e(loggedUser)))
             buttons.push(new Button("Stand").onClick(this.standClicked.bind(this)));
         this.x.a([
             new Table().bs().a([
@@ -2975,7 +3057,7 @@ class GuiBoard extends DomElement {
         return new Square(this.b.BOARD_WIDTH - 1 - sq.f, this.b.BOARD_HEIGHT - 1 - sq.r);
     }
     doFlip() {
-        this.flip = 1 - this.flip;
+        this.setFlip(1 - this.flip);
         this.build();
     }
     boardmouseup(e) {
@@ -3027,8 +3109,13 @@ class GuiBoard extends DomElement {
             }
         }
     }
-    setDragMoveCallback(dragMoveCallback) {
-        this.dragMoveCallback = dragMoveCallback;
+    setDragMoveCallback(dragMoveCallback) { this.dragMoveCallback = dragMoveCallback; return this; }
+    setFlipCallback(flipCallback) { this.flipCallback = flipCallback; return this; }
+    setFlip(flip) {
+        this.flip = flip;
+        if (this.flipCallback != undefined)
+            this.flipCallback();
+        return this;
     }
 }
 const INTRO_HTML = `
@@ -3074,7 +3161,7 @@ let USER_COOKIE_EXPIRY = 365;
 let CHATDIV_HEIGHT = 225;
 let CHATDIV_WIDTH = 375;
 let WS_URL = `ws://${document.location.host}/ws`;
-let loggedUser;
+let SU = new SystemUser();
 //localStorage.clear()
 function newSocket() {
     return new WebSocket(`${WS_URL}/?sri=${uniqueId()}`);
@@ -3164,6 +3251,7 @@ function strongSocket() {
             else if (t == "setboard") {
                 let boardJson = json.boardJson;
                 gboard.b.fromGameNode(new GameNode().fromJson(boardJson), true);
+                handleChangeLog(new ChangeLog().fromJson(json.changeLog));
             }
             else if (t == "chat") {
                 chatItems.unshift(new ChatItem(json.user, json.text));
@@ -3188,7 +3276,7 @@ function clog(json) {
 }
 ///////////////////////////////////////////////////////////
 function playClicked(pi) {
-    if (loggedUser == undefined) {
+    if (loggedUser.empty()) {
         new AckInfoWindow("You have to be logged in to play!").build();
     }
     else {
@@ -3228,6 +3316,7 @@ let play;
 let legalmoves;
 let gboard;
 let boardInfoDiv;
+let flipButtonSpan;
 let gameStatusDiv;
 let moveInput;
 let chatDiv;
@@ -3251,13 +3340,13 @@ let usernameButtonDiv;
 let userlist;
 function setLoggedUser() {
     usernameButtonDiv.x.a([
-        loggedUser == undefined ?
+        loggedUser.empty() ?
             new Button("Login").onClick(lichessLogin) :
             new Button("Logout").onClick(lichessLogout)
     ]);
-    lichessUsernameDiv.h(loggedUser == undefined ? "?" : loggedUser.username);
-    tabpane.setCaptionByKey("profile", loggedUser == undefined ? "Profile" : loggedUser.username);
-    tabpane.selectTab(loggedUser == undefined ? "play" : "play");
+    lichessUsernameDiv.h(loggedUser.empty() ? "?" : loggedUser.username);
+    tabpane.setCaptionByKey("profile", loggedUser.empty() ? "Profile" : loggedUser.username);
+    tabpane.selectTab(loggedUser.empty() ? "play" : "play");
 }
 function setUserList() {
     users.x;
@@ -3296,7 +3385,7 @@ function lichessLogin() {
 }
 function lichessLogout() {
     setCookie("user", "", USER_COOKIE_EXPIRY);
-    loggedUser = undefined;
+    loggedUser = new User();
     setLoggedUser();
 }
 function moveInputEntered() {
@@ -3338,6 +3427,8 @@ function boardPosChanged() {
     for (let i = 0; i < guiPlayerInfos.length; i++) {
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i]);
     }
+    buildFlipButtonSpan();
+    buildPlayerDiv();
 }
 function dragMoveCallback(algeb) {
     //console.log("drag move",algeb)
@@ -3354,31 +3445,34 @@ class ChatItem {
 }
 let chatItems = [];
 function showChat() {
-    chatDiv.x.h(chatItems.map(item => `<span class="chatuser">${item.user}</span> : <span class="chattext">${item.text}</span>`).join("<br>"));
+    chatDiv.x.h(chatItems.map(item => `<span class="chatuser">${item.user.smartNameHtml()}</span> : <span class="chattext">${item.text}</span>`).join("<br>"));
 }
 function chatInputCallback() {
-    let user = loggedUser != undefined ? loggedUser : "Anonymous";
     let text = chatInput.getTextAndClear();
     emit({
         t: "chat",
-        user: user,
+        user: loggedUser.toJson(),
         text: text
     });
 }
 function chatButtonClicked() {
     chatInputCallback();
 }
-function buildApp() {
-    intro = new Div().ac("contentdiv").h(INTRO_HTML);
-    rules = new Div().ac("contentdiv").h(PROMOTION_ATOMIC_RULES_HTML);
-    users = new Div();
-    gboard = new GuiBoard().setPosChangedCallback(boardPosChanged);
-    play = new Div().a([
-        gboard.build()
-    ]);
-    chatDiv = new Div().z(CHATDIV_WIDTH, CHATDIV_HEIGHT).
-        bcol("#eef").setOverflow("scroll");
-    playerDiv = new Div().a([
+function handleChangeLog(cl) {
+    console.log("handle change log", cl);
+    let u = cl.pi.u;
+    let colorName = cl.pi.colorName();
+    if (cl.kind == "sitplayer") {
+        chatItems.unshift(new ChatItem(SU, `${u.username} has been seated as ${colorName}`));
+        showChat();
+    }
+    else if (cl.kind == "standplayer") {
+        chatItems.unshift(new ChatItem(SU, `${u.username} has been unseated as ${colorName} ${cl.reason}`));
+        showChat();
+    }
+}
+function buildPlayerDiv() {
+    playerDiv.x.a([
         new Table().bs().a([
             new Tr().a([
                 guiPlayerInfos[gboard.flip == 0 ? 0 : 1].build()
@@ -3391,6 +3485,17 @@ function buildApp() {
             ])
         ])
     ]);
+}
+function buildApp() {
+    intro = new Div().ac("contentdiv").h(INTRO_HTML);
+    rules = new Div().ac("contentdiv").h(PROMOTION_ATOMIC_RULES_HTML);
+    users = new Div();
+    gboard = new GuiBoard().setPosChangedCallback(boardPosChanged);
+    play = new Div().a([
+        gboard.build()
+    ]);
+    chatDiv = new Div().z(CHATDIV_WIDTH, CHATDIV_HEIGHT).
+        bcol("#eef").setOverflow("scroll");
     chatInput = new TextInput("chatinput").setEnterCallback(chatInputCallback);
     chatInput.w(gboard.totalBoardWidth() - 70);
     let playtable = new Table().bs().a([
@@ -3403,7 +3508,7 @@ function buildApp() {
             ]).setVerticalAlign("top"),
             new Td().pr().a([
                 new Div().pa().o(3, 3).a([
-                    playerDiv
+                    playerDiv = new Div()
                 ])
             ])
         ]),
@@ -3411,7 +3516,7 @@ function buildApp() {
             new Td().cs(2).a([
                 moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
                 new Button("Del").onClick((e) => emit({ t: "delmove" })),
-                new Button("Flip").onClick((e) => gboard.doFlip()),
+                flipButtonSpan = new Span(),
                 new Button("Reset").onClick((e) => emit({ t: "reset" })),
                 gameStatusDiv = new Div().ib().ml(5),
                 boardInfoDiv = new Div().mt(3)
@@ -3422,6 +3527,8 @@ function buildApp() {
             ])
         ])
     ]);
+    buildPlayerDiv();
+    buildFlipButtonSpan();
     profileTable = new Table().bs();
     profileTable.a([
         new Tr().a([
@@ -3474,7 +3581,21 @@ function buildApp() {
     legalmoves.setHeightRem(gboard.totalBoardHeight()).setOverflow("scroll");
     gboard.b.posChanged();
     gboard.setDragMoveCallback(dragMoveCallback);
+    gboard.setFlipCallback(boardPosChanged);
+}
+function buildFlipButtonSpan() {
+    let lseated = false;
+    gboard.b.gameStatus.playersinfo.iterate((pi) => {
+        if (pi.u.e(loggedUser)) {
+            gboard.flip = pi.color == WHITE ? 0 : 1;
+            lseated = true;
+            gboard.build();
+        }
+    });
+    flipButtonSpan.x.a([
+        lseated ? new Span() :
+            new Button("Flip").onClick((e) => gboard.doFlip())
+    ]);
 }
 buildApp();
-let b = new Board().setFromFen();
 DEBUG = true;

@@ -518,6 +518,12 @@ class Div extends DomElement<Div>{
     }
 }
 
+class Span extends DomElement<Span>{
+    constructor(){
+        super("span")
+    }
+}
+
 class Label extends DomElement<Div>{
     constructor(){
         super("label")

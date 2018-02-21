@@ -1,9 +1,28 @@
 let SOCKET_TIMEOUT=GLOBALS.ONE_SECOND*60
 let SOCKET_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*60
+let UNSEAT_TIMEOUT=GLOBALS.ONE_MINUTE*2
+let BOARD_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*10
 
 let b=new Board().setFromFen()
 
 let sockets:any={}
+
+setInterval(maintainBoard,BOARD_MAINTAIN_INTERVAL)
+
+function maintainBoard(){
+    if(!b.isPrestart()) return
+    let refresh=false
+    b.iteratePlayersinfo((pi:PlayerInfo)=>{
+        let now=new Date().getTime()
+        let elapsed=now-pi.seatedAt        
+        if((elapsed>UNSEAT_TIMEOUT)&&(pi.canStand)){            
+            b.standPlayer(pi.color)            
+            b.changeLog.reason="( timeout )"
+            refresh=true
+        }
+    })
+    if(refresh) broadcastBoard()
+}
 
 function maintainSockets(){    
     try{
@@ -65,7 +84,8 @@ function broadcast(json:any){
 function setBoardJson(){
     return ({
         t:"setboard",
-        boardJson:b.getCurrentGameNode().toJson()
+        boardJson:b.getCurrentGameNode().toJson(),
+        changeLog:b.changeLog.toJson()
     })
 }
 
@@ -77,7 +97,11 @@ function sendUserlist(ws:any){
 }
 
 function sendBoard(ws:any){send(ws,setBoardJson())}
-function broadcastBoard(){broadcast(setBoardJson())}
+
+function broadcastBoard(){
+    broadcast(setBoardJson())
+    b.clearChangeLog()
+}
 
 function handleWs(ws:any,req:any){    
     try{        
@@ -211,7 +235,7 @@ function handleWs(ws:any,req:any){
                     let u=new User().fromJson(json.u)
                     console.log("sit player",u)
                     let color=json.color                    
-                    b.sitPlayer(color,u)                                        
+                    b.sitPlayer(color,u)                                 
                     broadcastBoard()
                 }else if(t=="standplayer"){                    
                     let color=json.color       

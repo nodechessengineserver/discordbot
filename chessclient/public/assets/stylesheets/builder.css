@@ -254,3 +254,12 @@
     font-size: 20rem;
     font-weight: bold;
 }
+
+.anonuser{
+    font-style: italic;
+}
+
+.systemuser{
+    color: black;
+    font-family: monospace;
+}

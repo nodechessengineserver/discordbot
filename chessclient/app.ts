@@ -9,7 +9,7 @@ let CHATDIV_WIDTH=375
 
 let WS_URL=`ws://${document.location.host}/ws`
 
-let loggedUser:User|undefined
+let SU=new SystemUser()
 
 //localStorage.clear()
 
@@ -96,6 +96,7 @@ function strongSocket(){
             }else if(t=="setboard"){                
                 let boardJson=json.boardJson
                 gboard.b.fromGameNode(new GameNode().fromJson(boardJson),true)
+                handleChangeLog(new ChangeLog().fromJson(json.changeLog))
             }else if(t=="chat"){
                 chatItems.unshift(new ChatItem(json.user,json.text))
                 showChat()
@@ -119,7 +120,7 @@ function clog(json:any){
 ///////////////////////////////////////////////////////////
 
 function playClicked(pi:PlayerInfo){
-    if(loggedUser==undefined){
+    if(loggedUser.empty()){
         new AckInfoWindow("You have to be logged in to play!").build()
     }else{        
         emit({
@@ -167,6 +168,7 @@ let play:Div
 let legalmoves:Div
 let gboard:GuiBoard
 let boardInfoDiv:Div
+let flipButtonSpan:Span
 let gameStatusDiv:Div
 let moveInput:TextInput
 let chatDiv:Div
@@ -191,13 +193,13 @@ let userlist:any
 
 function setLoggedUser(){
     usernameButtonDiv.x.a([
-        loggedUser==undefined?
+        loggedUser.empty()?
         new Button("Login").onClick(lichessLogin):
         new Button("Logout").onClick(lichessLogout)
     ])    
-    lichessUsernameDiv.h(loggedUser==undefined?"?":loggedUser.username)
-    tabpane.setCaptionByKey("profile",loggedUser==undefined?"Profile":loggedUser.username)
-    tabpane.selectTab(loggedUser==undefined?"play":"play")
+    lichessUsernameDiv.h(loggedUser.empty()?"?":loggedUser.username)
+    tabpane.setCaptionByKey("profile",loggedUser.empty()?"Profile":loggedUser.username)
+    tabpane.selectTab(loggedUser.empty()?"play":"play")
 }
 
 function setUserList(){
@@ -240,7 +242,7 @@ function lichessLogin(){
 
 function lichessLogout(){
     setCookie("user","",USER_COOKIE_EXPIRY)
-    loggedUser=undefined
+    loggedUser=new User()
     setLoggedUser()
 }
 
@@ -285,7 +287,9 @@ function boardPosChanged(){
     gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
     for(let i=0;i<guiPlayerInfos.length;i++){        
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i])
-    }
+    }            
+    buildFlipButtonSpan()
+    buildPlayerDiv()    
 }
 
 function dragMoveCallback(algeb:string){
@@ -297,10 +301,10 @@ function dragMoveCallback(algeb:string){
 }
 
 class ChatItem{
-    user:string
+    user:User
     text:string
 
-    constructor(user:string,text:string){
+    constructor(user:User,text:string){
         this.user=user
         this.text=text
     }
@@ -308,24 +312,56 @@ class ChatItem{
 
 let chatItems:ChatItem[]=[]
 
-function showChat(){
+function showChat(){    
     chatDiv.x.h(chatItems.map(item=>
-        `<span class="chatuser">${item.user}</span> : <span class="chattext">${item.text}</span>`
+        `<span class="chatuser">${item.user.smartNameHtml()}</span> : <span class="chattext">${item.text}</span>`
     ).join("<br>"))    
 }
 
-function chatInputCallback(){
-    let user=loggedUser!=undefined?loggedUser:"Anonymous"
+function chatInputCallback(){    
     let text=chatInput.getTextAndClear()
     emit({
         t:"chat",
-        user:user,
+        user:loggedUser.toJson(),
         text:text
     })
 }
 
 function chatButtonClicked(){
     chatInputCallback()
+}
+
+function handleChangeLog(cl:ChangeLog){    
+    console.log("handle change log",cl)
+    let u=cl.pi.u
+    let colorName=cl.pi.colorName()
+    if(cl.kind=="sitplayer"){        
+        chatItems.unshift(new ChatItem(SU,
+            `${u.username} has been seated as ${colorName}`
+        ))
+        showChat()
+    }else if(cl.kind=="standplayer"){
+        chatItems.unshift(new ChatItem(SU,
+            `${u.username} has been unseated as ${colorName} ${cl.reason}`
+        ))
+        showChat()
+    }    
+}
+
+function buildPlayerDiv(){
+    playerDiv.x.a([
+        new Table().bs().a([
+            new Tr().a([
+                guiPlayerInfos[gboard.flip==0?0:1].build()
+            ]),
+            new Tr().a([
+                chatDiv
+            ]),
+            new Tr().a([
+                guiPlayerInfos[gboard.flip==0?1:0].build()
+            ])
+        ])
+    ])
 }
 
 function buildApp(){
@@ -344,20 +380,7 @@ function buildApp(){
 
     chatDiv=new Div().z(CHATDIV_WIDTH,CHATDIV_HEIGHT).
         bcol("#eef").setOverflow("scroll")
-
-    playerDiv=new Div().a([
-        new Table().bs().a([
-            new Tr().a([
-                guiPlayerInfos[gboard.flip==0?0:1].build()
-            ]),
-            new Tr().a([
-                chatDiv
-            ]),
-            new Tr().a([
-                guiPlayerInfos[gboard.flip==0?1:0].build()
-            ])
-        ])
-    ])
+    
 
     chatInput=new TextInput("chatinput").setEnterCallback(chatInputCallback)
     chatInput.w(gboard.totalBoardWidth()-70)
@@ -372,7 +395,7 @@ function buildApp(){
             ]).setVerticalAlign("top"),
             new Td().pr().a([
                 new Div().pa().o(3,3).a([
-                    playerDiv
+                    playerDiv=new Div()
                 ])
             ])            
         ]),
@@ -380,7 +403,7 @@ function buildApp(){
             new Td().cs(2).a([
                 moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered),
                 new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
-                new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
+                flipButtonSpan=new Span(),
                 new Button("Reset").onClick((e:Event)=>emit({t:"reset"})),        
                 gameStatusDiv=new Div().ib().ml(5),
                 boardInfoDiv=new Div().mt(3)
@@ -391,6 +414,9 @@ function buildApp(){
             ])
         ])
     ])
+
+    buildPlayerDiv()
+    buildFlipButtonSpan()
 
     profileTable=new Table().bs()
 
@@ -457,10 +483,24 @@ function buildApp(){
     gboard.b.posChanged()
 
     gboard.setDragMoveCallback(dragMoveCallback)
+    gboard.setFlipCallback(boardPosChanged)
+}
+
+function buildFlipButtonSpan(){
+    let lseated:boolean=false
+    gboard.b.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
+        if(pi.u.e(loggedUser)){
+            gboard.flip=pi.color==WHITE?0:1            
+            lseated=true
+            gboard.build()
+        }
+    })    
+    flipButtonSpan.x.a([
+        lseated?new Span():
+        new Button("Flip").onClick((e:Event)=>gboard.doFlip())
+    ])
 }
 
 buildApp()
-
-let b=new Board().setFromFen()
 
 DEBUG=true

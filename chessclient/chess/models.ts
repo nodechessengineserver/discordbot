@@ -8,6 +8,22 @@ class User{
     registeredAt:number=EPOCH
     lastSeenAt:number=EPOCH
 
+    empty():boolean{
+        return this.username==""
+    }
+
+    e(u:User):boolean{
+        return this.username==u.username
+    }
+
+    smartName():string{
+        return this.username==""?"Anonymous":this.username
+    }
+
+    smartNameHtml():string{
+        return this.username==""?`<span class="anonuser">${this.smartName()}</span>`:this.username
+    }
+
     toJson(secure:boolean=false):any{
         let json:any=({
             username:this.username,
@@ -33,6 +49,12 @@ class User{
         if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
         if(json.lastSeenAt!=undefined) this.lastSeenAt=json.lastSeenAt
         return this
+    }
+}
+
+class SystemUser extends User{
+    smartNameHtml():string{
+        return `<span class="systemuser">system</span>`
     }
 }
 
@@ -79,3 +101,5 @@ class UserList{
         return this.users[username]
     }
 }
+
+let loggedUser:User=new User()

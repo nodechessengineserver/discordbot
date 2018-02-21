@@ -24,6 +24,18 @@ class User {
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
     }
+    empty() {
+        return this.username == "";
+    }
+    e(u) {
+        return this.username == u.username;
+    }
+    smartName() {
+        return this.username == "" ? "Anonymous" : this.username;
+    }
+    smartNameHtml() {
+        return this.username == "" ? `<span class="anonuser">${this.smartName()}</span>` : this.username;
+    }
     toJson(secure = false) {
         let json = ({
             username: this.username,
@@ -54,6 +66,11 @@ class User {
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
         return this;
+    }
+}
+class SystemUser extends User {
+    smartNameHtml() {
+        return `<span class="systemuser">system</span>`;
     }
 }
 class UserList {
@@ -91,6 +108,7 @@ class UserList {
         return this.users[username];
     }
 }
+let loggedUser = new User();
 let THREEFOLD_REPETITION = 3;
 let FIFTYMOVE_RULE = 50;
 let WHITE = 1;
@@ -187,17 +205,22 @@ class PlayerInfo {
         this.u = new User();
         this.color = BLACK;
         this.time = 0;
+        this.seatedAt = new Date().getTime();
         this.canPlay = true;
         this.canOfferDraw = false;
         this.canAcceptDraw = false;
         this.canResign = false;
         this.canStand = false;
     }
+    colorName() {
+        return this.color == WHITE ? "white" : "black";
+    }
     toJson() {
         let json = ({
             u: this.u.toJson(true),
             color: this.color,
             time: this.time,
+            seatedAt: this.seatedAt,
             canPlay: this.canPlay,
             canOfferDraw: this.canOfferDraw,
             canAcceptDraw: this.canAcceptDraw,
@@ -215,6 +238,8 @@ class PlayerInfo {
             this.color = json.color;
         if (json.time != undefined)
             this.time = json.time;
+        if (json.seatedAt != undefined)
+            this.seatedAt = json.seatedAt;
         if (json.canPlay != undefined)
             this.canPlay = json.canPlay;
         if (json.canOfferDraw != undefined)
@@ -234,6 +259,7 @@ class PlayerInfo {
         this.canPlay = false;
         this.canResign = false;
         this.canStand = true;
+        this.seatedAt = new Date().getTime();
         return this;
     }
     standPlayer() {
@@ -275,13 +301,22 @@ class PlayersInfo {
             if (pi.u.username == u.username)
                 pi.standPlayer();
         }
-        this.getByColor(color).sitPlayer(u);
+        let pi = this.getByColor(color);
+        pi.sitPlayer(u);
+        return pi;
     }
     standPlayer(color) {
         for (let pi of this.playersinfo) {
-            if (pi.color == color)
+            if (pi.color == color) {
                 pi.standPlayer();
+                return pi;
+            }
         }
+        return new PlayerInfo();
+    }
+    iterate(iterfunc) {
+        for (let pi of this.playersinfo)
+            iterfunc(pi);
     }
 }
 class GameStatus {
@@ -289,6 +324,7 @@ class GameStatus {
         // game status
         this.score = "*";
         this.scoreReason = "";
+        this.started = false;
         // termination by rules
         this.isStaleMate = false;
         this.isMate = false;
@@ -305,6 +341,7 @@ class GameStatus {
         let json = ({
             score: this.score,
             scoreReason: this.scoreReason,
+            started: this.started,
             isStaleMate: this.isStaleMate,
             isMate: this.isMate,
             isFiftyMoveRule: this.isFiftyMoveRule,
@@ -320,6 +357,7 @@ class GameStatus {
             return this;
         this.score = json.score;
         this.scoreReason = json.scoreReason;
+        this.started = json.started;
         this.isStaleMate = json.isStaleMate;
         this.isMate = json.isMate;
         this.isFiftyMoveRule = json.isFiftyMoveRule;
@@ -356,6 +394,33 @@ class GameNode {
         return this;
     }
 }
+class ChangeLog {
+    constructor() {
+        this.kind = "";
+        this.reason = "";
+        this.pi = new PlayerInfo();
+    }
+    clear() {
+        this.kind = "";
+        this.reason = "";
+    }
+    toJson() {
+        return ({
+            kind: this.kind,
+            reason: this.reason,
+            pi: this.pi.toJson()
+        });
+    }
+    fromJson(json) {
+        if (json.kind != undefined)
+            this.kind = json.kind;
+        if (json.reason != undefined)
+            this.reason = json.reason;
+        if (json.pi != undefined)
+            this.pi = new PlayerInfo().fromJson(json.pi);
+        return this;
+    }
+}
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
         this.rights = [true, true, true, true];
@@ -369,6 +434,7 @@ class Board {
         this.fullmoveNumber = 1;
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
+        this.changeLog = new ChangeLog();
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -621,6 +687,9 @@ class Board {
             this.gameStatus.isResigned ||
             this.gameStatus.isDrawAgreed ||
             this.gameStatus.isFlagged;
+    }
+    isPrestart() {
+        return (!this.gameStatus.started) && (!this.isTerminated());
     }
     genLegalMoves() {
         this.genPseudoLegalMoves();
@@ -1094,15 +1163,23 @@ class Board {
         return this;
     }
     sitPlayer(color, u) {
-        this.gameStatus.playersinfo.sitPlayer(color, u);
+        let pi = this.gameStatus.playersinfo.sitPlayer(color, u);
         this.actualizeHistory();
+        this.changeLog.kind = "sitplayer";
+        this.changeLog.pi = pi;
         return this;
     }
     standPlayer(color) {
-        this.gameStatus.playersinfo.standPlayer(color);
+        let pi = this.gameStatus.playersinfo.standPlayer(color);
         this.actualizeHistory();
+        this.changeLog.kind = "standplayer";
+        this.changeLog.pi = pi;
         return this;
     }
+    iteratePlayersinfo(iterfunc) {
+        this.gameStatus.playersinfo.iterate(iterfunc);
+    }
+    clearChangeLog() { this.changeLog.clear(); }
 }
 function checkLichess(username, code, callback) {
     console.log(`checking lichess code ${username} ${code}`);
@@ -1213,8 +1290,27 @@ function checkCookie(cookie, callback) {
 }
 let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
+let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
+let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 10;
 let b = new Board().setFromFen();
 let sockets = {};
+setInterval(maintainBoard, BOARD_MAINTAIN_INTERVAL);
+function maintainBoard() {
+    if (!b.isPrestart())
+        return;
+    let refresh = false;
+    b.iteratePlayersinfo((pi) => {
+        let now = new Date().getTime();
+        let elapsed = now - pi.seatedAt;
+        if ((elapsed > UNSEAT_TIMEOUT) && (pi.canStand)) {
+            b.standPlayer(pi.color);
+            b.changeLog.reason = "( timeout )";
+            refresh = true;
+        }
+    });
+    if (refresh)
+        broadcastBoard();
+}
 function maintainSockets() {
     try {
         let delsris = [];
@@ -1274,7 +1370,8 @@ function broadcast(json) {
 function setBoardJson() {
     return ({
         t: "setboard",
-        boardJson: b.getCurrentGameNode().toJson()
+        boardJson: b.getCurrentGameNode().toJson(),
+        changeLog: b.changeLog.toJson()
     });
 }
 function sendUserlist(ws) {
@@ -1284,7 +1381,10 @@ function sendUserlist(ws) {
     });
 }
 function sendBoard(ws) { send(ws, setBoardJson()); }
-function broadcastBoard() { broadcast(setBoardJson()); }
+function broadcastBoard() {
+    broadcast(setBoardJson());
+    b.clearChangeLog();
+}
 function handleWs(ws, req) {
     try {
         let ru = req.url;
