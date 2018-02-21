@@ -459,7 +459,7 @@ class Board{
 
     turn:number
 
-    timecontrol:TimeControl=new TimeControl(ONE_SECOND*10,0)
+    timecontrol:TimeControl=new TimeControl()
 
     rights:boolean[]=[true,true,true,true]
 

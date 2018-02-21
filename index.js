@@ -504,7 +504,7 @@ class ChangeLog {
 }
 class Board {
     constructor(variant = DEFAULT_VARIANT) {
-        this.timecontrol = new TimeControl(ONE_SECOND * 10, 0);
+        this.timecontrol = new TimeControl();
         this.rights = [true, true, true, true];
         this.hist = [];
         this.test = false;
