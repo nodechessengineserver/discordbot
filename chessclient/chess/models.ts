@@ -1,12 +1,25 @@
 let EPOCH = 1517443200000 // 2018-2-1
 
+function createUserFromJson(json:any):User{
+    if(json==undefined) return new User()
+    if(json.isBot) return new BotUser().fromJson(json)
+    if(json.isSystem) return new SystemUser().fromJson(json)
+    return new User().fromJson(json)
+}
+
 class User{
     username:string=""
     cookie:string=""
+    isBot:boolean=false
+    isSystem:boolean=false
     rating:number=1500
     rd:number=350
     registeredAt:number=EPOCH
     lastSeenAt:number=EPOCH
+
+    clone():User{
+        return createUserFromJson(this.toJson())
+    }
 
     empty():boolean{
         return this.username==""
@@ -21,12 +34,14 @@ class User{
     }
 
     smartNameHtml():string{
-        return this.username==""?`<span class="anonuser">${this.smartName()}</span>`:this.username
+        return `<span class="${this.empty()?"modeluser anonuser":"modeluser"}">${this.smartName()}</span>`
     }
 
     toJson(secure:boolean=false):any{
         let json:any=({
             username:this.username,
+            isBot:this.isBot,
+            isSystem:this.isSystem,
             rating:this.rating,
             rd:this.rd,
             registeredAt:this.registeredAt,
@@ -44,6 +59,8 @@ class User{
 
         if(json.username!=undefined) this.username=json.username
         if(json.cookie!=undefined) this.cookie=json.cookie
+        if(json.isBot!=undefined) this.isBot=json.isBot
+        if(json.isSystem!=undefined) this.isSystem=json.isSystem
         if(json.rating!=undefined) this.rating=json.rating
         if(json.rd!=undefined) this.rd=json.rd
         if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
@@ -53,8 +70,26 @@ class User{
 }
 
 class SystemUser extends User{
+    constructor(){
+        super()
+        this.username="#System"
+        this.isSystem=true
+    }
+
     smartNameHtml():string{
-        return `<span class="systemuser">system</span>`
+        return `<span class="modeluser systemuser">system</span>`
+    }
+}
+
+class BotUser extends User{
+    constructor(){
+        super()
+        this.username="#Bot"
+        this.isBot=true
+    }
+
+    smartNameHtml():string{
+        return `<span class="modeluser botuser">Bot</span>`
     }
 }
 
@@ -79,7 +114,7 @@ class UserList{
         if(json==undefined) return this
 
         for(let userJson of json){
-            let u=new User().fromJson(userJson)
+            let u=createUserFromJson(userJson)
 
             this.users[u.username]=u
             this.cookies[u.cookie]=u

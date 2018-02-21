@@ -198,7 +198,7 @@ class PlayerInfo{
     fromJson(json:any):PlayerInfo{
         if(json==undefined) return this
 
-        if(json.u!=undefined) this.u=new User().fromJson(json.u)
+        if(json.u!=undefined) this.u=createUserFromJson(json.u)
 
         if(json.color!=undefined) this.color=json.color
         if(json.time!=undefined) this.time=json.time
@@ -384,12 +384,14 @@ class ChangeLog{
     }
 
     pi:PlayerInfo=new PlayerInfo()
+    u:User=new User()
 
     toJson():any{
         return({
             kind:this.kind,
             reason:this.reason,
-            pi:this.pi.toJson()
+            pi:this.pi.toJson(),
+            u:this.u.toJson()
         })
     }
 
@@ -397,6 +399,7 @@ class ChangeLog{
         if(json.kind!=undefined) this.kind=json.kind
         if(json.reason!=undefined) this.reason=json.reason
         if(json.pi!=undefined) this.pi=new PlayerInfo().fromJson(json.pi)
+        if(json.u!=undefined) this.u=createUserFromJson(json.u)
         return this
     }
 }
@@ -1196,10 +1199,13 @@ class Board{
     }
 
     standPlayer(color:number):Board{
-        let pi=this.gameStatus.playersinfo.standPlayer(color)
+        let pi=this.gameStatus.playersinfo.getByColor(color)        
+        if(pi.u.empty()) return this
+        let u=pi.u.clone()
+        this.gameStatus.playersinfo.standPlayer(color)
         this.actualizeHistory()        
         this.changeLog.kind="standplayer"
-        this.changeLog.pi=pi
+        this.changeLog.u=u
         return this
     }
 

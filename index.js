@@ -15,14 +15,28 @@ const tourney = require("./discordbot/tourney");
 const api = require("./discordbot/api");
 const GLOBALS = require("./discordbot/globals");
 let EPOCH = 1517443200000; // 2018-2-1
+function createUserFromJson(json) {
+    if (json == undefined)
+        return new User();
+    if (json.isBot)
+        return new BotUser().fromJson(json);
+    if (json.isSystem)
+        return new SystemUser().fromJson(json);
+    return new User().fromJson(json);
+}
 class User {
     constructor() {
         this.username = "";
         this.cookie = "";
+        this.isBot = false;
+        this.isSystem = false;
         this.rating = 1500;
         this.rd = 350;
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
+    }
+    clone() {
+        return createUserFromJson(this.toJson());
     }
     empty() {
         return this.username == "";
@@ -34,11 +48,13 @@ class User {
         return this.username == "" ? "Anonymous" : this.username;
     }
     smartNameHtml() {
-        return this.username == "" ? `<span class="anonuser">${this.smartName()}</span>` : this.username;
+        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}">${this.smartName()}</span>`;
     }
     toJson(secure = false) {
         let json = ({
             username: this.username,
+            isBot: this.isBot,
+            isSystem: this.isSystem,
             rating: this.rating,
             rd: this.rd,
             registeredAt: this.registeredAt,
@@ -57,6 +73,10 @@ class User {
             this.username = json.username;
         if (json.cookie != undefined)
             this.cookie = json.cookie;
+        if (json.isBot != undefined)
+            this.isBot = json.isBot;
+        if (json.isSystem != undefined)
+            this.isSystem = json.isSystem;
         if (json.rating != undefined)
             this.rating = json.rating;
         if (json.rd != undefined)
@@ -69,8 +89,23 @@ class User {
     }
 }
 class SystemUser extends User {
+    constructor() {
+        super();
+        this.username = "#System";
+        this.isSystem = true;
+    }
     smartNameHtml() {
-        return `<span class="systemuser">system</span>`;
+        return `<span class="modeluser systemuser">system</span>`;
+    }
+}
+class BotUser extends User {
+    constructor() {
+        super();
+        this.username = "#Bot";
+        this.isBot = true;
+    }
+    smartNameHtml() {
+        return `<span class="modeluser botuser">Bot</span>`;
     }
 }
 class UserList {
@@ -91,7 +126,7 @@ class UserList {
         if (json == undefined)
             return this;
         for (let userJson of json) {
-            let u = new User().fromJson(userJson);
+            let u = createUserFromJson(userJson);
             this.users[u.username] = u;
             this.cookies[u.cookie] = u;
         }
@@ -233,7 +268,7 @@ class PlayerInfo {
         if (json == undefined)
             return this;
         if (json.u != undefined)
-            this.u = new User().fromJson(json.u);
+            this.u = createUserFromJson(json.u);
         if (json.color != undefined)
             this.color = json.color;
         if (json.time != undefined)
@@ -399,6 +434,7 @@ class ChangeLog {
         this.kind = "";
         this.reason = "";
         this.pi = new PlayerInfo();
+        this.u = new User();
     }
     clear() {
         this.kind = "";
@@ -408,7 +444,8 @@ class ChangeLog {
         return ({
             kind: this.kind,
             reason: this.reason,
-            pi: this.pi.toJson()
+            pi: this.pi.toJson(),
+            u: this.u.toJson()
         });
     }
     fromJson(json) {
@@ -418,6 +455,8 @@ class ChangeLog {
             this.reason = json.reason;
         if (json.pi != undefined)
             this.pi = new PlayerInfo().fromJson(json.pi);
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
         return this;
     }
 }
@@ -1170,10 +1209,14 @@ class Board {
         return this;
     }
     standPlayer(color) {
-        let pi = this.gameStatus.playersinfo.standPlayer(color);
+        let pi = this.gameStatus.playersinfo.getByColor(color);
+        if (pi.u.empty())
+            return this;
+        let u = pi.u.clone();
+        this.gameStatus.playersinfo.standPlayer(color);
         this.actualizeHistory();
         this.changeLog.kind = "standplayer";
-        this.changeLog.pi = pi;
+        this.changeLog.u = u;
         return this;
     }
     iteratePlayersinfo(iterfunc) {
@@ -1514,7 +1557,7 @@ function handleWs(ws, req) {
                     broadcast(json);
                 }
                 else if (t == "sitplayer") {
-                    let u = new User().fromJson(json.u);
+                    let u = createUserFromJson(json.u);
                     console.log("sit player", u);
                     let color = json.color;
                     b.sitPlayer(color, u);

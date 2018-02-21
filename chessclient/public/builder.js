@@ -1623,14 +1623,28 @@ class MongoColl extends DomElement {
     }
 }
 let EPOCH = 1517443200000; // 2018-2-1
+function createUserFromJson(json) {
+    if (json == undefined)
+        return new User();
+    if (json.isBot)
+        return new BotUser().fromJson(json);
+    if (json.isSystem)
+        return new SystemUser().fromJson(json);
+    return new User().fromJson(json);
+}
 class User {
     constructor() {
         this.username = "";
         this.cookie = "";
+        this.isBot = false;
+        this.isSystem = false;
         this.rating = 1500;
         this.rd = 350;
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
+    }
+    clone() {
+        return createUserFromJson(this.toJson());
     }
     empty() {
         return this.username == "";
@@ -1642,11 +1656,13 @@ class User {
         return this.username == "" ? "Anonymous" : this.username;
     }
     smartNameHtml() {
-        return this.username == "" ? `<span class="anonuser">${this.smartName()}</span>` : this.username;
+        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}">${this.smartName()}</span>`;
     }
     toJson(secure = false) {
         let json = ({
             username: this.username,
+            isBot: this.isBot,
+            isSystem: this.isSystem,
             rating: this.rating,
             rd: this.rd,
             registeredAt: this.registeredAt,
@@ -1665,6 +1681,10 @@ class User {
             this.username = json.username;
         if (json.cookie != undefined)
             this.cookie = json.cookie;
+        if (json.isBot != undefined)
+            this.isBot = json.isBot;
+        if (json.isSystem != undefined)
+            this.isSystem = json.isSystem;
         if (json.rating != undefined)
             this.rating = json.rating;
         if (json.rd != undefined)
@@ -1677,8 +1697,23 @@ class User {
     }
 }
 class SystemUser extends User {
+    constructor() {
+        super();
+        this.username = "#System";
+        this.isSystem = true;
+    }
     smartNameHtml() {
-        return `<span class="systemuser">system</span>`;
+        return `<span class="modeluser systemuser">system</span>`;
+    }
+}
+class BotUser extends User {
+    constructor() {
+        super();
+        this.username = "#Bot";
+        this.isBot = true;
+    }
+    smartNameHtml() {
+        return `<span class="modeluser botuser">Bot</span>`;
     }
 }
 class UserList {
@@ -1699,7 +1734,7 @@ class UserList {
         if (json == undefined)
             return this;
         for (let userJson of json) {
-            let u = new User().fromJson(userJson);
+            let u = createUserFromJson(userJson);
             this.users[u.username] = u;
             this.cookies[u.cookie] = u;
         }
@@ -1841,7 +1876,7 @@ class PlayerInfo {
         if (json == undefined)
             return this;
         if (json.u != undefined)
-            this.u = new User().fromJson(json.u);
+            this.u = createUserFromJson(json.u);
         if (json.color != undefined)
             this.color = json.color;
         if (json.time != undefined)
@@ -2007,6 +2042,7 @@ class ChangeLog {
         this.kind = "";
         this.reason = "";
         this.pi = new PlayerInfo();
+        this.u = new User();
     }
     clear() {
         this.kind = "";
@@ -2016,7 +2052,8 @@ class ChangeLog {
         return ({
             kind: this.kind,
             reason: this.reason,
-            pi: this.pi.toJson()
+            pi: this.pi.toJson(),
+            u: this.u.toJson()
         });
     }
     fromJson(json) {
@@ -2026,6 +2063,8 @@ class ChangeLog {
             this.reason = json.reason;
         if (json.pi != undefined)
             this.pi = new PlayerInfo().fromJson(json.pi);
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
         return this;
     }
 }
@@ -2778,10 +2817,14 @@ class Board {
         return this;
     }
     standPlayer(color) {
-        let pi = this.gameStatus.playersinfo.standPlayer(color);
+        let pi = this.gameStatus.playersinfo.getByColor(color);
+        if (pi.u.empty())
+            return this;
+        let u = pi.u.clone();
+        this.gameStatus.playersinfo.standPlayer(color);
         this.actualizeHistory();
         this.changeLog.kind = "standplayer";
-        this.changeLog.pi = pi;
+        this.changeLog.u = u;
         return this;
     }
     iteratePlayersinfo(iterfunc) {
@@ -2805,12 +2848,15 @@ class GuiPlayerInfo extends DomElement {
     }
     setPlayColor(color) { this.color = color; return this; }
     setPlayCallback(playCallback) { this.playCallback = playCallback; return this; }
+    setPlayBotCallback(playBotCallback) { this.playBotCallback = playBotCallback; return this; }
     setOfferDrawCallback(offerDrawCallback) { this.offerDrawCallback = offerDrawCallback; return this; }
     setAcceptDrawCallback(acceptDrawCallback) { this.acceptDrawCallback = acceptDrawCallback; return this; }
     setResignCallback(resignCallback) { this.resignCallback = resignCallback; return this; }
     setStandCallback(standCallback) { this.standCallback = standCallback; return this; }
     playClicked() { if (this.playCallback != undefined)
         this.playCallback(this); }
+    playBotClicked() { if (this.playBotCallback != undefined)
+        this.playBotCallback(this); }
     offerDrawClicked() { if (this.offerDrawCallback != undefined)
         this.offerDrawCallback(this); }
     acceptDrawClicked() { if (this.acceptDrawCallback != undefined)
@@ -2823,13 +2869,15 @@ class GuiPlayerInfo extends DomElement {
         let buttons = [];
         if (this.pi.canPlay)
             buttons.push(new Button("Play").onClick(this.playClicked.bind(this)));
+        if (this.pi.canPlay)
+            buttons.push(new Button("Play Bot").onClick(this.playBotClicked.bind(this)));
         if (this.pi.canOfferDraw)
             buttons.push(new Button("Offer draw").onClick(this.offerDrawClicked.bind(this)));
         if (this.pi.canAcceptDraw)
             buttons.push(new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this)));
         if (this.pi.canResign)
             buttons.push(new Button("Resign").onClick(this.resignClicked.bind(this)));
-        if ((this.pi.canStand) && (this.pi.u.e(loggedUser)))
+        if (((this.pi.canStand) && (this.pi.u.e(loggedUser))) || (this.pi.u.isBot))
             buttons.push(new Button("Stand").onClick(this.standClicked.bind(this)));
         this.x.a([
             new Table().bs().a([
@@ -2837,7 +2885,7 @@ class GuiPlayerInfo extends DomElement {
                     new Td().a([
                         new Div().
                             z(this.PLAYER_WIDTH, this.PLAYER_HEIGHT).
-                            h(`${this.pi.u.username != "" ? `${this.pi.u.username} ( ${this.pi.u.rating} )` : "?"}`)
+                            h(`${this.pi.u.username != "" ? `${this.pi.u.smartNameHtml()} ( ${this.pi.u.rating} )` : "?"}`)
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH, this.PLAYER_HEIGHT).
@@ -3238,7 +3286,7 @@ function strongSocket() {
                 console.log(`check for ${username} failed`);
             }
             else if (t == "setuser") {
-                loggedUser = new User().fromJson(json.u);
+                loggedUser = createUserFromJson(json.u);
                 console.log(`set user ${loggedUser}`);
                 setCookie("user", loggedUser.cookie, USER_COOKIE_EXPIRY);
                 setLoggedUser();
@@ -3254,7 +3302,8 @@ function strongSocket() {
                 handleChangeLog(new ChangeLog().fromJson(json.changeLog));
             }
             else if (t == "chat") {
-                chatItems.unshift(new ChatItem(json.user, json.text));
+                let u = createUserFromJson(json.u);
+                chatItems.unshift(new ChatItem(u, json.text));
                 showChat();
             }
             else if (t == "reset") {
@@ -3287,6 +3336,13 @@ function playClicked(pi) {
         });
     }
 }
+function playBotClicked(pi) {
+    emit({
+        t: "sitplayer",
+        color: pi.color,
+        u: new BotUser()
+    });
+}
 function offerDrawClicked(pi) {
 }
 function acceptDrawClicked(pi) {
@@ -3303,6 +3359,7 @@ function createGuiPlayerInfo(color) {
     let gpi = new GuiPlayerInfo().
         setPlayColor(color).
         setPlayCallback(playClicked).
+        setPlayBotCallback(playBotClicked).
         setAcceptDrawCallback(acceptDrawClicked).
         setOfferDrawCallback(offerDrawClicked).
         setStandCallback(standClicked).
@@ -3445,13 +3502,13 @@ class ChatItem {
 }
 let chatItems = [];
 function showChat() {
-    chatDiv.x.h(chatItems.map(item => `<span class="chatuser">${item.user.smartNameHtml()}</span> : <span class="chattext">${item.text}</span>`).join("<br>"));
+    chatDiv.x.h(chatItems.map(item => `${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>"));
 }
 function chatInputCallback() {
     let text = chatInput.getTextAndClear();
     emit({
         t: "chat",
-        user: loggedUser.toJson(),
+        u: loggedUser.toJson(),
         text: text
     });
 }
@@ -3459,16 +3516,15 @@ function chatButtonClicked() {
     chatInputCallback();
 }
 function handleChangeLog(cl) {
-    console.log("handle change log", cl);
-    let u = cl.pi.u;
+    //console.log("handle change log",cl)        
     let colorName = cl.pi.colorName();
     if (cl.kind == "sitplayer") {
-        chatItems.unshift(new ChatItem(SU, `${u.username} has been seated as ${colorName}`));
+        chatItems.unshift(new ChatItem(SU, `${cl.pi.u.smartNameHtml()} has been seated as ${colorName}`));
         showChat();
         playSound("newchallengesound");
     }
     else if (cl.kind == "standplayer") {
-        chatItems.unshift(new ChatItem(SU, `${u.username} has been unseated as ${colorName} ${cl.reason}`));
+        chatItems.unshift(new ChatItem(SU, `${cl.u.smartNameHtml()} has been unseated as ${colorName} ${cl.reason}`));
         showChat();
         playSound("defeatsound");
     }
@@ -3607,7 +3663,6 @@ function buildFlipButtonSpan() {
 }
 function playSound(id) {
     let e = document.getElementById(id);
-    console.log("play sound", e);
     if (e != null) {
         e.play();
     }

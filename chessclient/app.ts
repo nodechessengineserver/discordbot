@@ -85,7 +85,7 @@ function strongSocket(){
                 let username=json.username
                 console.log(`check for ${username} failed`)
             }else if(t=="setuser"){
-                loggedUser=new User().fromJson(json.u)
+                loggedUser=createUserFromJson(json.u)
                 console.log(`set user ${loggedUser}`)
                 setCookie("user",loggedUser.cookie,USER_COOKIE_EXPIRY)
                 setLoggedUser()
@@ -98,7 +98,8 @@ function strongSocket(){
                 gboard.b.fromGameNode(new GameNode().fromJson(boardJson),true)
                 handleChangeLog(new ChangeLog().fromJson(json.changeLog))
             }else if(t=="chat"){
-                chatItems.unshift(new ChatItem(json.user,json.text))
+                let u=createUserFromJson(json.u)
+                chatItems.unshift(new ChatItem(u,json.text))
                 showChat()
             }else if(t=="reset"){
                 gboard.b.newGame()
@@ -131,6 +132,14 @@ function playClicked(pi:PlayerInfo){
     }
 }
 
+function playBotClicked(pi:PlayerInfo){    
+    emit({
+        t:"sitplayer",
+        color:pi.color,
+        u:new BotUser()
+    })
+}
+
 function offerDrawClicked(pi:PlayerInfo){
 
 }
@@ -154,6 +163,7 @@ function createGuiPlayerInfo(color:number):GuiPlayerInfo{
     let gpi=new GuiPlayerInfo().
     setPlayColor(color).
     setPlayCallback(playClicked).
+    setPlayBotCallback(playBotClicked).
     setAcceptDrawCallback(acceptDrawClicked).
     setOfferDrawCallback(offerDrawClicked).
     setStandCallback(standClicked).
@@ -314,7 +324,7 @@ let chatItems:ChatItem[]=[]
 
 function showChat(){    
     chatDiv.x.h(chatItems.map(item=>
-        `<span class="chatuser">${item.user.smartNameHtml()}</span> : <span class="chattext">${item.text}</span>`
+        `${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`
     ).join("<br>"))    
 }
 
@@ -322,7 +332,7 @@ function chatInputCallback(){
     let text=chatInput.getTextAndClear()
     emit({
         t:"chat",
-        user:loggedUser.toJson(),
+        u:loggedUser.toJson(),
         text:text
     })
 }
@@ -332,18 +342,17 @@ function chatButtonClicked(){
 }
 
 function handleChangeLog(cl:ChangeLog){    
-    console.log("handle change log",cl)
-    let u=cl.pi.u
+    //console.log("handle change log",cl)        
     let colorName=cl.pi.colorName()
     if(cl.kind=="sitplayer"){        
         chatItems.unshift(new ChatItem(SU,
-            `${u.username} has been seated as ${colorName}`
+            `${cl.pi.u.smartNameHtml()} has been seated as ${colorName}`
         ))
         showChat()
         playSound("newchallengesound")
     }else if(cl.kind=="standplayer"){
         chatItems.unshift(new ChatItem(SU,
-            `${u.username} has been unseated as ${colorName} ${cl.reason}`
+            `${cl.u.smartNameHtml()} has been unseated as ${colorName} ${cl.reason}`
         ))
         showChat()
         playSound("defeatsound")
@@ -508,8 +517,7 @@ function buildFlipButtonSpan(){
 }
 
 function playSound(id:string){
-    let e=document.getElementById(id)
-    console.log("play sound",e)
+    let e=document.getElementById(id)    
     if(e!=null){
         (<HTMLAudioElement>e).play()
     }    

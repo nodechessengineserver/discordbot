@@ -234,7 +234,7 @@ function handleWs(ws:any,req:any){
                     console.log("chat")
                     broadcast(json)
                 }else if(t=="sitplayer"){
-                    let u=new User().fromJson(json.u)
+                    let u=createUserFromJson(json.u)
                     console.log("sit player",u)
                     let color=json.color                    
                     b.sitPlayer(color,u)                                 
@@ -242,7 +242,7 @@ function handleWs(ws:any,req:any){
                 }else if(t=="standplayer"){                    
                     let color=json.color       
                     console.log("stand player",color)             
-                    b.standPlayer(color)                                        
+                    b.standPlayer(color)                                                            
                     broadcastBoard()
                 }
             }catch(err){console.log(err)}

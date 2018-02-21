@@ -255,11 +255,21 @@
     font-weight: bold;
 }
 
+.modeluser{
+    color: #070;
+    font-weight: bold;
+}
+
 .anonuser{
     font-style: italic;
 }
 
 .systemuser{
     color: black;
+    font-family: monospace;
+}
+
+.botuser{
+    color: #700;
     font-family: monospace;
 }

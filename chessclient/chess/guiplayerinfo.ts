@@ -17,6 +17,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
 
     color:number=BLACK
     playCallback:any
+    playBotCallback:any
     offerDrawCallback:any
     acceptDrawCallback:any
     resignCallback:any
@@ -24,12 +25,14 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
 
     setPlayColor(color:number):GuiPlayerInfo{this.color=color;return this}
     setPlayCallback(playCallback:any):GuiPlayerInfo{this.playCallback=playCallback;return this}
+    setPlayBotCallback(playBotCallback:any):GuiPlayerInfo{this.playBotCallback=playBotCallback;return this}
     setOfferDrawCallback(offerDrawCallback:any):GuiPlayerInfo{this.offerDrawCallback=offerDrawCallback;return this}
     setAcceptDrawCallback(acceptDrawCallback:any):GuiPlayerInfo{this.acceptDrawCallback=acceptDrawCallback;return this}
     setResignCallback(resignCallback:any):GuiPlayerInfo{this.resignCallback=resignCallback;return this}
     setStandCallback(standCallback:any):GuiPlayerInfo{this.standCallback=standCallback;return this}
 
     playClicked(){if(this.playCallback!=undefined) this.playCallback(this)}
+    playBotClicked(){if(this.playBotCallback!=undefined) this.playBotCallback(this)}
     offerDrawClicked(){if(this.offerDrawCallback!=undefined) this.offerDrawCallback(this)}
     acceptDrawClicked(){if(this.acceptDrawCallback!=undefined) this.acceptDrawCallback(this)}
     resignClicked(){if(this.resignCallback!=undefined) this.resignCallback(this)}
@@ -40,6 +43,9 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
         if(this.pi.canPlay) buttons.push(
             new Button("Play").onClick(this.playClicked.bind(this))
         )
+        if(this.pi.canPlay) buttons.push(
+            new Button("Play Bot").onClick(this.playBotClicked.bind(this))
+        )
         if(this.pi.canOfferDraw) buttons.push(
             new Button("Offer draw").onClick(this.offerDrawClicked.bind(this))
         )
@@ -49,7 +55,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
         if(this.pi.canResign) buttons.push(
             new Button("Resign").onClick(this.resignClicked.bind(this))
         )
-        if((this.pi.canStand)&&(this.pi.u.e(loggedUser))) buttons.push(
+        if(((this.pi.canStand)&&(this.pi.u.e(loggedUser)))||(this.pi.u.isBot)) buttons.push(
             new Button("Stand").onClick(this.standClicked.bind(this))
         )
         this.x.a([
@@ -58,7 +64,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
                     new Td().a([
                         new Div().
                         z(this.PLAYER_WIDTH,this.PLAYER_HEIGHT).
-                        h(`${this.pi.u.username!=""?`${this.pi.u.username} ( ${this.pi.u.rating} )`:"?"}`)
+                        h(`${this.pi.u.username!=""?`${this.pi.u.smartNameHtml()} ( ${this.pi.u.rating} )`:"?"}`)
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH,this.PLAYER_HEIGHT).
