@@ -1856,6 +1856,17 @@ class UserList {
     setUser(u) {
         this.users[u.username] = u;
         this.cookies[u.cookie] = u;
+        return u;
+    }
+    upsertUser(u) {
+        let oldu = this.users[u.username];
+        if (oldu == undefined) {
+            return this.setUser(u);
+        }
+        let cookie = oldu.cookie;
+        let uclone = u.clone();
+        uclone.cookie = cookie;
+        return this.setUser(uclone);
     }
     getByCookie(cookie) {
         return this.cookies[cookie];
@@ -2122,6 +2133,37 @@ class PlayersInfo {
             iterfunc(pi);
     }
 }
+class RatingCalculation {
+    constructor() {
+        this.username = "";
+        this.oldRating = 1500;
+        this.newRating = 1500;
+    }
+    ratingDifferenceF() {
+        let diff = Math.floor(this.newRating - this.oldRating);
+        return (diff > 0 ? "+" : "") + diff;
+    }
+    oldRatingF() { return "" + Math.floor(this.oldRating); }
+    newRatingF() { return "" + Math.floor(this.newRating); }
+    toJson() {
+        return ({
+            username: this.username,
+            oldRating: this.oldRating,
+            newRating: this.newRating
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.username != undefined)
+            this.username = json.username;
+        if (json.oldRating != undefined)
+            this.oldRating = json.oldRating;
+        if (json.newRating != undefined)
+            this.newRating = json.newRating;
+        return this;
+    }
+}
 class GameStatus {
     constructor() {
         // game status
@@ -2139,6 +2181,9 @@ class GameStatus {
         this.isFlagged = false;
         // players info    
         this.playersinfo = new PlayersInfo();
+        // rating calc
+        this.ratingCalcWhite = new RatingCalculation();
+        this.ratingCalcBlack = new RatingCalculation();
     }
     toJson() {
         let json = ({
@@ -2152,7 +2197,9 @@ class GameStatus {
             isResigned: this.isResigned,
             isDrawAgreed: this.isDrawAgreed,
             isFlagged: this.isFlagged,
-            playersinfo: this.playersinfo.toJson()
+            playersinfo: this.playersinfo.toJson(),
+            ratingCalcWhite: this.ratingCalcWhite.toJson(),
+            ratingCalcBlack: this.ratingCalcBlack.toJson()
         });
         return json;
     }
@@ -2170,6 +2217,8 @@ class GameStatus {
         this.isDrawAgreed = json.isDrawAgreed;
         this.isFlagged = json.isFlagged;
         this.playersinfo = new PlayersInfo().fromJson(json.playersinfo);
+        this.ratingCalcWhite = new RatingCalculation().fromJson(json.ratingCalcWhite);
+        this.ratingCalcBlack = new RatingCalculation().fromJson(json.ratingCalcBlack);
         return this;
     }
 }
@@ -2708,6 +2757,8 @@ class Board {
         let cr = this.getCastlingRight(m);
         let isCastling = (cr != undefined);
         let normal = tp.empty();
+        let playerToMoveInfo = this.gameStatus.playersinfo.getByColor(this.turn);
+        let nextPlayerToMoveInfo = this.gameStatus.playersinfo.getByColor(INV_COLOR(this.turn));
         // remove from piece
         this.setSq(fSq);
         // ep capture
@@ -2778,6 +2829,12 @@ class Board {
         if ((fp.kind == PAWN) && (Math.abs(deltaR) == 2)) {
             let epsq = new Square(m.fromSq.f, m.fromSq.r + (deltaR / 2));
             this.epSquare = epsq;
+        }
+        // remove draw offer
+        if (playerToMoveInfo.canAcceptDraw) {
+            playerToMoveInfo.canAcceptDraw = false;
+            playerToMoveInfo.canOfferDraw = true;
+            nextPlayerToMoveInfo.canOfferDraw = true;
         }
         // update history        
         if (!this.test) {
@@ -3092,6 +3149,12 @@ class Board {
     calculateRatings() {
         let pw = this.savedWhite;
         let pb = this.savedBlack;
+        let rcw = new RatingCalculation();
+        rcw.username = pw.username;
+        rcw.oldRating = pw.glicko.rating;
+        let rcb = new RatingCalculation();
+        rcb.username = pb.username;
+        rcb.oldRating = pb.glicko.rating;
         console.log("pw", pw);
         console.log("pb", pb);
         let s = this.gameScore();
@@ -3099,7 +3162,32 @@ class Board {
         let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
         pw.glicko = pwng;
         pb.glicko = pbng;
+        rcw.newRating = pwng.rating;
+        rcb.newRating = pbng.rating;
+        this.changeLog.kind = "ratingscalculated";
+        this.gameStatus.ratingCalcWhite = rcw;
+        this.gameStatus.ratingCalcBlack = rcb;
+        console.log("rating calcs", rcw, rcb);
+        this.actualizeHistory();
         return [pw, pb];
+    }
+    offerDraw(color) {
+        let offer = this.gameStatus.playersinfo.getByColor(color);
+        let accept = this.gameStatus.playersinfo.getByColor(INV_COLOR(color));
+        offer.canOfferDraw = false;
+        accept.canAcceptDraw = true;
+        accept.canOfferDraw = false;
+        this.actualizeHistory();
+    }
+    drawByAgreement() {
+        this.savePlayers();
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isDrawAgreed = true;
+        this.gameStatus.started = false;
+        this.gameStatus.score = "1/2-1/2";
+        this.gameStatus.scoreReason = "draw agreed";
+        this.actualizeHistory();
+        return this;
     }
 }
 class GuiPlayerInfo extends DomElement {
@@ -3144,10 +3232,9 @@ class GuiPlayerInfo extends DomElement {
             buttons.push(new Button("Play").onClick(this.playClicked.bind(this)));
         if (this.pi.canPlay)
             buttons.push(new Button("Play Bot").onClick(this.playBotClicked.bind(this)));
-        /*if(this.pi.canOfferDraw&&authbotok) buttons.push(
-            new Button("Offer draw").onClick(this.offerDrawClicked.bind(this))
-        )*/
-        if (this.pi.canAcceptDraw)
+        if (this.pi.canOfferDraw && authbotok)
+            buttons.push(new Button("Offer draw").onClick(this.offerDrawClicked.bind(this)));
+        if (this.pi.canAcceptDraw && authbotok)
             buttons.push(new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this)));
         if (this.pi.canResign && authbotok)
             buttons.push(new Button("Resign").onClick(this.resignClicked.bind(this)));
@@ -3187,6 +3274,7 @@ class GuiBoard extends DomElement {
     constructor() {
         super("div");
         this.MARGIN = 5;
+        this.RESULT_MARGIN = 20;
         this.SQUARE_SIZE = 50;
         this.PIECE_MARGIN = 4;
         this.PIECE_SIZE = this.SQUARE_SIZE - 2 * this.PIECE_MARGIN;
@@ -3197,7 +3285,9 @@ class GuiBoard extends DomElement {
         this.b = new Board().newGame().setPosChangedCallback(this.posChanged.bind(this));
     }
     boardWidth() { return this.b.BOARD_WIDTH * this.SQUARE_SIZE; }
+    resultWidth() { return this.boardWidth() - 2 * this.RESULT_MARGIN; }
     boardHeight() { return this.b.BOARD_HEIGHT * this.SQUARE_SIZE; }
+    resultHeight() { return this.boardHeight() - 2 * this.RESULT_MARGIN; }
     totalBoardWidth() { return this.boardWidth() + 2 * this.MARGIN; }
     totalBoardHeight() { return this.boardHeight() + 2 * this.MARGIN; }
     setPosChangedCallback(posChangedCallback) {
@@ -3243,6 +3333,7 @@ class GuiBoard extends DomElement {
             burl("assets/images/backgrounds/wood.jpg");
         this.boardArrowDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight());
         this.boardPieceDiv = new Div().pa().r(this.MARGIN, this.MARGIN, this.boardWidth(), this.boardHeight());
+        this.boardResultDiv = new Div().pa().r(this.MARGIN + this.RESULT_MARGIN, this.MARGIN + this.RESULT_MARGIN, this.resultWidth(), this.resultHeight()).ac("boardresult");
         this.pDivs = [];
         for (let nr = 0; nr < this.b.BOARD_WIDTH; nr++) {
             for (let nf = 0; nf < this.b.BOARD_HEIGHT; nf++) {
@@ -3305,6 +3396,18 @@ class GuiBoard extends DomElement {
             this.boardArrowDiv,
             this.boardPieceDiv
         ]);
+        if (this.b.changeLog.kind == "ratingscalculated") {
+            let gst = this.b.gameStatus;
+            this.boardResultDiv.h(`
+<br><br>
+Game ended<br><br>
+Result: ${gst.score}<br><br>
+${gst.scoreReason}<br><br><br>
+${gst.ratingCalcWhite.username} rating ${gst.ratingCalcWhite.newRatingF()} ( ${gst.ratingCalcWhite.ratingDifferenceF()} )<br><br>
+${gst.ratingCalcBlack.username} rating ${gst.ratingCalcBlack.newRatingF()} ( ${gst.ratingCalcBlack.ratingDifferenceF()} )
+`);
+            this.a([this.boardResultDiv]);
+        }
         this.boardPieceDiv.addEventListener("mousemove", this.boardmousemove.bind(this));
         this.boardPieceDiv.addEventListener("mouseup", this.boardmouseup.bind(this));
         let genAlgeb = this.b.genAlgeb;
@@ -3579,7 +3682,9 @@ function strongSocket() {
                 //console.log("setboard",boardJson)
                 let gn = new GameNode().fromJson(boardJson);
                 gboard.b.fromGameNode(gn, true);
-                handleChangeLog(new ChangeLog().fromJson(json.changeLog));
+                let cl = new ChangeLog().fromJson(json.changeLog);
+                gboard.b.changeLog = cl;
+                handleChangeLog(cl);
             }
             else if (t == "chat") {
                 let u = createUserFromJson(json.u);
@@ -3624,8 +3729,15 @@ function playBotClicked(pi) {
     });
 }
 function offerDrawClicked(pi) {
+    emit({
+        t: "offerdraw",
+        color: pi.color
+    });
 }
 function acceptDrawClicked(pi) {
+    emit({
+        t: "acceptdraw"
+    });
 }
 function standClicked(pi) {
     emit({
@@ -3772,7 +3884,7 @@ function boardPosChanged() {
         new TextInput("boardinfo").setText(gboard.b.reportFen()).
             w(gboard.totalBoardWidth() + 60).fs(10)
     ]);
-    gameStatusDiv.h(gboard.b.gameStatus.score + " " + gboard.b.gameStatus.scoreReason);
+    //gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
     for (let i = 0; i < guiPlayerInfos.length; i++) {
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i]);
     }
@@ -3827,6 +3939,7 @@ function handleChangeLog(cl) {
     else if (cl.kind == "boardreset") {
         playSound("newchallengesound");
     }
+    gboard.build();
 }
 function buildPlayerDiv() {
     playerDiv.x.a([
@@ -3959,14 +4072,8 @@ function buildFlipButtonSpan() {
     });
     flipButtonSpan.x.a([
         lseated ? new Span() :
-            new Button("Flip").onClick((e) => gboard.doFlip()),
-        new Button("TestCalc").onClick(testCalc)
+            new Button("Flip").onClick((e) => gboard.doFlip())
     ]);
-}
-function testCalc() {
-    emit({
-        t: "testcalc"
-    });
 }
 function buildModposButtonSpan() {
     modposButtonSpan.x;

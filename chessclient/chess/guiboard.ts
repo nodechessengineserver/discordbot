@@ -5,6 +5,7 @@ class GuiBoard extends DomElement<GuiBoard>{
     b:Board
 
     MARGIN=5
+    RESULT_MARGIN=20
     SQUARE_SIZE=50
     PIECE_MARGIN=4
     PIECE_SIZE=this.SQUARE_SIZE-2*this.PIECE_MARGIN
@@ -12,13 +13,16 @@ class GuiBoard extends DomElement<GuiBoard>{
     boardSquareDiv:Div
     boardArrowDiv:Div
     boardPieceDiv:Div
+    boardResultDiv:Div
 
     dragstart:Vect
 	dragstartst:Vect
     dragd:Vect
 
     boardWidth(){return this.b.BOARD_WIDTH*this.SQUARE_SIZE}
+    resultWidth(){return this.boardWidth()-2*this.RESULT_MARGIN}
     boardHeight(){return this.b.BOARD_HEIGHT*this.SQUARE_SIZE}
+    resultHeight(){return this.boardHeight()-2*this.RESULT_MARGIN}
     totalBoardWidth(){return this.boardWidth()+2*this.MARGIN}
     totalBoardHeight(){return this.boardHeight()+2*this.MARGIN}
 
@@ -85,6 +89,8 @@ class GuiBoard extends DomElement<GuiBoard>{
         this.boardArrowDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight())
 
         this.boardPieceDiv=new Div().pa().r(this.MARGIN,this.MARGIN,this.boardWidth(),this.boardHeight())
+
+        this.boardResultDiv=new Div().pa().r(this.MARGIN+this.RESULT_MARGIN,this.MARGIN+this.RESULT_MARGIN,this.resultWidth(),this.resultHeight()).ac("boardresult")
 
         this.pDivs=[]
 
@@ -166,8 +172,26 @@ class GuiBoard extends DomElement<GuiBoard>{
         this.a([
             this.boardSquareDiv,
             this.boardArrowDiv,
-            this.boardPieceDiv
+            this.boardPieceDiv            
         ])
+
+        if(this.b.changeLog.kind=="ratingscalculated"){
+            let gst=this.b.gameStatus
+
+            this.boardResultDiv.h(
+`
+<br><br>
+Game ended<br><br>
+Result: ${gst.score}<br><br>
+${gst.scoreReason}<br><br><br>
+${gst.ratingCalcWhite.username} rating ${gst.ratingCalcWhite.newRatingF()} ( ${gst.ratingCalcWhite.ratingDifferenceF()} )<br><br>
+${gst.ratingCalcBlack.username} rating ${gst.ratingCalcBlack.newRatingF()} ( ${gst.ratingCalcBlack.ratingDifferenceF()} )
+`
+)
+
+            this.a([this.boardResultDiv])
+
+        }
 
         this.boardPieceDiv.addEventListener("mousemove",this.boardmousemove.bind(this))
         this.boardPieceDiv.addEventListener("mouseup",this.boardmouseup.bind(this))

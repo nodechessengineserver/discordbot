@@ -49,10 +49,10 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
         if(this.pi.canPlay) buttons.push(
             new Button("Play Bot").onClick(this.playBotClicked.bind(this))
         )
-        /*if(this.pi.canOfferDraw&&authbotok) buttons.push(
+        if(this.pi.canOfferDraw&&authbotok) buttons.push(
             new Button("Offer draw").onClick(this.offerDrawClicked.bind(this))
-        )*/
-        if(this.pi.canAcceptDraw) buttons.push(
+        )
+        if(this.pi.canAcceptDraw&&authbotok) buttons.push(
             new Button("Accept draw").onClick(this.acceptDrawClicked.bind(this))
         )
         if(this.pi.canResign&&authbotok) buttons.push(

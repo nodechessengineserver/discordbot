@@ -337,6 +337,37 @@ class PlayersInfo{
     }
 }
 
+class RatingCalculation{
+    username:string=""
+    oldRating:number=1500
+    newRating:number=1500
+    
+    ratingDifferenceF(){
+        let diff=Math.floor(this.newRating-this.oldRating)
+        return (diff>0?"+":"")+diff
+    }
+    oldRatingF(){return ""+Math.floor(this.oldRating)}
+    newRatingF(){return ""+Math.floor(this.newRating)}
+
+    toJson():any{
+        return({
+            username:this.username,
+            oldRating:this.oldRating,
+            newRating:this.newRating
+        })
+    }
+
+    fromJson(json:any):RatingCalculation{
+        if(json==undefined) return this
+
+        if(json.username!=undefined) this.username=json.username
+        if(json.oldRating!=undefined) this.oldRating=json.oldRating
+        if(json.newRating!=undefined) this.newRating=json.newRating
+
+        return this
+    }
+}
+
 class GameStatus{
     // game status
     score:string="*"
@@ -357,6 +388,10 @@ class GameStatus{
     // players info    
     playersinfo:PlayersInfo=new PlayersInfo()
 
+    // rating calc
+    ratingCalcWhite:RatingCalculation=new RatingCalculation()
+    ratingCalcBlack:RatingCalculation=new RatingCalculation()
+
     toJson():any{
         let json=({
             score:this.score,
@@ -370,7 +405,10 @@ class GameStatus{
             isDrawAgreed:this.isDrawAgreed,
             isFlagged:this.isFlagged,
 
-            playersinfo:this.playersinfo.toJson()
+            playersinfo:this.playersinfo.toJson(),
+
+            ratingCalcWhite:this.ratingCalcWhite.toJson(),
+            ratingCalcBlack:this.ratingCalcBlack.toJson()
         })
 
         return json
@@ -391,6 +429,9 @@ class GameStatus{
         this.isFlagged=json.isFlagged
 
         this.playersinfo=new PlayersInfo().fromJson(json.playersinfo)
+
+        this.ratingCalcWhite=new RatingCalculation().fromJson(json.ratingCalcWhite)
+        this.ratingCalcBlack=new RatingCalculation().fromJson(json.ratingCalcBlack)
 
         return this
     }
@@ -968,6 +1009,8 @@ class Board{
         let cr=this.getCastlingRight(m)
         let isCastling=(cr!=undefined)
         let normal=tp.empty()                
+        let playerToMoveInfo=this.gameStatus.playersinfo.getByColor(this.turn)
+        let nextPlayerToMoveInfo=this.gameStatus.playersinfo.getByColor(INV_COLOR(this.turn))
 
         // remove from piece
         this.setSq(fSq)
@@ -1038,6 +1081,13 @@ class Board{
         if((fp.kind==PAWN)&&(Math.abs(deltaR)==2)){
             let epsq=new Square(m.fromSq.f,m.fromSq.r+(deltaR/2))
             this.epSquare=epsq
+        }
+
+        // remove draw offer
+        if(playerToMoveInfo.canAcceptDraw){
+            playerToMoveInfo.canAcceptDraw=false
+            playerToMoveInfo.canOfferDraw=true
+            nextPlayerToMoveInfo.canOfferDraw=true
         }
 
         // update history        
@@ -1378,6 +1428,14 @@ class Board{
         let pw=this.savedWhite
         let pb=this.savedBlack
 
+        let rcw=new RatingCalculation()
+        rcw.username=pw.username
+        rcw.oldRating=pw.glicko.rating
+
+        let rcb=new RatingCalculation()
+        rcb.username=pb.username
+        rcb.oldRating=pb.glicko.rating
+
         console.log("pw",pw)
         console.log("pb",pb)
 
@@ -1389,7 +1447,44 @@ class Board{
         pw.glicko=pwng
         pb.glicko=pbng
 
+        rcw.newRating=pwng.rating
+        rcb.newRating=pbng.rating
+
+        this.changeLog.kind="ratingscalculated"
+
+        this.gameStatus.ratingCalcWhite=rcw
+        this.gameStatus.ratingCalcBlack=rcb
+
+        console.log("rating calcs",rcw,rcb)
+
+        this.actualizeHistory()
+
         return [pw,pb]
+    }
+
+    offerDraw(color:number){
+        let offer=this.gameStatus.playersinfo.getByColor(color)
+        let accept=this.gameStatus.playersinfo.getByColor(INV_COLOR(color))
+
+        offer.canOfferDraw=false
+        accept.canAcceptDraw=true
+        accept.canOfferDraw=false
+
+        this.actualizeHistory()
+    }
+
+    drawByAgreement(){
+        this.savePlayers()
+
+        this.gameStatus.playersinfo.standPlayers()
+        this.gameStatus.isDrawAgreed=true
+        this.gameStatus.started=false        
+        
+        this.gameStatus.score="1/2-1/2"
+        this.gameStatus.scoreReason="draw agreed"
+        
+        this.actualizeHistory()        
+        return this
     }
     
 }

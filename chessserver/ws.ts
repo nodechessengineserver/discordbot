@@ -345,10 +345,20 @@ function handleWs(ws:any,req:any){
                     updateUsers(us)
 
                     broadcastBoard()
-                }else if(t=="testcalc"){
-                    b.resignPlayer(BLACK)
+                }else if(t=="offerdraw"){
+                    let color=json.color
+                    console.log("offer draw",color)
+                    b.offerDraw(color)
+                    broadcastBoard()
+                }else if(t=="acceptdraw"){
+                    console.log("draw accepted")
+
+                    b.drawByAgreement()
+
                     let us=b.calculateRatings()
                     updateUsers(us)
+
+                    broadcastBoard()
                 }
             }catch(err){console.log(err)}
         })

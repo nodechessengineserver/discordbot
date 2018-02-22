@@ -98,7 +98,9 @@ function strongSocket(){
                 //console.log("setboard",boardJson)
                 let gn=new GameNode().fromJson(boardJson)                
                 gboard.b.fromGameNode(gn,true)                
-                handleChangeLog(new ChangeLog().fromJson(json.changeLog))
+                let cl=new ChangeLog().fromJson(json.changeLog)
+                gboard.b.changeLog=cl
+                handleChangeLog(cl)
             }else if(t=="chat"){
                 let u=createUserFromJson(json.u)
                 chatItems.unshift(new ChatItem(u,json.text))
@@ -143,11 +145,16 @@ function playBotClicked(pi:PlayerInfo){
 }
 
 function offerDrawClicked(pi:PlayerInfo){
-
+    emit({
+        t:"offerdraw",
+        color:pi.color
+    })
 }
 
 function acceptDrawClicked(pi:PlayerInfo){
-
+    emit({
+        t:"acceptdraw"
+    })
 }
 
 function standClicked(pi:PlayerInfo){
@@ -307,7 +314,7 @@ function boardPosChanged(){
         new TextInput("boardinfo").setText(gboard.b.reportFen()).
         w(gboard.totalBoardWidth()+60).fs(10)
     ])
-    gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
+    //gameStatusDiv.h(gboard.b.gameStatus.score+" "+gboard.b.gameStatus.scoreReason)
     for(let i=0;i<guiPlayerInfos.length;i++){        
         guiPlayerInfos[i].setPlayerInfo(gboard.b.gameStatus.playersinfo.playersinfo[i])
     }            
@@ -375,6 +382,7 @@ function handleChangeLog(cl:ChangeLog){
     }else if(cl.kind=="boardreset"){
         playSound("newchallengesound")
     }
+    gboard.build()
 }
 
 function buildPlayerDiv(){
@@ -534,15 +542,8 @@ function buildFlipButtonSpan(){
     })    
     flipButtonSpan.x.a([
         lseated?new Span():
-        new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
-        new Button("TestCalc").onClick(testCalc)
+        new Button("Flip").onClick((e:Event)=>gboard.doFlip())
     ])
-}
-
-function testCalc(){
-    emit({
-        t:"testcalc"
-    })
 }
 
 function buildModposButtonSpan(){

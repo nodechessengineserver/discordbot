@@ -51,13 +51,13 @@ function storeUsers(us:User[]){
 
     console.log("storing users")
 
-    for(let u of us){
+    for(let u of us){        
 
-        console.log("storing",u)
+        let uclone=users.upsertUser(u)
 
-        users.setUser(u)
+        console.log("storing",uclone)
 
-        dbSetUser(u)
+        dbSetUser(uclone)
 
     }
 

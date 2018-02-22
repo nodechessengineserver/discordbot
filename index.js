@@ -234,6 +234,17 @@ class UserList {
     setUser(u) {
         this.users[u.username] = u;
         this.cookies[u.cookie] = u;
+        return u;
+    }
+    upsertUser(u) {
+        let oldu = this.users[u.username];
+        if (oldu == undefined) {
+            return this.setUser(u);
+        }
+        let cookie = oldu.cookie;
+        let uclone = u.clone();
+        uclone.cookie = cookie;
+        return this.setUser(uclone);
     }
     getByCookie(cookie) {
         return this.cookies[cookie];
@@ -500,6 +511,37 @@ class PlayersInfo {
             iterfunc(pi);
     }
 }
+class RatingCalculation {
+    constructor() {
+        this.username = "";
+        this.oldRating = 1500;
+        this.newRating = 1500;
+    }
+    ratingDifferenceF() {
+        let diff = Math.floor(this.newRating - this.oldRating);
+        return (diff > 0 ? "+" : "") + diff;
+    }
+    oldRatingF() { return "" + Math.floor(this.oldRating); }
+    newRatingF() { return "" + Math.floor(this.newRating); }
+    toJson() {
+        return ({
+            username: this.username,
+            oldRating: this.oldRating,
+            newRating: this.newRating
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.username != undefined)
+            this.username = json.username;
+        if (json.oldRating != undefined)
+            this.oldRating = json.oldRating;
+        if (json.newRating != undefined)
+            this.newRating = json.newRating;
+        return this;
+    }
+}
 class GameStatus {
     constructor() {
         // game status
@@ -517,6 +559,9 @@ class GameStatus {
         this.isFlagged = false;
         // players info    
         this.playersinfo = new PlayersInfo();
+        // rating calc
+        this.ratingCalcWhite = new RatingCalculation();
+        this.ratingCalcBlack = new RatingCalculation();
     }
     toJson() {
         let json = ({
@@ -530,7 +575,9 @@ class GameStatus {
             isResigned: this.isResigned,
             isDrawAgreed: this.isDrawAgreed,
             isFlagged: this.isFlagged,
-            playersinfo: this.playersinfo.toJson()
+            playersinfo: this.playersinfo.toJson(),
+            ratingCalcWhite: this.ratingCalcWhite.toJson(),
+            ratingCalcBlack: this.ratingCalcBlack.toJson()
         });
         return json;
     }
@@ -548,6 +595,8 @@ class GameStatus {
         this.isDrawAgreed = json.isDrawAgreed;
         this.isFlagged = json.isFlagged;
         this.playersinfo = new PlayersInfo().fromJson(json.playersinfo);
+        this.ratingCalcWhite = new RatingCalculation().fromJson(json.ratingCalcWhite);
+        this.ratingCalcBlack = new RatingCalculation().fromJson(json.ratingCalcBlack);
         return this;
     }
 }
@@ -1086,6 +1135,8 @@ class Board {
         let cr = this.getCastlingRight(m);
         let isCastling = (cr != undefined);
         let normal = tp.empty();
+        let playerToMoveInfo = this.gameStatus.playersinfo.getByColor(this.turn);
+        let nextPlayerToMoveInfo = this.gameStatus.playersinfo.getByColor(INV_COLOR(this.turn));
         // remove from piece
         this.setSq(fSq);
         // ep capture
@@ -1156,6 +1207,12 @@ class Board {
         if ((fp.kind == PAWN) && (Math.abs(deltaR) == 2)) {
             let epsq = new Square(m.fromSq.f, m.fromSq.r + (deltaR / 2));
             this.epSquare = epsq;
+        }
+        // remove draw offer
+        if (playerToMoveInfo.canAcceptDraw) {
+            playerToMoveInfo.canAcceptDraw = false;
+            playerToMoveInfo.canOfferDraw = true;
+            nextPlayerToMoveInfo.canOfferDraw = true;
         }
         // update history        
         if (!this.test) {
@@ -1470,6 +1527,12 @@ class Board {
     calculateRatings() {
         let pw = this.savedWhite;
         let pb = this.savedBlack;
+        let rcw = new RatingCalculation();
+        rcw.username = pw.username;
+        rcw.oldRating = pw.glicko.rating;
+        let rcb = new RatingCalculation();
+        rcb.username = pb.username;
+        rcb.oldRating = pb.glicko.rating;
         console.log("pw", pw);
         console.log("pb", pb);
         let s = this.gameScore();
@@ -1477,7 +1540,32 @@ class Board {
         let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
         pw.glicko = pwng;
         pb.glicko = pbng;
+        rcw.newRating = pwng.rating;
+        rcb.newRating = pbng.rating;
+        this.changeLog.kind = "ratingscalculated";
+        this.gameStatus.ratingCalcWhite = rcw;
+        this.gameStatus.ratingCalcBlack = rcb;
+        console.log("rating calcs", rcw, rcb);
+        this.actualizeHistory();
         return [pw, pb];
+    }
+    offerDraw(color) {
+        let offer = this.gameStatus.playersinfo.getByColor(color);
+        let accept = this.gameStatus.playersinfo.getByColor(INV_COLOR(color));
+        offer.canOfferDraw = false;
+        accept.canAcceptDraw = true;
+        accept.canOfferDraw = false;
+        this.actualizeHistory();
+    }
+    drawByAgreement() {
+        this.savePlayers();
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.isDrawAgreed = true;
+        this.gameStatus.started = false;
+        this.gameStatus.score = "1/2-1/2";
+        this.gameStatus.scoreReason = "draw agreed";
+        this.actualizeHistory();
+        return this;
     }
 }
 function checkLichess(username, code, callback) {
@@ -1583,9 +1671,9 @@ function registerUser(username, callback) {
 function storeUsers(us) {
     console.log("storing users");
     for (let u of us) {
-        console.log("storing", u);
-        users.setUser(u);
-        dbSetUser(u);
+        let uclone = users.upsertUser(u);
+        console.log("storing", uclone);
+        dbSetUser(uclone);
     }
 }
 function checkCookie(cookie, callback) {
@@ -1915,10 +2003,18 @@ function handleWs(ws, req) {
                     updateUsers(us);
                     broadcastBoard();
                 }
-                else if (t == "testcalc") {
-                    b.resignPlayer(BLACK);
+                else if (t == "offerdraw") {
+                    let color = json.color;
+                    console.log("offer draw", color);
+                    b.offerDraw(color);
+                    broadcastBoard();
+                }
+                else if (t == "acceptdraw") {
+                    console.log("draw accepted");
+                    b.drawByAgreement();
                     let us = b.calculateRatings();
                     updateUsers(us);
+                    broadcastBoard();
                 }
             }
             catch (err) {

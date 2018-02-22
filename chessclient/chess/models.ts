@@ -152,9 +152,21 @@ class UserList{
         return this
     }
 
-    setUser(u:User){
+    setUser(u:User):User{
         this.users[u.username]=u
         this.cookies[u.cookie]=u
+        return u
+    }
+
+    upsertUser(u:User):User{
+        let oldu=this.users[u.username]
+        if(oldu==undefined){
+            return this.setUser(u)
+        }
+        let cookie=oldu.cookie
+        let uclone=u.clone()
+        uclone.cookie=cookie
+        return this.setUser(uclone)
     }
 
     getByCookie(cookie:string):User{
