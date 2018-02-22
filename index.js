@@ -1462,6 +1462,12 @@ class Board {
         this.actualizeHistory();
         return this;
     }
+    terminateByRules() {
+        this.savePlayers();
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.started = false;
+        this.actualizeHistory();
+    }
     flagPlayer(color) {
         this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
@@ -1928,7 +1934,7 @@ function handleWs(ws, req) {
                         b.changeLog.kind = "movemade";
                         if (b.isTerminated()) {
                             console.log("game terminated");
-                            b.savePlayers();
+                            b.terminateByRules();
                             let us = b.calculateRatings();
                             updateUsers(us);
                             broadcastBoard();

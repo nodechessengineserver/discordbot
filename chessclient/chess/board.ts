@@ -1353,6 +1353,16 @@ class Board{
         return this
     }
 
+    terminateByRules(){
+        this.savePlayers()
+
+        this.gameStatus.playersinfo.standPlayers()
+
+        this.gameStatus.started=false        
+
+        this.actualizeHistory()
+    }
+
     flagPlayer(color:number):Board{
         this.savePlayers()
 

@@ -381,6 +381,8 @@ function handleChangeLog(cl:ChangeLog){
         playSound("movesound")
     }else if(cl.kind=="boardreset"){
         playSound("newchallengesound")
+    }else if(cl.kind=="ratingscalculated"){
+        playSound("newchallengesound")
     }
     gboard.build()
 }

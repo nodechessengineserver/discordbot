@@ -3084,6 +3084,12 @@ class Board {
         this.actualizeHistory();
         return this;
     }
+    terminateByRules() {
+        this.savePlayers();
+        this.gameStatus.playersinfo.standPlayers();
+        this.gameStatus.started = false;
+        this.actualizeHistory();
+    }
     flagPlayer(color) {
         this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
@@ -3939,6 +3945,9 @@ function handleChangeLog(cl) {
         playSound("movesound");
     }
     else if (cl.kind == "boardreset") {
+        playSound("newchallengesound");
+    }
+    else if (cl.kind == "ratingscalculated") {
         playSound("newchallengesound");
     }
     gboard.build();

@@ -263,7 +263,7 @@ function handleWs(ws:any,req:any){
                         if(b.isTerminated()){
                             console.log("game terminated")
                             
-                            b.savePlayers()
+                            b.terminateByRules()
 
                             let us=b.calculateRatings()
                             updateUsers(us)
