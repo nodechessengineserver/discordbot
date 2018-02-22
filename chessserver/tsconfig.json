@@ -53,8 +53,9 @@
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
   },  
   "files": [    
-    "head.ts",    
-    "../chessclient/chess/models.ts",
+    "head.ts",
+    "../chessclient/chess/glicko.ts",
+    "../chessclient/chess/models.ts",    
     "../chessclient/chess/board.ts",
     "utils.ts",
     "db.ts",

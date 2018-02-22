@@ -14,6 +14,77 @@ const testbot = require("./discordbot/testbot");
 const tourney = require("./discordbot/tourney");
 const api = require("./discordbot/api");
 const GLOBALS = require("./discordbot/globals");
+var Glicko;
+(function (Glicko) {
+    const VERBOSE = true;
+    ///////////////////////////////////////////
+    // Constants and utility functions
+    Glicko.RATING0 = 1500;
+    Glicko.RD0 = 350;
+    const TYPICAL_RD = 50;
+    const TIME_CONSTANT = 1000;
+    const RATING_DIFFERENCE_DIVISOR = 400;
+    const MIN_RATING = 100;
+    const MAX_RATING = 3500;
+    const PI = Math.PI;
+    const Q = Math.log(10) / RATING_DIFFERENCE_DIVISOR;
+    const MONTH_MS = 1000 * 60 * 60 * 24 * 30;
+    const C2 = (sq(Glicko.RD0) - sq(TYPICAL_RD)) / MONTH_MS;
+    function sqrt(x) { return Math.sqrt(x); }
+    function sq(x) { return x * x; }
+    function pow10(x) { return Math.pow(10, x); }
+    function min(x, y) { return Math.min(x, y); }
+    ///////////////////////////////////////////
+    // Glick sub calculations
+    function g(rdi) {
+        return 1.0 / sqrt(1.0 + 3.0 * sq(Q * rdi / PI));
+    }
+    function E(r, ri, rdi) {
+        return 1.0 / (1.0 + pow10(g(rdi) * (r - ri) / -RATING_DIFFERENCE_DIVISOR));
+    }
+    function d2(r, ri, rdi) {
+        return 1.0 / (sq(Q) * sq(g(rdi)) * E(r, ri, rdi) * (1 - E(r, ri, rdi)));
+    }
+    function r(r, rd, ri, rdi, si) {
+        let newr = r + Q / ((1 / sq(rd) + (1 / d2(r, ri, rdi)))) * (si - E(r, ri, rdi));
+        if (newr < MIN_RATING)
+            newr = MIN_RATING;
+        if (newr > MAX_RATING)
+            newr = MAX_RATING;
+        return newr;
+    }
+    function getrdt(rd, t) {
+        return min(sqrt(sq(rd) + C2 * t), Glicko.RD0);
+    }
+    function rd(r, rd, ri, rdi) {
+        return sqrt(1 / ((1 / sq(rd)) + (1 / d2(r, ri, rdi))));
+    }
+    function calc(g, gi, si) {
+        const now = new Date().getTime();
+        const rdt = getrdt(g.rd, now - g.lastrated);
+        if (VERBOSE) {
+            console.log("***********************************");
+            console.log("Glicko calculation");
+            console.log("***********************************");
+            console.log("Player ", g);
+            console.log("Opponent ", gi);
+            console.log("***********************************");
+            console.log("Result ", si);
+            console.log("Expected result ", E(g.rating, gi.rating, gi.rd));
+            console.log("***********************************");
+        }
+        const result = new GlickoData();
+        result.rating = r(g.rating, rdt, gi.rating, gi.rd, si),
+            result.rd = rd(g.rating, rdt, gi.rating, gi.rd),
+            result.lastrated = now;
+        if (VERBOSE) {
+            console.log("New rating ", result);
+            console.log("***********************************");
+        }
+        return result;
+    }
+    Glicko.calc = calc;
+})(Glicko || (Glicko = {}));
 let EPOCH = 1517443200000; // 2018-2-1
 function createUserFromJson(json) {
     if (json == undefined)
@@ -24,16 +95,43 @@ function createUserFromJson(json) {
         return new SystemUser().fromJson(json);
     return new User().fromJson(json);
 }
+class GlickoData {
+    constructor() {
+        this.rating = Glicko.RATING0;
+        this.rd = Glicko.RD0;
+        this.lastrated = new Date().getTime();
+    }
+    ratingF() { return "" + Math.floor(this.rating); }
+    rdF() { return "" + Math.floor(this.rd); }
+    toJson() {
+        return ({
+            rating: this.rating,
+            rd: this.rd,
+            lastrated: this.lastrated
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.rating != undefined)
+            this.rating = json.rating;
+        if (json.rd != undefined)
+            this.rd = json.rd;
+        if (json.lastrated != undefined)
+            this.lastrated = json.lastrated;
+        return this;
+    }
+}
 class User {
     constructor() {
         this.username = "";
         this.cookie = "";
         this.isBot = false;
         this.isSystem = false;
-        this.rating = 1500;
         this.rd = 350;
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
+        this.glicko = new GlickoData();
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -55,10 +153,10 @@ class User {
             username: this.username,
             isBot: this.isBot,
             isSystem: this.isSystem,
-            rating: this.rating,
             rd: this.rd,
             registeredAt: this.registeredAt,
-            lastSeenAt: this.lastSeenAt
+            lastSeenAt: this.lastSeenAt,
+            glicko: this.glicko.toJson()
         });
         // don't send user cookie to client
         if (!secure) {
@@ -77,14 +175,14 @@ class User {
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
             this.isSystem = json.isSystem;
-        if (json.rating != undefined)
-            this.rating = json.rating;
         if (json.rd != undefined)
             this.rd = json.rd;
         if (json.registeredAt != undefined)
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
+        if (json.glicko != undefined)
+            this.glicko = new GlickoData().fromJson(json.glicko);
         return this;
     }
 }
@@ -125,7 +223,8 @@ class UserList {
         this.cookies = {};
         if (json == undefined)
             return this;
-        for (let userJson of json) {
+        for (let username in json) {
+            let userJson = json[username];
             let u = createUserFromJson(userJson);
             this.users[u.username] = u;
             this.cookies[u.cookie] = u;
@@ -141,6 +240,12 @@ class UserList {
     }
     getByUsername(username) {
         return this.users[username];
+    }
+    iterate(callback) {
+        for (let username in this.users) {
+            let u = this.users[username];
+            callback(u);
+        }
     }
 }
 let loggedUser = new User();
@@ -517,6 +622,8 @@ class Board {
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
         this.changeLog = new ChangeLog();
+        this.savedWhite = new User();
+        this.savedBlack = new User();
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -1282,6 +1389,7 @@ class Board {
         return this;
     }
     resignPlayer(color) {
+        this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
         this.gameStatus.isResigned = true;
         this.gameStatus.started = false;
@@ -1297,6 +1405,7 @@ class Board {
         return this;
     }
     flagPlayer(color) {
+        this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
         this.gameStatus.isFlagged = true;
         this.gameStatus.started = false;
@@ -1341,6 +1450,34 @@ class Board {
             }
         });
         return this.actualizeHistory();
+    }
+    gameScore() {
+        let score = 0.5;
+        if (this.gameStatus.score == "1-0")
+            score = 1;
+        else if (this.gameStatus.score == "0-1")
+            score = 0;
+        else if (this.gameStatus.score == "1/2-1/2")
+            score = 0.5;
+        return score;
+    }
+    savePlayers() {
+        let pw = this.gameStatus.playersinfo.getByColor(WHITE).u;
+        let pb = this.gameStatus.playersinfo.getByColor(BLACK).u;
+        this.savedWhite = pw.clone();
+        this.savedBlack = pb.clone();
+    }
+    calculateRatings() {
+        let pw = this.savedWhite;
+        let pb = this.savedBlack;
+        console.log("pw", pw);
+        console.log("pb", pb);
+        let s = this.gameScore();
+        let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
+        let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
+        pw.glicko = pwng;
+        pb.glicko = pbng;
+        return [pw, pb];
     }
 }
 function checkLichess(username, code, callback) {
@@ -1443,6 +1580,14 @@ function registerUser(username, callback) {
     dbSetUser(u);
     callback(cookie);
 }
+function storeUsers(us) {
+    console.log("storing users");
+    for (let u of us) {
+        console.log("storing", u);
+        users.setUser(u);
+        dbSetUser(u);
+    }
+}
 function checkCookie(cookie, callback) {
     console.log(`checking cookie ${cookie}`);
     let u = users.getByCookie(cookie);
@@ -1456,6 +1601,10 @@ let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
 let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 1;
 let b = new Board().newGame();
 let sockets = {};
+function updateUsers(us) {
+    storeUsers(us);
+    broadcastUserList();
+}
 setInterval(maintainBoard, BOARD_MAINTAIN_INTERVAL);
 function maintainBoard() {
     let refresh = false;
@@ -1476,6 +1625,8 @@ function maintainBoard() {
                 let diff = new Date().getTime() - pi.startedThinkingAt;
                 if (diff > pi.time) {
                     b.flagPlayer(pi.color);
+                    let us = b.calculateRatings();
+                    updateUsers(us);
                     pi.time = 0;
                     broadcastBoard();
                 }
@@ -1547,11 +1698,15 @@ function setBoardJson() {
         changeLog: b.changeLog.toJson()
     });
 }
-function sendUserlist(ws) {
-    send(ws, {
+function setUserListJson() {
+    return ({
         t: "userlist",
         userlist: users.toJson(true) // don't send cookies
     });
+}
+function sendUserlist(ws) { send(ws, setUserListJson()); }
+function broadcastUserList() {
+    broadcast(setUserListJson());
 }
 function sendBoard(ws) { send(ws, setBoardJson()); }
 function broadcastBoard() {
@@ -1681,12 +1836,22 @@ function handleWs(ws, req) {
                     if (ok) {
                         console.log("legal");
                         b.changeLog.kind = "movemade";
+                        if (b.isTerminated()) {
+                            console.log("game terminated");
+                            b.savePlayers();
+                            let us = b.calculateRatings();
+                            updateUsers(us);
+                            broadcastBoard();
+                            return;
+                        }
                         if (b.gameStatus.started) {
                             let picold = b.gameStatus.playersinfo.getByColor(oldTurn);
                             picold.time = picold.time - (new Date().getTime() - picold.startedThinkingAt) + b.timecontrol.inc;
                             if (picold.time < 0) {
                                 b.del();
                                 b.flagPlayer(oldTurn);
+                                let us = b.calculateRatings();
+                                updateUsers(us);
                                 picold.time = 0;
                                 broadcastBoard();
                                 return;
@@ -1746,7 +1911,14 @@ function handleWs(ws, req) {
                     let color = json.color;
                     console.log("resign", color);
                     b.resignPlayer(color);
+                    let us = b.calculateRatings();
+                    updateUsers(us);
                     broadcastBoard();
+                }
+                else if (t == "testcalc") {
+                    b.resignPlayer(BLACK);
+                    let us = b.calculateRatings();
+                    updateUsers(us);
                 }
             }
             catch (err) {

@@ -58,5 +58,17 @@ li{
     font-size:20rem;
     font-weight: bold;
     color: #007;
-    width:300rem;
+    width:600rem;
+}
+
+.userdata{
+    font-size: 15rem;
+    color:#777;
+    display: inline-block;
+    vertical-align: middle;
+    border-style:solid;
+    border-radius: 5rem;
+    border-color:#777;
+    background-color: #dfd;
+    padding:3rem;
 }

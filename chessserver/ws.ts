@@ -7,6 +7,11 @@ let b=new Board().newGame()
 
 let sockets:any={}
 
+function updateUsers(us:User[]){
+    storeUsers(us)
+    broadcastUserList()
+}
+
 setInterval(maintainBoard,BOARD_MAINTAIN_INTERVAL)
 
 function maintainBoard(){    
@@ -27,6 +32,10 @@ function maintainBoard(){
                 let diff=new Date().getTime()-pi.startedThinkingAt                
                 if(diff>pi.time){
                     b.flagPlayer(pi.color)
+
+                    let us=b.calculateRatings()
+                    updateUsers(us)
+
                     pi.time=0
                     broadcastBoard()
                 }
@@ -101,11 +110,17 @@ function setBoardJson(){
     })
 }
 
-function sendUserlist(ws:any){    
-    send(ws,{
+function setUserListJson(){
+    return({
         t:"userlist",
         userlist:users.toJson(true) // don't send cookies
     })
+}
+
+function sendUserlist(ws:any){send(ws,setUserListJson())}
+
+function broadcastUserList(){
+    broadcast(setUserListJson())
 }
 
 function sendBoard(ws:any){send(ws,setBoardJson())}
@@ -245,12 +260,28 @@ function handleWs(ws:any,req:any){
                         console.log("legal")                        
                         b.changeLog.kind="movemade"
 
+                        if(b.isTerminated()){
+                            console.log("game terminated")
+                            
+                            b.savePlayers()
+
+                            let us=b.calculateRatings()
+                            updateUsers(us)
+
+                            broadcastBoard()
+                            return
+                        }
+
                         if(b.gameStatus.started){
                             let picold=b.gameStatus.playersinfo.getByColor(oldTurn)
                             picold.time=picold.time-(new Date().getTime()-picold.startedThinkingAt)+b.timecontrol.inc
                             if(picold.time<0){
                                 b.del()                                
                                 b.flagPlayer(oldTurn)
+
+                                let us=b.calculateRatings()
+                                updateUsers(us)
+
                                 picold.time=0
                                 broadcastBoard()
                                 return
@@ -307,8 +338,17 @@ function handleWs(ws:any,req:any){
                 }else if(t=="resign"){
                     let color=json.color
                     console.log("resign",color)
+
                     b.resignPlayer(color)                                                            
+
+                    let us=b.calculateRatings()
+                    updateUsers(us)
+
                     broadcastBoard()
+                }else if(t=="testcalc"){
+                    b.resignPlayer(BLACK)
+                    let us=b.calculateRatings()
+                    updateUsers(us)
                 }
             }catch(err){console.log(err)}
         })

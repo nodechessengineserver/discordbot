@@ -69,7 +69,7 @@ class GuiPlayerInfo extends DomElement<GuiPlayerInfo>{
                     new Td().a([
                         new Div().
                         z(this.PLAYER_WIDTH,this.PLAYER_HEIGHT).
-                        h(`${this.pi.u.username!=""?`${this.pi.u.smartNameHtml()} ( ${this.pi.u.rating} )`:"?"}`)
+                        h(`${this.pi.u.username!=""?`${this.pi.u.smartNameHtml()} ( ${this.pi.u.glicko.ratingF()} )`:"?"}`)
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH,this.PLAYER_HEIGHT).

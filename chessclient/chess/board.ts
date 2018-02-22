@@ -1285,6 +1285,8 @@ class Board{
     }
 
     resignPlayer(color:number):Board{
+        this.savePlayers()
+
         this.gameStatus.playersinfo.standPlayers()
         this.gameStatus.isResigned=true
         this.gameStatus.started=false        
@@ -1300,6 +1302,8 @@ class Board{
     }
 
     flagPlayer(color:number):Board{
+        this.savePlayers()
+
         this.gameStatus.playersinfo.standPlayers()
         this.gameStatus.isFlagged=true
         this.gameStatus.started=false        
@@ -1347,6 +1351,45 @@ class Board{
             }
         })
         return this.actualizeHistory()
+    }
+
+    gameScore():number{
+        let score=0.5
+
+        if(this.gameStatus.score=="1-0") score=1
+        else if(this.gameStatus.score=="0-1") score=0
+        else if(this.gameStatus.score=="1/2-1/2") score=0.5
+
+        return score
+    }
+
+    savedWhite:User=new User()
+    savedBlack:User=new User()
+
+    savePlayers(){
+        let pw=this.gameStatus.playersinfo.getByColor(WHITE).u
+        let pb=this.gameStatus.playersinfo.getByColor(BLACK).u
+
+        this.savedWhite=pw.clone()
+        this.savedBlack=pb.clone()
+    }
+
+    calculateRatings():User[]{
+        let pw=this.savedWhite
+        let pb=this.savedBlack
+
+        console.log("pw",pw)
+        console.log("pb",pb)
+
+        let s=this.gameScore()
+
+        let pwng=Glicko.calc(pw.glicko,pb.glicko,s)
+        let pbng=Glicko.calc(pb.glicko,pw.glicko,1-s)
+
+        pw.glicko=pwng
+        pb.glicko=pbng
+
+        return [pw,pb]
     }
     
 }

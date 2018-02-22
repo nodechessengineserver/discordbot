@@ -7,15 +7,42 @@ function createUserFromJson(json:any):User{
     return new User().fromJson(json)
 }
 
+class GlickoData{
+    rating: number = Glicko.RATING0
+    rd: number = Glicko.RD0
+    lastrated: number = new Date().getTime()
+
+    ratingF():string{return ""+Math.floor(this.rating)}
+    rdF():string{return ""+Math.floor(this.rd)}
+
+    toJson():any{
+        return({
+            rating:this.rating,
+            rd:this.rd,
+            lastrated:this.lastrated
+        })
+    }
+
+    fromJson(json:any):GlickoData{
+        if(json==undefined) return this
+
+        if(json.rating!=undefined) this.rating=json.rating
+        if(json.rd!=undefined) this.rd=json.rd
+        if(json.lastrated!=undefined) this.lastrated=json.lastrated
+
+        return this
+    }
+}
+
 class User{
     username:string=""
     cookie:string=""
     isBot:boolean=false
-    isSystem:boolean=false
-    rating:number=1500
+    isSystem:boolean=false    
     rd:number=350
     registeredAt:number=EPOCH
     lastSeenAt:number=EPOCH
+    glicko:GlickoData=new GlickoData()
 
     clone():User{
         return createUserFromJson(this.toJson())
@@ -41,11 +68,11 @@ class User{
         let json:any=({
             username:this.username,
             isBot:this.isBot,
-            isSystem:this.isSystem,
-            rating:this.rating,
+            isSystem:this.isSystem,            
             rd:this.rd,
             registeredAt:this.registeredAt,
-            lastSeenAt:this.lastSeenAt
+            lastSeenAt:this.lastSeenAt,
+            glicko:this.glicko.toJson()
         })
         // don't send user cookie to client
         if(!secure){
@@ -60,11 +87,11 @@ class User{
         if(json.username!=undefined) this.username=json.username
         if(json.cookie!=undefined) this.cookie=json.cookie
         if(json.isBot!=undefined) this.isBot=json.isBot
-        if(json.isSystem!=undefined) this.isSystem=json.isSystem
-        if(json.rating!=undefined) this.rating=json.rating
+        if(json.isSystem!=undefined) this.isSystem=json.isSystem        
         if(json.rd!=undefined) this.rd=json.rd
         if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
         if(json.lastSeenAt!=undefined) this.lastSeenAt=json.lastSeenAt
+        if(json.glicko!=undefined) this.glicko=new GlickoData().fromJson(json.glicko)
         return this
     }
 }
@@ -113,7 +140,9 @@ class UserList{
 
         if(json==undefined) return this
 
-        for(let userJson of json){
+        for(let username in json){
+            let userJson=json[username]
+
             let u=createUserFromJson(userJson)
 
             this.users[u.username]=u
@@ -134,6 +163,13 @@ class UserList{
 
     getByUsername(username:string):User{
         return this.users[username]
+    }
+
+    iterate(callback:any){
+        for(let username in this.users){
+            let u=this.users[username]
+            callback(u)
+        }
     }
 }
 

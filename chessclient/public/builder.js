@@ -1636,6 +1636,77 @@ class MongoColl extends DomElement {
         return this;
     }
 }
+var Glicko;
+(function (Glicko) {
+    const VERBOSE = true;
+    ///////////////////////////////////////////
+    // Constants and utility functions
+    Glicko.RATING0 = 1500;
+    Glicko.RD0 = 350;
+    const TYPICAL_RD = 50;
+    const TIME_CONSTANT = 1000;
+    const RATING_DIFFERENCE_DIVISOR = 400;
+    const MIN_RATING = 100;
+    const MAX_RATING = 3500;
+    const PI = Math.PI;
+    const Q = Math.log(10) / RATING_DIFFERENCE_DIVISOR;
+    const MONTH_MS = 1000 * 60 * 60 * 24 * 30;
+    const C2 = (sq(Glicko.RD0) - sq(TYPICAL_RD)) / MONTH_MS;
+    function sqrt(x) { return Math.sqrt(x); }
+    function sq(x) { return x * x; }
+    function pow10(x) { return Math.pow(10, x); }
+    function min(x, y) { return Math.min(x, y); }
+    ///////////////////////////////////////////
+    // Glick sub calculations
+    function g(rdi) {
+        return 1.0 / sqrt(1.0 + 3.0 * sq(Q * rdi / PI));
+    }
+    function E(r, ri, rdi) {
+        return 1.0 / (1.0 + pow10(g(rdi) * (r - ri) / -RATING_DIFFERENCE_DIVISOR));
+    }
+    function d2(r, ri, rdi) {
+        return 1.0 / (sq(Q) * sq(g(rdi)) * E(r, ri, rdi) * (1 - E(r, ri, rdi)));
+    }
+    function r(r, rd, ri, rdi, si) {
+        let newr = r + Q / ((1 / sq(rd) + (1 / d2(r, ri, rdi)))) * (si - E(r, ri, rdi));
+        if (newr < MIN_RATING)
+            newr = MIN_RATING;
+        if (newr > MAX_RATING)
+            newr = MAX_RATING;
+        return newr;
+    }
+    function getrdt(rd, t) {
+        return min(sqrt(sq(rd) + C2 * t), Glicko.RD0);
+    }
+    function rd(r, rd, ri, rdi) {
+        return sqrt(1 / ((1 / sq(rd)) + (1 / d2(r, ri, rdi))));
+    }
+    function calc(g, gi, si) {
+        const now = new Date().getTime();
+        const rdt = getrdt(g.rd, now - g.lastrated);
+        if (VERBOSE) {
+            console.log("***********************************");
+            console.log("Glicko calculation");
+            console.log("***********************************");
+            console.log("Player ", g);
+            console.log("Opponent ", gi);
+            console.log("***********************************");
+            console.log("Result ", si);
+            console.log("Expected result ", E(g.rating, gi.rating, gi.rd));
+            console.log("***********************************");
+        }
+        const result = new GlickoData();
+        result.rating = r(g.rating, rdt, gi.rating, gi.rd, si),
+            result.rd = rd(g.rating, rdt, gi.rating, gi.rd),
+            result.lastrated = now;
+        if (VERBOSE) {
+            console.log("New rating ", result);
+            console.log("***********************************");
+        }
+        return result;
+    }
+    Glicko.calc = calc;
+})(Glicko || (Glicko = {}));
 let EPOCH = 1517443200000; // 2018-2-1
 function createUserFromJson(json) {
     if (json == undefined)
@@ -1646,16 +1717,43 @@ function createUserFromJson(json) {
         return new SystemUser().fromJson(json);
     return new User().fromJson(json);
 }
+class GlickoData {
+    constructor() {
+        this.rating = Glicko.RATING0;
+        this.rd = Glicko.RD0;
+        this.lastrated = new Date().getTime();
+    }
+    ratingF() { return "" + Math.floor(this.rating); }
+    rdF() { return "" + Math.floor(this.rd); }
+    toJson() {
+        return ({
+            rating: this.rating,
+            rd: this.rd,
+            lastrated: this.lastrated
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.rating != undefined)
+            this.rating = json.rating;
+        if (json.rd != undefined)
+            this.rd = json.rd;
+        if (json.lastrated != undefined)
+            this.lastrated = json.lastrated;
+        return this;
+    }
+}
 class User {
     constructor() {
         this.username = "";
         this.cookie = "";
         this.isBot = false;
         this.isSystem = false;
-        this.rating = 1500;
         this.rd = 350;
         this.registeredAt = EPOCH;
         this.lastSeenAt = EPOCH;
+        this.glicko = new GlickoData();
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -1677,10 +1775,10 @@ class User {
             username: this.username,
             isBot: this.isBot,
             isSystem: this.isSystem,
-            rating: this.rating,
             rd: this.rd,
             registeredAt: this.registeredAt,
-            lastSeenAt: this.lastSeenAt
+            lastSeenAt: this.lastSeenAt,
+            glicko: this.glicko.toJson()
         });
         // don't send user cookie to client
         if (!secure) {
@@ -1699,14 +1797,14 @@ class User {
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
             this.isSystem = json.isSystem;
-        if (json.rating != undefined)
-            this.rating = json.rating;
         if (json.rd != undefined)
             this.rd = json.rd;
         if (json.registeredAt != undefined)
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
+        if (json.glicko != undefined)
+            this.glicko = new GlickoData().fromJson(json.glicko);
         return this;
     }
 }
@@ -1747,7 +1845,8 @@ class UserList {
         this.cookies = {};
         if (json == undefined)
             return this;
-        for (let userJson of json) {
+        for (let username in json) {
+            let userJson = json[username];
             let u = createUserFromJson(userJson);
             this.users[u.username] = u;
             this.cookies[u.cookie] = u;
@@ -1763,6 +1862,12 @@ class UserList {
     }
     getByUsername(username) {
         return this.users[username];
+    }
+    iterate(callback) {
+        for (let username in this.users) {
+            let u = this.users[username];
+            callback(u);
+        }
     }
 }
 let loggedUser = new User();
@@ -2139,6 +2244,8 @@ class Board {
         this.halfmoveClock = 0;
         this.epSquare = INVALID_SQUARE;
         this.changeLog = new ChangeLog();
+        this.savedWhite = new User();
+        this.savedBlack = new User();
         this.variant = variant;
         this.PROPS = VARIANT_PROPERTIES[variant];
         this.BOARD_WIDTH = this.PROPS.BOARD_WIDTH;
@@ -2904,6 +3011,7 @@ class Board {
         return this;
     }
     resignPlayer(color) {
+        this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
         this.gameStatus.isResigned = true;
         this.gameStatus.started = false;
@@ -2919,6 +3027,7 @@ class Board {
         return this;
     }
     flagPlayer(color) {
+        this.savePlayers();
         this.gameStatus.playersinfo.standPlayers();
         this.gameStatus.isFlagged = true;
         this.gameStatus.started = false;
@@ -2963,6 +3072,34 @@ class Board {
             }
         });
         return this.actualizeHistory();
+    }
+    gameScore() {
+        let score = 0.5;
+        if (this.gameStatus.score == "1-0")
+            score = 1;
+        else if (this.gameStatus.score == "0-1")
+            score = 0;
+        else if (this.gameStatus.score == "1/2-1/2")
+            score = 0.5;
+        return score;
+    }
+    savePlayers() {
+        let pw = this.gameStatus.playersinfo.getByColor(WHITE).u;
+        let pb = this.gameStatus.playersinfo.getByColor(BLACK).u;
+        this.savedWhite = pw.clone();
+        this.savedBlack = pb.clone();
+    }
+    calculateRatings() {
+        let pw = this.savedWhite;
+        let pb = this.savedBlack;
+        console.log("pw", pw);
+        console.log("pb", pb);
+        let s = this.gameScore();
+        let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
+        let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
+        pw.glicko = pwng;
+        pb.glicko = pbng;
+        return [pw, pb];
     }
 }
 class GuiPlayerInfo extends DomElement {
@@ -3025,7 +3162,7 @@ class GuiPlayerInfo extends DomElement {
                     new Td().a([
                         new Div().
                             z(this.PLAYER_WIDTH, this.PLAYER_HEIGHT).
-                            h(`${this.pi.u.username != "" ? `${this.pi.u.smartNameHtml()} ( ${this.pi.u.rating} )` : "?"}`)
+                            h(`${this.pi.u.username != "" ? `${this.pi.u.smartNameHtml()} ( ${this.pi.u.glicko.ratingF()} )` : "?"}`)
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH, this.PLAYER_HEIGHT).
@@ -3433,7 +3570,7 @@ function strongSocket() {
                 setLoggedUser();
             }
             else if (t == "userlist") {
-                userlist = json.userlist;
+                userlist = new UserList().fromJson(json.userlist);
                 console.log(`set userlist`, userlist);
                 setUserList();
             }
@@ -3537,6 +3674,7 @@ let tabpane;
 let profileTable;
 let lagDiv;
 let lichessUsernameDiv;
+let lichessRatingDiv;
 let timeoutDiv;
 let usernameInputWindow;
 let lichessCodeShowWindow;
@@ -3550,17 +3688,23 @@ function setLoggedUser() {
             new Button("Logout").onClick(lichessLogout)
     ]);
     lichessUsernameDiv.h(loggedUser.empty() ? "?" : loggedUser.username);
+    lichessRatingDiv.h(loggedUser.empty() ? "?" : `${loggedUser.glicko.ratingF()} ( rd : ${loggedUser.glicko.rdF()} )`);
     tabpane.setCaptionByKey("profile", loggedUser.empty() ? "Profile" : loggedUser.username);
     tabpane.selectTab(loggedUser.empty() ? "play" : "play");
 }
 function setUserList() {
     users.x;
-    for (let username in userlist) {
-        let user = userlist[username];
+    userlist.iterate((u) => {
         users.a([
-            new Div().ac("user").h(user.username)
+            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">( member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()} )</div>`)
         ]);
-    }
+        if (u.e(loggedUser)) {
+            let cookie = loggedUser.cookie;
+            loggedUser = u;
+            //loggedUser.cookie=cookie
+            setLoggedUser();
+        }
+    });
 }
 function showLichessCode(username, code) {
     lichessCodeShowWindow = new TextInputWindow("showlichesscode");
@@ -3765,6 +3909,14 @@ function buildApp() {
         ]),
         new Tr().a([
             new Td().a([
+                new Div().h(`Rating`)
+            ]),
+            new Td().a([
+                lichessRatingDiv = new Div()
+            ])
+        ]),
+        new Tr().a([
+            new Td().a([
                 new Div().h(`Timeout`)
             ]),
             new Td().a([
@@ -3807,8 +3959,14 @@ function buildFlipButtonSpan() {
     });
     flipButtonSpan.x.a([
         lseated ? new Span() :
-            new Button("Flip").onClick((e) => gboard.doFlip())
+            new Button("Flip").onClick((e) => gboard.doFlip()),
+        new Button("TestCalc").onClick(testCalc)
     ]);
+}
+function testCalc() {
+    emit({
+        t: "testcalc"
+    });
 }
 function buildModposButtonSpan() {
     modposButtonSpan.x;

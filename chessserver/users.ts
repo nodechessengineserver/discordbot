@@ -47,6 +47,22 @@ function registerUser(username:string,callback:any){
     callback(cookie)
 }
 
+function storeUsers(us:User[]){
+
+    console.log("storing users")
+
+    for(let u of us){
+
+        console.log("storing",u)
+
+        users.setUser(u)
+
+        dbSetUser(u)
+
+    }
+
+}
+
 function checkCookie(cookie:any,callback:any){
     console.log(`checking cookie ${cookie}`)    
 

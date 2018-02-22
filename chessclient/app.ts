@@ -90,7 +90,7 @@ function strongSocket(){
                 setCookie("user",loggedUser.cookie,USER_COOKIE_EXPIRY)
                 setLoggedUser()
             }else if(t=="userlist"){                
-                userlist=json.userlist                
+                userlist=new UserList().fromJson(json.userlist)
                 console.log(`set userlist`,userlist)
                 setUserList()
             }else if(t=="setboard"){                
@@ -200,12 +200,13 @@ let tabpane:Tabpane
 let profileTable:Table
 let lagDiv:Div
 let lichessUsernameDiv:Div
+let lichessRatingDiv:Div
 let timeoutDiv:Div
 let usernameInputWindow:TextInputWindow
 let lichessCodeShowWindow:TextInputWindow
 let usernameDiv:Div
 let usernameButtonDiv:Div
-let userlist:any
+let userlist:UserList
 
 function setLoggedUser(){
     usernameButtonDiv.x.a([
@@ -214,18 +215,24 @@ function setLoggedUser(){
         new Button("Logout").onClick(lichessLogout)
     ])    
     lichessUsernameDiv.h(loggedUser.empty()?"?":loggedUser.username)
+    lichessRatingDiv.h(loggedUser.empty()?"?":`${loggedUser.glicko.ratingF()} ( rd : ${loggedUser.glicko.rdF()} )`)
     tabpane.setCaptionByKey("profile",loggedUser.empty()?"Profile":loggedUser.username)
     tabpane.selectTab(loggedUser.empty()?"play":"play")
 }
 
 function setUserList(){
     users.x
-    for(let username in userlist){
-        let user=userlist[username]
+    userlist.iterate((u:User)=>{
         users.a([
-            new Div().ac("user").h(user.username)
+            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">( member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()} )</div>`)
         ])
-    }
+        if(u.e(loggedUser)){
+            let cookie=loggedUser.cookie
+            loggedUser=u
+            //loggedUser.cookie=cookie
+            setLoggedUser()
+        }
+    })
 }
 
 function showLichessCode(username:any,code:any){
@@ -449,7 +456,7 @@ function buildApp(){
             ]),
             new Td().a([
                 lichessUsernameDiv=new Div().setWidthRem(400)
-            ]),
+            ]),            
             new Td().a([
                 usernameButtonDiv=new Div()                
             ])            
@@ -461,6 +468,14 @@ function buildApp(){
             new Td().a([
                 lagDiv=new Div()
             ])            
+        ]),
+        new Tr().a([
+            new Td().a([
+                new Div().h(`Rating`)
+            ]),
+            new Td().a([
+                lichessRatingDiv=new Div()
+            ])
         ]),
         new Tr().a([
             new Td().a([
@@ -519,8 +534,15 @@ function buildFlipButtonSpan(){
     })    
     flipButtonSpan.x.a([
         lseated?new Span():
-        new Button("Flip").onClick((e:Event)=>gboard.doFlip())
+        new Button("Flip").onClick((e:Event)=>gboard.doFlip()),
+        new Button("TestCalc").onClick(testCalc)
     ])
+}
+
+function testCalc(){
+    emit({
+        t:"testcalc"
+    })
 }
 
 function buildModposButtonSpan(){
