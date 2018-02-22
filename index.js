@@ -843,6 +843,7 @@ class Board {
         }
     }
     newGame() {
+        this.timecontrol = new TimeControl();
         this.gameStatus.score = "*";
         this.gameStatus.scoreReason = "";
         this.gameStatus.isStaleMate = false;
@@ -1547,6 +1548,7 @@ class Board {
         this.gameStatus.ratingCalcBlack = rcb;
         console.log("rating calcs", rcw, rcb);
         this.actualizeHistory();
+        this.timecontrol = new TimeControl();
         return [pw, pb];
     }
     offerDraw(color) {
@@ -1953,8 +1955,10 @@ function handleWs(ws, req) {
                             picafter.startedThinkingAt = new Date().getTime();
                         }
                         if (!b.gameStatus.started) {
-                            if (b.fullmoveNumber >= 2)
-                                b.startGame();
+                            if (b.allSeated()) {
+                                if (b.fullmoveNumber >= 2)
+                                    b.startGame();
+                            }
                         }
                         b.actualizeHistory();
                     }

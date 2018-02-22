@@ -2465,6 +2465,7 @@ class Board {
         }
     }
     newGame() {
+        this.timecontrol = new TimeControl();
         this.gameStatus.score = "*";
         this.gameStatus.scoreReason = "";
         this.gameStatus.isStaleMate = false;
@@ -3169,6 +3170,7 @@ class Board {
         this.gameStatus.ratingCalcBlack = rcb;
         console.log("rating calcs", rcw, rcb);
         this.actualizeHistory();
+        this.timecontrol = new TimeControl();
         return [pw, pb];
     }
     offerDraw(color) {

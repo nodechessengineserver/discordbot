@@ -299,7 +299,9 @@ function handleWs(ws:any,req:any){
                         }
 
                         if(!b.gameStatus.started){
-                            if(b.fullmoveNumber>=2) b.startGame()
+                            if(b.allSeated()){
+                                if(b.fullmoveNumber>=2) b.startGame()
+                            }                            
                         }     
 
                         b.actualizeHistory()

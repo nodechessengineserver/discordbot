@@ -705,6 +705,8 @@ class Board{
 
     newGame():Board{
 
+        this.timecontrol=new TimeControl()
+
         this.gameStatus.score="*"
         this.gameStatus.scoreReason=""
 
@@ -1458,6 +1460,8 @@ class Board{
         console.log("rating calcs",rcw,rcb)
 
         this.actualizeHistory()
+
+        this.timecontrol=new TimeControl()
 
         return [pw,pb]
     }
