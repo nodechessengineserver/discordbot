@@ -1448,19 +1448,18 @@ class Board{
         rcb.username=pb.username
         rcb.oldRating=pb.glicko.rating
 
-        console.log("pw",pw)
-        console.log("pb",pb)
-
         let s=this.gameScore()
 
         let pwng=Glicko.calc(pw.glicko,pb.glicko,s)
         let pbng=Glicko.calc(pb.glicko,pw.glicko,1-s)
 
-        pw.glicko=pwng
-        pb.glicko=pbng
+        if(!((pw.isBot)||(pb.isBot))){
+            pw.glicko=pwng
+            pb.glicko=pbng
 
-        rcw.newRating=pwng.rating
-        rcb.newRating=pbng.rating
+            rcw.newRating=pwng.rating
+            rcb.newRating=pbng.rating
+        }           
 
         this.changeLog.kind="ratingscalculated"
 
@@ -1499,6 +1498,10 @@ class Board{
         
         this.actualizeHistory()        
         return this
+    }
+
+    getPlayer(color:number){
+        return this.gameStatus.playersinfo.getByColor(color).u
     }
     
 }

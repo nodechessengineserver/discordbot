@@ -16,7 +16,7 @@ const api = require("./discordbot/api");
 const GLOBALS = require("./discordbot/globals");
 var Glicko;
 (function (Glicko) {
-    const VERBOSE = true;
+    const VERBOSE = false;
     ///////////////////////////////////////////
     // Constants and utility functions
     Glicko.RATING0 = 1500;
@@ -86,6 +86,7 @@ var Glicko;
     Glicko.calc = calc;
 })(Glicko || (Glicko = {}));
 let EPOCH = 1517443200000; // 2018-2-1
+let CHAT_CAPACITY = 100;
 function createUserFromJson(json) {
     if (json == undefined)
         return new User();
@@ -128,9 +129,8 @@ class User {
         this.cookie = "";
         this.isBot = false;
         this.isSystem = false;
-        this.rd = 350;
-        this.registeredAt = EPOCH;
-        this.lastSeenAt = EPOCH;
+        this.registeredAt = new Date().getTime();
+        this.lastSeenAt = new Date().getTime();
         this.glicko = new GlickoData();
     }
     clone() {
@@ -153,7 +153,6 @@ class User {
             username: this.username,
             isBot: this.isBot,
             isSystem: this.isSystem,
-            rd: this.rd,
             registeredAt: this.registeredAt,
             lastSeenAt: this.lastSeenAt,
             glicko: this.glicko.toJson()
@@ -175,8 +174,6 @@ class User {
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
             this.isSystem = json.isSystem;
-        if (json.rd != undefined)
-            this.rd = json.rd;
         if (json.registeredAt != undefined)
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
@@ -257,6 +254,56 @@ class UserList {
             let u = this.users[username];
             callback(u);
         }
+    }
+}
+class ChatItem {
+    constructor(user = new User(), text = "") {
+        this.user = new User();
+        this.text = "";
+        this.time = new Date().getTime();
+        this.user = user;
+        this.text = text;
+        this.time = new Date().getTime();
+    }
+    toJson() {
+        return ({
+            user: this.user.toJson(),
+            text: this.text,
+            time: this.time
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.user != undefined)
+            this.user = createUserFromJson(json.user);
+        if (json.text != undefined)
+            this.text = json.text;
+        if (json.time != undefined)
+            this.time = json.time;
+        return this;
+    }
+}
+class Chat {
+    constructor() {
+        this.items = [];
+    }
+    add(chi) {
+        this.items.unshift(chi);
+    }
+    asHtml() {
+        return this.items.map(item => `<span class="chattime">${new Date(item.time).toLocaleString()}</span> ${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>");
+    }
+    toJson() {
+        return (this.items.map((item) => item.toJson()));
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json != undefined) {
+            this.items = json.map((itemJson) => new ChatItem().fromJson(itemJson));
+        }
+        return this;
     }
 }
 let loggedUser = new User();
@@ -1540,15 +1587,15 @@ class Board {
         let rcb = new RatingCalculation();
         rcb.username = pb.username;
         rcb.oldRating = pb.glicko.rating;
-        console.log("pw", pw);
-        console.log("pb", pb);
         let s = this.gameScore();
         let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
         let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
-        pw.glicko = pwng;
-        pb.glicko = pbng;
-        rcw.newRating = pwng.rating;
-        rcb.newRating = pbng.rating;
+        if (!((pw.isBot) || (pb.isBot))) {
+            pw.glicko = pwng;
+            pb.glicko = pbng;
+            rcw.newRating = pwng.rating;
+            rcb.newRating = pbng.rating;
+        }
         this.changeLog.kind = "ratingscalculated";
         this.gameStatus.ratingCalcWhite = rcw;
         this.gameStatus.ratingCalcBlack = rcb;
@@ -1574,6 +1621,9 @@ class Board {
         this.gameStatus.scoreReason = "draw agreed";
         this.actualizeHistory();
         return this;
+    }
+    getPlayer(color) {
+        return this.gameStatus.playersinfo.getByColor(color).u;
     }
 }
 function checkLichess(username, code, callback) {
@@ -1680,7 +1730,6 @@ function storeUsers(us) {
     console.log("storing users");
     for (let u of us) {
         let uclone = users.upsertUser(u);
-        console.log("storing", uclone);
         dbSetUser(uclone);
     }
 }
@@ -1697,6 +1746,7 @@ let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
 let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 1;
 let b = new Board().newGame();
 let sockets = {};
+let chat = new Chat();
 function updateUsers(us) {
     storeUsers(us);
     broadcastUserList();
@@ -1805,6 +1855,18 @@ function broadcastUserList() {
     broadcast(setUserListJson());
 }
 function sendBoard(ws) { send(ws, setBoardJson()); }
+function chatJson() {
+    return ({
+        t: "setchat",
+        chat: chat.toJson()
+    });
+}
+function sendChat(ws) {
+    send(ws, chatJson());
+}
+function broadcastChat() {
+    broadcast(chatJson());
+}
 function broadcastBoard() {
     broadcast(setBoardJson());
     b.clearChangeLog();
@@ -1859,6 +1921,7 @@ function handleWs(ws, req) {
             }
         });
         sendUserlist(ws);
+        sendChat(ws);
         ws.on('message', (message) => {
             try {
                 //console.log(message)
@@ -1982,8 +2045,10 @@ function handleWs(ws, req) {
                     broadcastBoard();
                 }
                 else if (t == "chat") {
-                    console.log("chat");
-                    broadcast(json);
+                    let chi = new ChatItem().fromJson(json.chatitem);
+                    console.log("chat", chi);
+                    chat.add(chi);
+                    broadcastChat();
                 }
                 else if (t == "sitplayer") {
                     let u = createUserFromJson(json.u);

@@ -7,6 +7,8 @@ let b=new Board().newGame()
 
 let sockets:any={}
 
+let chat:Chat=new Chat()
+
 function updateUsers(us:User[]){
     storeUsers(us)
     broadcastUserList()
@@ -125,6 +127,19 @@ function broadcastUserList(){
 
 function sendBoard(ws:any){send(ws,setBoardJson())}
 
+function chatJson():any{return({
+    t:"setchat",
+    chat:chat.toJson()
+})}
+
+function sendChat(ws:any){
+    send(ws,chatJson())
+}
+
+function broadcastChat(){
+    broadcast(chatJson())
+}
+
 function broadcastBoard(){
     broadcast(setBoardJson())
     b.clearChangeLog()
@@ -190,6 +205,8 @@ function handleWs(ws:any,req:any){
         })
 
         sendUserlist(ws)
+
+        sendChat(ws)
 
         ws.on('message', (message:any)=>{
             try{
@@ -316,9 +333,11 @@ function handleWs(ws:any,req:any){
                     b.newGame()
                     b.changeLog.kind="boardreset"
                     broadcastBoard()
-                }else if(t=="chat"){                    
-                    console.log("chat")
-                    broadcast(json)
+                }else if(t=="chat"){                                                        
+                    let chi=new ChatItem().fromJson(json.chatitem)
+                    console.log("chat",chi)
+                    chat.add(chi)
+                    broadcastChat()
                 }else if(t=="sitplayer"){
                     let u=createUserFromJson(json.u)
                     console.log("sit player",u)

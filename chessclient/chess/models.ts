@@ -1,5 +1,7 @@
 let EPOCH = 1517443200000 // 2018-2-1
 
+let CHAT_CAPACITY = 100
+
 function createUserFromJson(json:any):User{
     if(json==undefined) return new User()
     if(json.isBot) return new BotUser().fromJson(json)
@@ -38,10 +40,9 @@ class User{
     username:string=""
     cookie:string=""
     isBot:boolean=false
-    isSystem:boolean=false    
-    rd:number=350
-    registeredAt:number=EPOCH
-    lastSeenAt:number=EPOCH
+    isSystem:boolean=false        
+    registeredAt:number=new Date().getTime()
+    lastSeenAt:number=new Date().getTime()
     glicko:GlickoData=new GlickoData()
 
     clone():User{
@@ -68,8 +69,7 @@ class User{
         let json:any=({
             username:this.username,
             isBot:this.isBot,
-            isSystem:this.isSystem,            
-            rd:this.rd,
+            isSystem:this.isSystem,                        
             registeredAt:this.registeredAt,
             lastSeenAt:this.lastSeenAt,
             glicko:this.glicko.toJson()
@@ -87,8 +87,7 @@ class User{
         if(json.username!=undefined) this.username=json.username
         if(json.cookie!=undefined) this.cookie=json.cookie
         if(json.isBot!=undefined) this.isBot=json.isBot
-        if(json.isSystem!=undefined) this.isSystem=json.isSystem        
-        if(json.rd!=undefined) this.rd=json.rd
+        if(json.isSystem!=undefined) this.isSystem=json.isSystem                
         if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
         if(json.lastSeenAt!=undefined) this.lastSeenAt=json.lastSeenAt
         if(json.glicko!=undefined) this.glicko=new GlickoData().fromJson(json.glicko)
@@ -182,6 +181,66 @@ class UserList{
             let u=this.users[username]
             callback(u)
         }
+    }
+}
+
+class ChatItem{
+    user:User=new User()
+    text:string=""
+    time:number=new Date().getTime()
+
+    constructor(user:User=new User(),text:string=""){
+        this.user=user
+        this.text=text
+        this.time=new Date().getTime()
+    }
+
+    toJson():any{
+        return({
+            user:this.user.toJson(),
+            text:this.text,
+            time:this.time
+        })
+    }
+
+    fromJson(json:any):ChatItem{
+        if(json==undefined) return this
+
+        if(json.user!=undefined) this.user=createUserFromJson(json.user)
+        if(json.text!=undefined) this.text=json.text
+        if(json.time!=undefined) this.time=json.time
+
+        return this
+    }
+}
+
+class Chat{
+    items:ChatItem[]=[]
+
+    add(chi:ChatItem){
+        this.items.unshift(chi)
+    }
+
+    asHtml():string{            
+        return this.items.map(item=>
+            `<span class="chattime">${new Date(item.time).toLocaleString()}</span> ${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`
+        ).join("<br>")
+    }
+
+    toJson():any{
+        return(
+            this.items.map((item:ChatItem)=>item.toJson())
+        )
+    }
+
+    fromJson(json:any):Chat{        
+        if(json==undefined) return this
+
+        if(json!=undefined){
+            this.items=json.map((itemJson:any)=>new ChatItem().fromJson(itemJson))
+        }
+
+        return this
     }
 }
 

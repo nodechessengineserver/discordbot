@@ -1638,7 +1638,7 @@ class MongoColl extends DomElement {
 }
 var Glicko;
 (function (Glicko) {
-    const VERBOSE = true;
+    const VERBOSE = false;
     ///////////////////////////////////////////
     // Constants and utility functions
     Glicko.RATING0 = 1500;
@@ -1708,6 +1708,7 @@ var Glicko;
     Glicko.calc = calc;
 })(Glicko || (Glicko = {}));
 let EPOCH = 1517443200000; // 2018-2-1
+let CHAT_CAPACITY = 100;
 function createUserFromJson(json) {
     if (json == undefined)
         return new User();
@@ -1750,9 +1751,8 @@ class User {
         this.cookie = "";
         this.isBot = false;
         this.isSystem = false;
-        this.rd = 350;
-        this.registeredAt = EPOCH;
-        this.lastSeenAt = EPOCH;
+        this.registeredAt = new Date().getTime();
+        this.lastSeenAt = new Date().getTime();
         this.glicko = new GlickoData();
     }
     clone() {
@@ -1775,7 +1775,6 @@ class User {
             username: this.username,
             isBot: this.isBot,
             isSystem: this.isSystem,
-            rd: this.rd,
             registeredAt: this.registeredAt,
             lastSeenAt: this.lastSeenAt,
             glicko: this.glicko.toJson()
@@ -1797,8 +1796,6 @@ class User {
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
             this.isSystem = json.isSystem;
-        if (json.rd != undefined)
-            this.rd = json.rd;
         if (json.registeredAt != undefined)
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
@@ -1879,6 +1876,56 @@ class UserList {
             let u = this.users[username];
             callback(u);
         }
+    }
+}
+class ChatItem {
+    constructor(user = new User(), text = "") {
+        this.user = new User();
+        this.text = "";
+        this.time = new Date().getTime();
+        this.user = user;
+        this.text = text;
+        this.time = new Date().getTime();
+    }
+    toJson() {
+        return ({
+            user: this.user.toJson(),
+            text: this.text,
+            time: this.time
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.user != undefined)
+            this.user = createUserFromJson(json.user);
+        if (json.text != undefined)
+            this.text = json.text;
+        if (json.time != undefined)
+            this.time = json.time;
+        return this;
+    }
+}
+class Chat {
+    constructor() {
+        this.items = [];
+    }
+    add(chi) {
+        this.items.unshift(chi);
+    }
+    asHtml() {
+        return this.items.map(item => `<span class="chattime">${new Date(item.time).toLocaleString()}</span> ${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>");
+    }
+    toJson() {
+        return (this.items.map((item) => item.toJson()));
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json != undefined) {
+            this.items = json.map((itemJson) => new ChatItem().fromJson(itemJson));
+        }
+        return this;
     }
 }
 let loggedUser = new User();
@@ -3162,15 +3209,15 @@ class Board {
         let rcb = new RatingCalculation();
         rcb.username = pb.username;
         rcb.oldRating = pb.glicko.rating;
-        console.log("pw", pw);
-        console.log("pb", pb);
         let s = this.gameScore();
         let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
         let pbng = Glicko.calc(pb.glicko, pw.glicko, 1 - s);
-        pw.glicko = pwng;
-        pb.glicko = pbng;
-        rcw.newRating = pwng.rating;
-        rcb.newRating = pbng.rating;
+        if (!((pw.isBot) || (pb.isBot))) {
+            pw.glicko = pwng;
+            pb.glicko = pbng;
+            rcw.newRating = pwng.rating;
+            rcb.newRating = pbng.rating;
+        }
         this.changeLog.kind = "ratingscalculated";
         this.gameStatus.ratingCalcWhite = rcw;
         this.gameStatus.ratingCalcBlack = rcb;
@@ -3196,6 +3243,9 @@ class Board {
         this.gameStatus.scoreReason = "draw agreed";
         this.actualizeHistory();
         return this;
+    }
+    getPlayer(color) {
+        return this.gameStatus.playersinfo.getByColor(color).u;
     }
 }
 class GuiPlayerInfo extends DomElement {
@@ -3631,6 +3681,10 @@ function ping() {
         setTimeout(ping, PING_INTERVAL);
     }
 }
+let chat = new Chat();
+function showChat() {
+    chatDiv.x.h(chat.asHtml());
+}
 function strongSocket() {
     ws = newSocket();
     ws.onopen = function () {
@@ -3656,13 +3710,13 @@ function strongSocket() {
             else if (t == "lichesscode") {
                 let code = json.code;
                 let username = json.username;
-                console.log(`lichess code received ${username} ${code}`);
+                //console.log(`lichess code received ${username} ${code}`)
                 showLichessCode(username, code);
             }
             else if (t == "userregistered") {
                 let username = json.username;
                 let cookie = json.cookie;
-                console.log(`${username} registered , cookie : ${cookie}`);
+                //console.log(`${username} registered , cookie : ${cookie}`)
                 setCookie("user", cookie, USER_COOKIE_EXPIRY);
                 emit({
                     t: "userloggedin",
@@ -3672,17 +3726,17 @@ function strongSocket() {
             }
             else if (t == "usercheckfailed") {
                 let username = json.username;
-                console.log(`check for ${username} failed`);
+                //console.log(`check for ${username} failed`)
             }
             else if (t == "setuser") {
                 loggedUser = createUserFromJson(json.u);
-                console.log(`set user ${loggedUser}`);
+                //console.log(`set user ${loggedUser}`)
                 setCookie("user", loggedUser.cookie, USER_COOKIE_EXPIRY);
                 setLoggedUser();
             }
             else if (t == "userlist") {
                 userlist = new UserList().fromJson(json.userlist);
-                console.log(`set userlist`, userlist);
+                //console.log(`set userlist`,userlist)
                 setUserList();
             }
             else if (t == "setboard") {
@@ -3694,9 +3748,8 @@ function strongSocket() {
                 gboard.b.changeLog = cl;
                 handleChangeLog(cl);
             }
-            else if (t == "chat") {
-                let u = createUserFromJson(json.u);
-                chatItems.unshift(new ChatItem(u, json.text));
+            else if (t == "setchat") {
+                chat = new Chat().fromJson(json.chat);
                 showChat();
             }
             else if (t == "reset") {
@@ -3816,7 +3869,7 @@ function setUserList() {
     users.x;
     userlist.iterate((u) => {
         users.a([
-            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">( member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()} )</div>`)
+            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
         ]);
         if (u.e(loggedUser)) {
             let cookie = loggedUser.cookie;
@@ -3831,7 +3884,7 @@ function showLichessCode(username, code) {
     lichessCodeShowWindow.setTitle(`Lichess verification code`).
         setInfo(`${username} ! Insert this code into your lichess profile, then press Ok.`).
         setOkCallback(function () {
-        console.log("checking lichess code");
+        //console.log("checking lichess code")
         emit({
             t: "checklichesscode",
             username: username,
@@ -3907,22 +3960,11 @@ function dragMoveCallback(algeb) {
         algeb: algeb
     });
 }
-class ChatItem {
-    constructor(user, text) {
-        this.user = user;
-        this.text = text;
-    }
-}
-let chatItems = [];
-function showChat() {
-    chatDiv.x.h(chatItems.map(item => `${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>"));
-}
 function chatInputCallback() {
     let text = chatInput.getTextAndClear();
     emit({
         t: "chat",
-        u: loggedUser.toJson(),
-        text: text
+        chatitem: new ChatItem(loggedUser, text).toJson()
     });
 }
 function chatButtonClicked() {
@@ -3932,12 +3974,12 @@ function handleChangeLog(cl) {
     //console.log("handle change log",cl)        
     let colorName = cl.pi.colorName();
     if (cl.kind == "sitplayer") {
-        chatItems.unshift(new ChatItem(SU, `${cl.pi.u.smartNameHtml()} has been seated as ${colorName}`));
+        chat.add(new ChatItem(SU, `${cl.pi.u.smartNameHtml()} has been seated as ${colorName}`));
         showChat();
         playSound("newchallengesound");
     }
     else if (cl.kind == "standplayer") {
-        chatItems.unshift(new ChatItem(SU, `${cl.u.smartNameHtml()} has been unseated as ${colorName} ${cl.reason}`));
+        chat.add(new ChatItem(SU, `${cl.u.smartNameHtml()} has been unseated as ${colorName} ${cl.reason}`));
         showChat();
         playSound("defeatsound");
     }
@@ -3945,9 +3987,13 @@ function handleChangeLog(cl) {
         playSound("movesound");
     }
     else if (cl.kind == "boardreset") {
-        playSound("newchallengesound");
+        playSound("newpmsound");
     }
     else if (cl.kind == "ratingscalculated") {
+        emit({
+            t: "chat",
+            chatitem: new ChatItem(loggedUser, `${gboard.b.gameStatus.ratingCalcBlack.username} - ${gboard.b.gameStatus.ratingCalcWhite.username} game ended ${gboard.b.gameStatus.score} ${gboard.b.gameStatus.scoreReason}`).toJson()
+        });
         playSound("newchallengesound");
     }
     gboard.build();

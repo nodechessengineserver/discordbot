@@ -45,6 +45,12 @@ function ping(){
     }
 }
 
+let chat:Chat=new Chat()
+
+function showChat(){
+    chatDiv.x.h(chat.asHtml())
+}
+
 function strongSocket(){
     ws=newSocket()        
     ws.onopen=function(){
@@ -69,12 +75,12 @@ function strongSocket(){
             }else if(t=="lichesscode"){
                 let code=json.code
                 let username=json.username
-                console.log(`lichess code received ${username} ${code}`)
+                //console.log(`lichess code received ${username} ${code}`)
                 showLichessCode(username,code)
             }else if(t=="userregistered"){
                 let username=json.username
                 let cookie=json.cookie
-                console.log(`${username} registered , cookie : ${cookie}`)
+                //console.log(`${username} registered , cookie : ${cookie}`)
                 setCookie("user",cookie,USER_COOKIE_EXPIRY)
                 emit({
                     t:"userloggedin",
@@ -83,15 +89,15 @@ function strongSocket(){
                 })
             }else if(t=="usercheckfailed"){
                 let username=json.username
-                console.log(`check for ${username} failed`)
+                //console.log(`check for ${username} failed`)
             }else if(t=="setuser"){
                 loggedUser=createUserFromJson(json.u)
-                console.log(`set user ${loggedUser}`)
+                //console.log(`set user ${loggedUser}`)
                 setCookie("user",loggedUser.cookie,USER_COOKIE_EXPIRY)
                 setLoggedUser()
             }else if(t=="userlist"){                
                 userlist=new UserList().fromJson(json.userlist)
-                console.log(`set userlist`,userlist)
+                //console.log(`set userlist`,userlist)
                 setUserList()
             }else if(t=="setboard"){                
                 let boardJson=json.boardJson
@@ -101,9 +107,8 @@ function strongSocket(){
                 let cl=new ChangeLog().fromJson(json.changeLog)
                 gboard.b.changeLog=cl
                 handleChangeLog(cl)
-            }else if(t=="chat"){
-                let u=createUserFromJson(json.u)
-                chatItems.unshift(new ChatItem(u,json.text))
+            }else if(t=="setchat"){
+                chat=new Chat().fromJson(json.chat)
                 showChat()
             }else if(t=="reset"){
                 gboard.b.newGame()
@@ -231,7 +236,8 @@ function setUserList(){
     users.x
     userlist.iterate((u:User)=>{
         users.a([
-            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">( member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()} )</div>`)
+            new Div().ac("user").h(
+                `${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
         ])
         if(u.e(loggedUser)){
             let cookie=loggedUser.cookie
@@ -247,7 +253,7 @@ function showLichessCode(username:any,code:any){
     lichessCodeShowWindow.setTitle(`Lichess verification code`).
     setInfo(`${username} ! Insert this code into your lichess profile, then press Ok.`).
     setOkCallback(function(){
-        console.log("checking lichess code")
+        //console.log("checking lichess code")
         emit({
             t:"checklichesscode",
             username:username,
@@ -331,30 +337,11 @@ function dragMoveCallback(algeb:string){
     })
 }
 
-class ChatItem{
-    user:User
-    text:string
-
-    constructor(user:User,text:string){
-        this.user=user
-        this.text=text
-    }
-}
-
-let chatItems:ChatItem[]=[]
-
-function showChat(){    
-    chatDiv.x.h(chatItems.map(item=>
-        `${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`
-    ).join("<br>"))    
-}
-
 function chatInputCallback(){    
     let text=chatInput.getTextAndClear()
     emit({
         t:"chat",
-        u:loggedUser.toJson(),
-        text:text
+        chatitem:new ChatItem(loggedUser,text).toJson()
     })
 }
 
@@ -366,13 +353,13 @@ function handleChangeLog(cl:ChangeLog){
     //console.log("handle change log",cl)        
     let colorName=cl.pi.colorName()
     if(cl.kind=="sitplayer"){        
-        chatItems.unshift(new ChatItem(SU,
+        chat.add(new ChatItem(SU,
             `${cl.pi.u.smartNameHtml()} has been seated as ${colorName}`
         ))
         showChat()
         playSound("newchallengesound")
     }else if(cl.kind=="standplayer"){
-        chatItems.unshift(new ChatItem(SU,
+        chat.add(new ChatItem(SU,
             `${cl.u.smartNameHtml()} has been unseated as ${colorName} ${cl.reason}`
         ))
         showChat()
@@ -380,8 +367,12 @@ function handleChangeLog(cl:ChangeLog){
     }else if(cl.kind=="movemade"){
         playSound("movesound")
     }else if(cl.kind=="boardreset"){
-        playSound("newchallengesound")
+        playSound("newpmsound")
     }else if(cl.kind=="ratingscalculated"){
+        emit({
+            t:"chat",
+            chatitem:new ChatItem(loggedUser,`${gboard.b.gameStatus.ratingCalcBlack.username} - ${gboard.b.gameStatus.ratingCalcWhite.username} game ended ${gboard.b.gameStatus.score} ${gboard.b.gameStatus.scoreReason}`).toJson()
+        })
         playSound("newchallengesound")
     }
     gboard.build()

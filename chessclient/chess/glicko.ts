@@ -1,6 +1,6 @@
 namespace Glicko{
 
-const VERBOSE = true
+const VERBOSE = false
 
 ///////////////////////////////////////////
 // Constants and utility functions

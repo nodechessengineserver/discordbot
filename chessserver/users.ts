@@ -38,7 +38,7 @@ function registerUser(username:string,callback:any){
     let u=new User()
 
     u.username=username
-    u.cookie=cookie
+    u.cookie=cookie    
 
     users.setUser(u)
 
@@ -54,8 +54,6 @@ function storeUsers(us:User[]){
     for(let u of us){        
 
         let uclone=users.upsertUser(u)
-
-        console.log("storing",uclone)
 
         dbSetUser(uclone)
 
