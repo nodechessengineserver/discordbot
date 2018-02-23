@@ -60,6 +60,7 @@
     "utils.ts",
     "db.ts",
     "users.ts",
+    "chesslog.ts",
     "ws.ts",
     "index.ts"
   ]

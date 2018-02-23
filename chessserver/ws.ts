@@ -213,6 +213,8 @@ function handleWs(ws:any,req:any){
 
         console.log("websocket connected",ru,sri)
 
+        chessLog.add(new ChessLogItem("sri # "+sri,"socket connected"))
+
         let headers=req.headers
         let cookies:any={}
 
@@ -266,6 +268,9 @@ function handleWs(ws:any,req:any){
             if(result.ok){
                 loggedUser=result.user                                
                 console.log(`logged user`,loggedUser)
+
+                chessLog.add(new ChessLogItem(loggedUser.username,"user logged in"))
+
                 setUser()
             }
         })
@@ -284,6 +289,10 @@ function handleWs(ws:any,req:any){
                 let json=JSON.parse(message)
 
                 let t=json.t                
+
+                if(t!="ping"){
+                    chessLog.add(new ChessLogItem(loggedUser.username,t))
+                }                
 
                 if(t=="ping"){
                     send(ws,{

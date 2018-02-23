@@ -219,6 +219,7 @@ class Chat{
 
     add(chi:ChatItem){
         this.items.unshift(chi)
+        while(this.items.length>100) this.items.pop()
     }
 
     asHtml():string{            

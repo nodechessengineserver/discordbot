@@ -21,6 +21,7 @@ const app=express()
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
   .get('/', (req:any, res:any) => res.render('pages/index'))
+  .get('/chesslog', (req:any, res:any) => sendLogPage(req,res))
   .post("/ajax",(req:any, res:any) => api.handleApi(req,res))
 
 const server=http.createServer(app)

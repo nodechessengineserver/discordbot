@@ -1912,6 +1912,8 @@ class Chat {
     }
     add(chi) {
         this.items.unshift(chi);
+        while (this.items.length > 100)
+            this.items.pop();
     }
     asHtml() {
         return this.items.map(item => `<span class="chattime">${new Date(item.time).toLocaleString()}</span> ${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>");

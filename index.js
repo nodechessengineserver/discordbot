@@ -290,6 +290,8 @@ class Chat {
     }
     add(chi) {
         this.items.unshift(chi);
+        while (this.items.length > 100)
+            this.items.pop();
     }
     asHtml() {
         return this.items.map(item => `<span class="chattime">${new Date(item.time).toLocaleString()}</span> ${item.user.smartNameHtml()} : <span class="chattext">${item.text}</span>`).join("<br>");
@@ -1749,6 +1751,61 @@ function checkCookie(cookie, callback) {
         { ok: false } :
         { ok: true, user: u });
 }
+class ChessLogItem {
+    constructor(username, action) {
+        this.time = new Date().getTime();
+        this.username = username;
+        this.action = action;
+    }
+}
+class ChessLog {
+    constructor() {
+        this.items = [];
+    }
+    add(item) {
+        this.items.unshift(item);
+        while (this.items.length > 1000)
+            this.items.pop();
+    }
+    asHtml() {
+        let rows = this.items.map(item => `
+<tr>
+<td>
+<span class="logtime">${new Date(item.time).toLocaleString()}</span>
+</td>
+<td>
+<span class="loguser">${item.username}</span>
+</td>
+<td>
+<span class="logaction">${item.action}</span>
+</td>
+</tr>`).join("<br>\n");
+        return `
+<table>
+${rows}
+</table>`;
+    }
+}
+const chessLog = new ChessLog();
+function sendLogPage(req, res) {
+    let content = `
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="stylesheets/reset.css">
+    <link rel="stylesheet" href="stylesheets/app.css">
+</head>
+
+<body>
+    Chess log
+    <hr>
+    ${chessLog.asHtml()}
+</body>
+
+</html>`;
+    res.send(content);
+}
 let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
 let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
@@ -1935,6 +1992,7 @@ function handleWs(ws, req) {
         }
         sockets[sri] = new Socket(ws);
         console.log("websocket connected", ru, sri);
+        chessLog.add(new ChessLogItem("sri # " + sri, "socket connected"));
         let headers = req.headers;
         let cookies = {};
         if (headers != undefined) {
@@ -1978,6 +2036,7 @@ function handleWs(ws, req) {
             if (result.ok) {
                 loggedUser = result.user;
                 console.log(`logged user`, loggedUser);
+                chessLog.add(new ChessLogItem(loggedUser.username, "user logged in"));
                 setUser();
             }
         });
@@ -1990,6 +2049,9 @@ function handleWs(ws, req) {
             try {
                 let json = JSON.parse(message);
                 let t = json.t;
+                if (t != "ping") {
+                    chessLog.add(new ChessLogItem(loggedUser.username, t));
+                }
                 if (t == "ping") {
                     send(ws, {
                         t: "pong",
@@ -2188,6 +2250,7 @@ const app = express()
     .set('views', path.join(__dirname, 'views'))
     .set('view engine', 'ejs')
     .get('/', (req, res) => res.render('pages/index'))
+    .get('/chesslog', (req, res) => sendLogPage(req, res))
     .post("/ajax", (req, res) => api.handleApi(req, res));
 const server = http.createServer(app);
 const wss = new WebSocket_.Server({ server });
