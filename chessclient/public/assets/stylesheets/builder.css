@@ -302,3 +302,14 @@
 .chattime{
     font-size:10rem;
 }
+
+.usernamelarge{
+    font-size: 22rem;
+}
+
+.ratinglarge{
+    font-size: 16rem;
+    color: #007;
+    font-weight: bold;
+    margin-left: 5rem;
+}

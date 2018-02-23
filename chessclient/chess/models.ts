@@ -61,8 +61,8 @@ class User{
         return this.username==""?"Anonymous":this.username
     }
 
-    smartNameHtml():string{
-        return `<span class="${this.empty()?"modeluser anonuser":"modeluser"}">${this.smartName()}</span>`
+    smartNameHtml(innerclass:string=""):string{
+        return `<span class="${this.empty()?"modeluser anonuser":"modeluser"}"><span class="${innerclass}">${this.smartName()}</span></span>`
     }
 
     toJson(secure:boolean=false):any{
@@ -114,8 +114,8 @@ class BotUser extends User{
         this.isBot=true
     }
 
-    smartNameHtml():string{
-        return `<span class="modeluser botuser">Bot</span>`
+    smartNameHtml(innerclass:string):string{
+        return `<span class="modeluser botuser"><span class="${innerclass}">Bot</span></span>`
     }
 }
 

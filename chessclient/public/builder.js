@@ -1767,8 +1767,8 @@ class User {
     smartName() {
         return this.username == "" ? "Anonymous" : this.username;
     }
-    smartNameHtml() {
-        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}">${this.smartName()}</span>`;
+    smartNameHtml(innerclass = "") {
+        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}"><span class="${innerclass}">${this.smartName()}</span></span>`;
     }
     toJson(secure = false) {
         let json = ({
@@ -1821,8 +1821,8 @@ class BotUser extends User {
         this.username = "#Bot";
         this.isBot = true;
     }
-    smartNameHtml() {
-        return `<span class="modeluser botuser">Bot</span>`;
+    smartNameHtml(innerclass) {
+        return `<span class="modeluser botuser"><span class="${innerclass}">Bot</span></span>`;
     }
 }
 class UserList {
@@ -3307,7 +3307,7 @@ class GuiPlayerInfo extends DomElement {
                     new Td().a([
                         new Div().
                             z(this.PLAYER_WIDTH, this.PLAYER_HEIGHT).
-                            h(`${this.pi.u.username != "" ? `${this.pi.u.smartNameHtml()} ( ${this.pi.u.glicko.ratingF()} )` : "?"}`)
+                            h(`${this.pi.u.username != "" ? `${this.pi.u.smartNameHtml("usernamelarge")} <span class="ratinglarge">${this.pi.u.glicko.ratingF()}</span>` : "?"}`)
                     ]),
                     new Td().a([
                         new Div().z(this.TIME_WIDTH, this.PLAYER_HEIGHT).
@@ -3755,6 +3755,10 @@ function strongSocket() {
             else if (t == "reset") {
                 gboard.b.newGame();
             }
+            else if (t == "setonline") {
+                let usernames = json.pool;
+                setOnlinePlayers(usernames);
+            }
         }
         catch (err) {
             console.log(err);
@@ -3833,6 +3837,7 @@ let boardInfoDiv;
 let flipButtonSpan;
 let modposButtonSpan;
 let gameStatusDiv;
+let playersOnlineDiv;
 let moveInput;
 let chatDiv;
 let playerDiv;
@@ -3990,10 +3995,6 @@ function handleChangeLog(cl) {
         playSound("newpmsound");
     }
     else if (cl.kind == "ratingscalculated") {
-        emit({
-            t: "chat",
-            chatitem: new ChatItem(loggedUser, `${gboard.b.gameStatus.ratingCalcBlack.username} - ${gboard.b.gameStatus.ratingCalcWhite.username} game ended ${gboard.b.gameStatus.score} ${gboard.b.gameStatus.scoreReason}`).toJson()
-        });
         playSound("newchallengesound");
     }
     gboard.build();
@@ -4044,12 +4045,19 @@ function buildApp() {
                 moveInput = new TextInput("moveinput").setEnterCallback(moveInputEntered),
                 flipButtonSpan = new Span(),
                 modposButtonSpan = new Span(),
-                gameStatusDiv = new Div().ib().ml(5),
-                boardInfoDiv = new Div().mt(3)
+                gameStatusDiv = new Div().ib().ml(5)
             ]),
             new Td().a([
-                chatInput.mt(3),
-                new Button("Chat").onClick(chatButtonClicked).mt(3)
+                chatInput,
+                new Button("Chat").onClick(chatButtonClicked)
+            ])
+        ]),
+        new Tr().a([
+            new Td().cs(2).a([
+                boardInfoDiv = new Div()
+            ]),
+            new Td().a([
+                playersOnlineDiv = new Div().ac("playersonline")
             ])
         ])
     ]);
@@ -4139,6 +4147,9 @@ function buildModposButtonSpan() {
             new Button("Del").onClick((e) => emit({ t: "delmove" })),
             new Button("Reset").onClick((e) => emit({ t: "reset" }))
         ]);
+}
+function setOnlinePlayers(usernames) {
+    playersOnlineDiv.h(usernames.join(" "));
 }
 function playSound(id) {
     let e = document.getElementById(id);

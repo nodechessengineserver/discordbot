@@ -112,6 +112,9 @@ function strongSocket(){
                 showChat()
             }else if(t=="reset"){
                 gboard.b.newGame()
+            }else if(t=="setonline"){
+                let usernames=json.pool
+                setOnlinePlayers(usernames)
             }
         }catch(err){console.log(err)}
     }
@@ -198,6 +201,7 @@ let boardInfoDiv:Div
 let flipButtonSpan:Span
 let modposButtonSpan:Span
 let gameStatusDiv:Div
+let playersOnlineDiv:Div
 let moveInput:TextInput
 let chatDiv:Div
 let playerDiv:Div
@@ -368,11 +372,7 @@ function handleChangeLog(cl:ChangeLog){
         playSound("movesound")
     }else if(cl.kind=="boardreset"){
         playSound("newpmsound")
-    }else if(cl.kind=="ratingscalculated"){
-        emit({
-            t:"chat",
-            chatitem:new ChatItem(loggedUser,`${gboard.b.gameStatus.ratingCalcBlack.username} - ${gboard.b.gameStatus.ratingCalcWhite.username} game ended ${gboard.b.gameStatus.score} ${gboard.b.gameStatus.scoreReason}`).toJson()
-        })
+    }else if(cl.kind=="ratingscalculated"){        
         playSound("newchallengesound")
     }
     gboard.build()
@@ -434,12 +434,20 @@ function buildApp(){
                 moveInput=new TextInput("moveinput").setEnterCallback(moveInputEntered),
                 flipButtonSpan=new Span(),
                 modposButtonSpan=new Span(),                
-                gameStatusDiv=new Div().ib().ml(5),
-                boardInfoDiv=new Div().mt(3)
+                gameStatusDiv=new Div().ib().ml(5)
+                
             ]),
             new Td().a([
-                chatInput.mt(3),
-                new Button("Chat").onClick(chatButtonClicked).mt(3)
+                chatInput,
+                new Button("Chat").onClick(chatButtonClicked)
+            ])
+        ]),
+        new Tr().a([
+            new Td().cs(2).a([
+                boardInfoDiv=new Div()
+            ]),
+            new Td().a([
+                playersOnlineDiv=new Div().ac("playersonline")
             ])
         ])
     ])
@@ -545,6 +553,10 @@ function buildModposButtonSpan(){
         new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
         new Button("Reset").onClick((e:Event)=>emit({t:"reset"}))
     ])
+}
+
+function setOnlinePlayers(usernames:string[]){
+    playersOnlineDiv.h(usernames.join(" "))
 }
 
 function playSound(id:string){

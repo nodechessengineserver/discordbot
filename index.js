@@ -145,8 +145,8 @@ class User {
     smartName() {
         return this.username == "" ? "Anonymous" : this.username;
     }
-    smartNameHtml() {
-        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}">${this.smartName()}</span>`;
+    smartNameHtml(innerclass = "") {
+        return `<span class="${this.empty() ? "modeluser anonuser" : "modeluser"}"><span class="${innerclass}">${this.smartName()}</span></span>`;
     }
     toJson(secure = false) {
         let json = ({
@@ -1744,14 +1744,54 @@ let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
 let UNSEAT_TIMEOUT = GLOBALS.ONE_MINUTE * 2;
 let BOARD_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 1;
+let USERS_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 5;
 let b = new Board().newGame();
+class Socket {
+    constructor(ws) {
+        this.ping = new Date().getTime();
+        this.u = new User();
+        this.ws = ws;
+    }
+}
 let sockets = {};
 let chat = new Chat();
 function updateUsers(us) {
     storeUsers(us);
     broadcastUserList();
 }
+setInterval(maintainUsers, USERS_MAINTAIN_INTERVAL);
 setInterval(maintainBoard, BOARD_MAINTAIN_INTERVAL);
+let userpoolOld = [];
+let userpoolCurrent = [];
+function uniqueStrings(items) {
+    let hash = {};
+    for (let str of items) {
+        hash[str] = true;
+    }
+    return Object.keys(hash);
+}
+function broadcastOnlineUsers() {
+    broadcast({
+        t: "setonline",
+        pool: uniqueStrings(userpoolCurrent)
+    });
+    userpoolOld = userpoolCurrent;
+}
+function maintainUsers() {
+    userpoolCurrent = Object.keys(sockets).map((sri) => sockets[sri].u.username);
+    for (let username of userpoolCurrent) {
+        if (userpoolOld.indexOf(username) < 0) {
+            broadcastOnlineUsers();
+            return;
+        }
+    }
+    for (let username of userpoolOld) {
+        if (userpoolCurrent.indexOf(username) < 0) {
+            broadcastOnlineUsers();
+            return;
+        }
+    }
+}
 function maintainBoard() {
     let refresh = false;
     b.iteratePlayersinfo((pi) => {
@@ -1792,7 +1832,7 @@ function maintainSockets() {
                 try {
                     let ws = socket.ws;
                     if (isOpen(ws)) {
-                        socket.close(1000);
+                        ws.close(1000);
                     }
                     delsris.push(sri);
                 }
@@ -1806,7 +1846,6 @@ function maintainSockets() {
             for (let sri of delsris) {
                 delete sockets[sri];
             }
-            //console.log("sockets",sockets)
         }
     }
     catch (err) {
@@ -1868,26 +1907,23 @@ function broadcastChat() {
     broadcast(chatJson());
 }
 function broadcastBoard() {
+    if (b.changeLog.kind == "ratingscalculated") {
+        chat.add(new ChatItem(new SystemUser(), `${b.gameStatus.ratingCalcWhite.username} - ${b.gameStatus.ratingCalcBlack.username} game ended ${b.gameStatus.score} ${b.gameStatus.scoreReason}`));
+        broadcastChat();
+    }
     broadcast(setBoardJson());
     b.clearChangeLog();
 }
 function handleWs(ws, req) {
     try {
         let ru = req.url;
-        let sri = "unknown sri";
-        console.log("websocket connected", ru);
+        let sri = "unknownsri";
         let parts = ru.split("sri=");
         if (parts.length > 1) {
-            // valid socket connected
             sri = parts[1];
-            let now = new Date().getTime();
-            sockets[sri] = {
-                ws: ws,
-                ping: now
-            };
-            // send board for first time
-            sendBoard(ws);
         }
+        sockets[sri] = new Socket(ws);
+        console.log("websocket connected", ru, sri);
         let headers = req.headers;
         let cookies = {};
         if (headers != undefined) {
@@ -1900,12 +1936,26 @@ function handleWs(ws, req) {
                     let value = parts[1];
                     cookies[name] = value;
                 }
-                //console.log(cookies)
             }
         }
         let loggedUser = new User();
+        function hasLoggedUser() {
+            for (let sri in sockets) {
+                let socket = sockets[sri];
+                if (socket.u.e(loggedUser)) {
+                    return true;
+                }
+            }
+            return false;
+        }
         function setUser() {
             console.log("setting user", loggedUser);
+            if (!hasLoggedUser()) {
+                // novel user
+                chat.add(new ChatItem(new SystemUser(), `welcome ${loggedUser.smartNameHtml()}`));
+                broadcastChat();
+            }
+            sockets[sri].u = loggedUser;
             send(ws, ({
                 t: "setuser",
                 u: loggedUser.toJson()
@@ -1920,20 +1970,20 @@ function handleWs(ws, req) {
                 setUser();
             }
         });
+        // send state for first time        
+        sendBoard(ws);
         sendUserlist(ws);
         sendChat(ws);
         ws.on('message', (message) => {
             try {
-                //console.log(message)
                 let json = JSON.parse(message);
                 let t = json.t;
-                //console.log("action",t)
                 if (t == "ping") {
                     send(ws, {
                         t: "pong",
                         time: json.time
                     });
-                    sockets[sri]["ping"] = new Date().getTime();
+                    sockets[sri].ping = new Date().getTime();
                 }
                 else if (t == "lichesslogin") {
                     console.log(t);
@@ -2101,6 +2151,7 @@ function handleWs(ws, req) {
         });
         ws.on('close', function () {
             console.log("websocket closed", sri);
+            delete sockets[sri];
         });
     }
     catch (err) {

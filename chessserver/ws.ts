@@ -2,10 +2,21 @@ let SOCKET_TIMEOUT=GLOBALS.ONE_SECOND*60
 let SOCKET_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*60
 let UNSEAT_TIMEOUT=GLOBALS.ONE_MINUTE*2
 let BOARD_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*1
+let USERS_MAINTAIN_INTERVAL=GLOBALS.ONE_SECOND*5
 
 let b=new Board().newGame()
 
-let sockets:any={}
+class Socket{
+    ws:any
+    ping:number=new Date().getTime()
+    u:User=new User()
+
+    constructor(ws:any){
+        this.ws=ws
+    }
+}
+
+let sockets:{[id:string]:Socket}={}
 
 let chat:Chat=new Chat()
 
@@ -14,7 +25,43 @@ function updateUsers(us:User[]){
     broadcastUserList()
 }
 
+setInterval(maintainUsers,USERS_MAINTAIN_INTERVAL)
 setInterval(maintainBoard,BOARD_MAINTAIN_INTERVAL)
+
+let userpoolOld:string[]=[]
+let userpoolCurrent:string[]=[]
+
+function uniqueStrings(items:string[]):string[]{
+    let hash:any={}
+    for(let str of items){
+        hash[str]=true
+    }
+    return Object.keys(hash)
+}
+
+function broadcastOnlineUsers(){
+    broadcast({
+        t:"setonline",
+        pool:uniqueStrings(userpoolCurrent)
+    })
+    userpoolOld=userpoolCurrent
+}
+
+function maintainUsers(){
+    userpoolCurrent=Object.keys(sockets).map((sri:string)=>sockets[sri].u.username)
+    for(let username of userpoolCurrent){
+        if(userpoolOld.indexOf(username)<0){
+            broadcastOnlineUsers()
+            return
+        }
+    }
+    for(let username of userpoolOld){
+        if(userpoolCurrent.indexOf(username)<0){
+            broadcastOnlineUsers()
+            return
+        }
+    }
+}
 
 function maintainBoard(){    
     let refresh=false
@@ -58,7 +105,7 @@ function maintainSockets(){
                 try{
                     let ws=socket.ws
                     if(isOpen(ws)){
-                        socket.close(1000)
+                        ws.close(1000)
                     }
                     delsris.push(sri)
                 }catch(err){
@@ -71,8 +118,7 @@ function maintainSockets(){
             console.log("sockets to delete",delsris)
             for(let sri of delsris){
                 delete sockets[sri]
-            }
-            //console.log("sockets",sockets)
+            }            
         }
     }catch(err){
         console.log(err)
@@ -141,6 +187,10 @@ function broadcastChat(){
 }
 
 function broadcastBoard(){
+    if(b.changeLog.kind=="ratingscalculated"){
+        chat.add(new ChatItem(new SystemUser(),`${b.gameStatus.ratingCalcWhite.username} - ${b.gameStatus.ratingCalcBlack.username} game ended ${b.gameStatus.score} ${b.gameStatus.scoreReason}`))
+        broadcastChat()
+    }    
     broadcast(setBoardJson())
     b.clearChangeLog()
 }
@@ -148,22 +198,17 @@ function broadcastBoard(){
 function handleWs(ws:any,req:any){    
     try{        
         let ru=req.url
-        let sri="unknown sri"
-        console.log("websocket connected",ru)
 
-        let parts=ru.split("sri=")
-        if(parts.length>1){
-            // valid socket connected
-            sri=parts[1]
-            let now=new Date().getTime()
-            sockets[sri]={
-                ws:ws,
-                ping:now
-            }
-            
-            // send board for first time
-            sendBoard(ws)
+        let sri="unknownsri"        
+
+        let parts=ru.split("sri=")        
+        if(parts.length>1){            
+            sri=parts[1]            
         }
+
+        sockets[sri]=new Socket(ws)
+
+        console.log("websocket connected",ru,sri)
 
         let headers=req.headers
         let cookies:any={}
@@ -171,26 +216,44 @@ function handleWs(ws:any,req:any){
         if(headers!=undefined){
             let cookieAll=headers.cookie
             if(cookieAll!=undefined){            
-            let cookiesAll=cookieAll.split(/;\s*/)
-                
+            let cookiesAll=cookieAll.split(/;\s*/)                
                 for(let cookieStr of cookiesAll){
                     let parts=cookieStr.split("=")
                     let name=parts[0]
                     let value=parts[1]
                     cookies[name]=value
-                }
-                //console.log(cookies)
+                }                
             }    
         }
 
         let loggedUser:User=new User()
 
+        function hasLoggedUser():boolean{
+            for(let sri in sockets){
+                let socket=sockets[sri]
+                if(socket.u.e(loggedUser)){
+                    return true
+                }
+            }
+            return false
+        }
+
         function setUser(){
             console.log("setting user",loggedUser)
+
+            if(!hasLoggedUser()){
+                // novel user
+                chat.add(new ChatItem(new SystemUser(),`welcome ${loggedUser.smartNameHtml()}`))
+                broadcastChat()
+            }
+
+            sockets[sri].u=loggedUser
+
             send(ws,({
                 t:"setuser",
                 u:loggedUser.toJson()
             }))
+
             sendBoard(ws)
         }
 
@@ -204,22 +267,25 @@ function handleWs(ws:any,req:any){
             }
         })
 
+        // send state for first time        
+        sendBoard(ws)
+
         sendUserlist(ws)
 
         sendChat(ws)
 
         ws.on('message', (message:any)=>{
-            try{
-                //console.log(message)
+            try{                
                 let json=JSON.parse(message)
-                let t=json.t
-                //console.log("action",t)
+
+                let t=json.t                
+
                 if(t=="ping"){
                     send(ws,{
                         t:"pong",
                         time:json.time
                     })
-                    sockets[sri]["ping"]=new Date().getTime()
+                    sockets[sri].ping=new Date().getTime()
                 }else if(t=="lichesslogin"){
                     console.log(t)
                     let username=json.username
@@ -388,6 +454,7 @@ function handleWs(ws:any,req:any){
         })
         ws.on('close', function(){
             console.log("websocket closed",sri)
+            delete sockets[sri]
         })
     }catch(err){
         console.log(err)
