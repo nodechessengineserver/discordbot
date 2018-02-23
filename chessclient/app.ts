@@ -243,7 +243,7 @@ function setUserList(){
         if((!u.isBot)&&(!u.empty()))
         users.a([
             new Div().ac("user").h(
-                `${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
+                `${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">rd: ${u.glicko.rdF()}</div>`)
         ])
         if(u.e(loggedUser)){
             let cookie=loggedUser.cookie
