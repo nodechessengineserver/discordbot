@@ -199,8 +199,8 @@ class BotUser extends User {
         this.username = "#Bot";
         this.isBot = true;
     }
-    smartNameHtml() {
-        return `<span class="modeluser botuser">Bot</span>`;
+    smartNameHtml(innerclass) {
+        return `<span class="modeluser botuser"><span class="${innerclass}">Bot</span></span>`;
     }
 }
 class UserList {
@@ -1974,6 +1974,7 @@ function handleWs(ws, req) {
         sendBoard(ws);
         sendUserlist(ws);
         sendChat(ws);
+        broadcastOnlineUsers();
         ws.on('message', (message) => {
             try {
                 let json = JSON.parse(message);
