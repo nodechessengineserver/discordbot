@@ -274,6 +274,8 @@ function handleWs(ws:any,req:any){
 
         sendChat(ws)
 
+        broadcastOnlineUsers()
+
         ws.on('message', (message:any)=>{
             try{                
                 let json=JSON.parse(message)
