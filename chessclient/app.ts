@@ -114,7 +114,8 @@ function strongSocket(){
                 gboard.b.newGame()
             }else if(t=="setonline"){
                 let usernames=json.pool
-                setOnlinePlayers(usernames)
+                let numSockets=json.ns
+                setOnlinePlayers(usernames,numSockets)
             }
         }catch(err){console.log(err)}
     }
@@ -239,6 +240,7 @@ function setLoggedUser(){
 function setUserList(){
     users.x
     userlist.iterate((u:User)=>{
+        if((!u.isBot)&&(!u.empty()))
         users.a([
             new Div().ac("user").h(
                 `${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
@@ -555,8 +557,8 @@ function buildModposButtonSpan(){
     ])
 }
 
-function setOnlinePlayers(usernames:string[]){
-    playersOnlineDiv.h(usernames.join(" "))
+function setOnlinePlayers(usernames:string[],numSockets:number){
+    playersOnlineDiv.h(usernames.join(" ")+` ( sockets: ${numSockets} ) `)
 }
 
 function playSound(id:string){

@@ -561,6 +561,7 @@ class PlayersInfo {
 class RatingCalculation {
     constructor() {
         this.username = "";
+        this.isBot = false;
         this.oldRating = 1500;
         this.newRating = 1500;
     }
@@ -573,6 +574,7 @@ class RatingCalculation {
     toJson() {
         return ({
             username: this.username,
+            isBot: this.isBot,
             oldRating: this.oldRating,
             newRating: this.newRating
         });
@@ -582,6 +584,8 @@ class RatingCalculation {
             return this;
         if (json.username != undefined)
             this.username = json.username;
+        if (json.isBot != undefined)
+            this.isBot = json.isBot;
         if (json.oldRating != undefined)
             this.oldRating = json.oldRating;
         if (json.newRating != undefined)
@@ -1578,14 +1582,19 @@ class Board {
         this.savedWhite = pw.clone();
         this.savedBlack = pb.clone();
     }
+    wasRatedGame() {
+        return !((this.gameStatus.ratingCalcWhite.isBot) || (this.gameStatus.ratingCalcBlack.isBot));
+    }
     calculateRatings() {
         let pw = this.savedWhite;
         let pb = this.savedBlack;
         let rcw = new RatingCalculation();
         rcw.username = pw.username;
+        rcw.isBot = pw.isBot;
         rcw.oldRating = pw.glicko.rating;
         let rcb = new RatingCalculation();
         rcb.username = pb.username;
+        rcb.isBot = pb.isBot;
         rcb.oldRating = pb.glicko.rating;
         let s = this.gameScore();
         let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
@@ -1770,10 +1779,12 @@ function uniqueStrings(items) {
     }
     return Object.keys(hash);
 }
+function numSockets() { return Object.keys(sockets).length; }
 function broadcastOnlineUsers() {
     broadcast({
         t: "setonline",
-        pool: uniqueStrings(userpoolCurrent)
+        pool: uniqueStrings(userpoolCurrent),
+        ns: numSockets()
     });
     userpoolOld = userpoolCurrent;
 }

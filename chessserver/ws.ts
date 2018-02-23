@@ -39,10 +39,13 @@ function uniqueStrings(items:string[]):string[]{
     return Object.keys(hash)
 }
 
+function numSockets():number{return Object.keys(sockets).length}
+
 function broadcastOnlineUsers(){
     broadcast({
         t:"setonline",
-        pool:uniqueStrings(userpoolCurrent)
+        pool:uniqueStrings(userpoolCurrent),
+        ns:numSockets()
     })
     userpoolOld=userpoolCurrent
 }

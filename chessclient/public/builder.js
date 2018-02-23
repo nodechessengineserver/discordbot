@@ -2183,6 +2183,7 @@ class PlayersInfo {
 class RatingCalculation {
     constructor() {
         this.username = "";
+        this.isBot = false;
         this.oldRating = 1500;
         this.newRating = 1500;
     }
@@ -2195,6 +2196,7 @@ class RatingCalculation {
     toJson() {
         return ({
             username: this.username,
+            isBot: this.isBot,
             oldRating: this.oldRating,
             newRating: this.newRating
         });
@@ -2204,6 +2206,8 @@ class RatingCalculation {
             return this;
         if (json.username != undefined)
             this.username = json.username;
+        if (json.isBot != undefined)
+            this.isBot = json.isBot;
         if (json.oldRating != undefined)
             this.oldRating = json.oldRating;
         if (json.newRating != undefined)
@@ -3200,14 +3204,19 @@ class Board {
         this.savedWhite = pw.clone();
         this.savedBlack = pb.clone();
     }
+    wasRatedGame() {
+        return !((this.gameStatus.ratingCalcWhite.isBot) || (this.gameStatus.ratingCalcBlack.isBot));
+    }
     calculateRatings() {
         let pw = this.savedWhite;
         let pb = this.savedBlack;
         let rcw = new RatingCalculation();
         rcw.username = pw.username;
+        rcw.isBot = pw.isBot;
         rcw.oldRating = pw.glicko.rating;
         let rcb = new RatingCalculation();
         rcb.username = pb.username;
+        rcb.isBot = pb.isBot;
         rcb.oldRating = pb.glicko.rating;
         let s = this.gameScore();
         let pwng = Glicko.calc(pw.glicko, pb.glicko, s);
@@ -3461,8 +3470,11 @@ class GuiBoard extends DomElement {
 Game ended<br><br>
 Result: ${gst.score}<br><br>
 ${gst.scoreReason}<br><br><br>
+${this.b.wasRatedGame() ?
+                `
 ${gst.ratingCalcWhite.username} rating ${gst.ratingCalcWhite.newRatingF()} ( ${gst.ratingCalcWhite.ratingDifferenceF()} )<br><br>
 ${gst.ratingCalcBlack.username} rating ${gst.ratingCalcBlack.newRatingF()} ( ${gst.ratingCalcBlack.ratingDifferenceF()} )
+` : ""}
 `);
             this.a([this.boardResultDiv]);
         }
@@ -3757,7 +3769,8 @@ function strongSocket() {
             }
             else if (t == "setonline") {
                 let usernames = json.pool;
-                setOnlinePlayers(usernames);
+                let numSockets = json.ns;
+                setOnlinePlayers(usernames, numSockets);
             }
         }
         catch (err) {
@@ -3873,9 +3886,10 @@ function setLoggedUser() {
 function setUserList() {
     users.x;
     userlist.iterate((u) => {
-        users.a([
-            new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
-        ]);
+        if ((!u.isBot) && (!u.empty()))
+            users.a([
+                new Div().ac("user").h(`${u.username} ( ${u.glicko.ratingF()} ) <div class="userdata">member since: ${new Date(u.registeredAt).toLocaleDateString()} , rd: ${u.glicko.rdF()}</div>`)
+            ]);
         if (u.e(loggedUser)) {
             let cookie = loggedUser.cookie;
             loggedUser = u;
@@ -4148,8 +4162,8 @@ function buildModposButtonSpan() {
             new Button("Reset").onClick((e) => emit({ t: "reset" }))
         ]);
 }
-function setOnlinePlayers(usernames) {
-    playersOnlineDiv.h(usernames.join(" "));
+function setOnlinePlayers(usernames, numSockets) {
+    playersOnlineDiv.h(usernames.join(" ") + ` ( sockets: ${numSockets} ) `);
 }
 function playSound(id) {
     let e = document.getElementById(id);

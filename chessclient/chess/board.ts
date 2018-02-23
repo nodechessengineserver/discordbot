@@ -339,6 +339,7 @@ class PlayersInfo{
 
 class RatingCalculation{
     username:string=""
+    isBot:boolean=false
     oldRating:number=1500
     newRating:number=1500
     
@@ -352,6 +353,7 @@ class RatingCalculation{
     toJson():any{
         return({
             username:this.username,
+            isBot:this.isBot,
             oldRating:this.oldRating,
             newRating:this.newRating
         })
@@ -361,6 +363,7 @@ class RatingCalculation{
         if(json==undefined) return this
 
         if(json.username!=undefined) this.username=json.username
+        if(json.isBot!=undefined) this.isBot=json.isBot
         if(json.oldRating!=undefined) this.oldRating=json.oldRating
         if(json.newRating!=undefined) this.newRating=json.newRating
 
@@ -1436,16 +1439,22 @@ class Board{
         this.savedBlack=pb.clone()
     }
 
+    wasRatedGame():boolean{
+        return !((this.gameStatus.ratingCalcWhite.isBot)||(this.gameStatus.ratingCalcBlack.isBot))
+    }
+
     calculateRatings():User[]{
         let pw=this.savedWhite
         let pb=this.savedBlack
 
         let rcw=new RatingCalculation()
         rcw.username=pw.username
+        rcw.isBot=pw.isBot
         rcw.oldRating=pw.glicko.rating
 
         let rcb=new RatingCalculation()
         rcb.username=pb.username
+        rcb.isBot=pb.isBot
         rcb.oldRating=pb.glicko.rating
 
         let s=this.gameScore()

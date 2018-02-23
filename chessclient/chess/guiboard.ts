@@ -175,7 +175,7 @@ class GuiBoard extends DomElement<GuiBoard>{
             this.boardPieceDiv            
         ])
 
-        if(this.b.changeLog.kind=="ratingscalculated"){
+        if(this.b.changeLog.kind=="ratingscalculated"){            
             let gst=this.b.gameStatus
 
             this.boardResultDiv.h(
@@ -184,8 +184,11 @@ class GuiBoard extends DomElement<GuiBoard>{
 Game ended<br><br>
 Result: ${gst.score}<br><br>
 ${gst.scoreReason}<br><br><br>
+${this.b.wasRatedGame()?
+`
 ${gst.ratingCalcWhite.username} rating ${gst.ratingCalcWhite.newRatingF()} ( ${gst.ratingCalcWhite.ratingDifferenceF()} )<br><br>
 ${gst.ratingCalcBlack.username} rating ${gst.ratingCalcBlack.newRatingF()} ( ${gst.ratingCalcBlack.ratingDifferenceF()} )
+`:""}
 `
 )
 
