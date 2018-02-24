@@ -14,6 +14,7 @@ const testbot = require("./discordbot/testbot");
 const tourney = require("./discordbot/tourney");
 const api = require("./discordbot/api");
 const GLOBALS = require("./discordbot/globals");
+const voteserver = require("./voteserver/index");
 var Glicko;
 (function (Glicko) {
     const VERBOSE = false;
@@ -2246,11 +2247,13 @@ if (GLOBALS.isProd())
 const app = express()
     .use('/ajax', bodyParser.json({ limit: '1mb' }))
     .use('/chess', express.static(path.join(__dirname, 'chessclient/public')))
+    .use('/vote', express.static(path.join(__dirname, 'voteserver')))
     .use(express.static(path.join(__dirname, 'public')))
     .set('views', path.join(__dirname, 'views'))
     .set('view engine', 'ejs')
     .get('/', (req, res) => res.render('pages/index'))
     .get('/chesslog', (req, res) => sendLogPage(req, res))
+    .get('/vote', (req, res) => voteserver.index(req, res))
     .post("/ajax", (req, res) => api.handleApi(req, res));
 const server = http.createServer(app);
 const wss = new WebSocket_.Server({ server });
