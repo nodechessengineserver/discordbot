@@ -1,5 +1,5 @@
 call code .
-cd voteclient
+cd chessclient
 timeout 60
 call code .
 cd ..

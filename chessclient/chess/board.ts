@@ -119,8 +119,7 @@ class CastlingRight{
     kingTo:Square
     rookFrom:Square
     rookTo:Square
-    emptySqs:Square[]
-    passingSq:Square
+    emptySqs:Square[]    
     fenLetter:string
 
     constructor(color:number,
@@ -1047,8 +1046,8 @@ class Board{
             this.setSq(tSq)
         }        
 
-        // castling
-        if(cr!=undefined){            
+        // castling        
+        if(cr!=undefined){                        
             this.setSq(cr.rookFrom)
             this.setSq(cr.rookTo,new Piece(ROOK,this.turn))
             if(!m.promPiece.empty()){
@@ -1283,7 +1282,7 @@ class Board{
         if(fp.kind!=KING) return undefined
         let deltaF=m.toSq.f-m.fromSq.f
         if(Math.abs(deltaF)<2) return undefined        
-        let index=CASTLING_RIGHTS.findIndex(cr=>cr.kingFrom.e(m.fromSq))
+        let index=CASTLING_RIGHTS.findIndex(cr=>cr.kingTo.e(m.toSq))        
         if(index<0) return undefined // this should not happen
         return CASTLING_RIGHTS[index]
     }

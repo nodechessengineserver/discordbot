@@ -2843,7 +2843,7 @@ class Board {
             }
             this.setSq(tSq);
         }
-        // castling
+        // castling        
         if (cr != undefined) {
             this.setSq(cr.rookFrom);
             this.setSq(cr.rookTo, new Piece(ROOK, this.turn));
@@ -3075,7 +3075,7 @@ class Board {
         let deltaF = m.toSq.f - m.fromSq.f;
         if (Math.abs(deltaF) < 2)
             return undefined;
-        let index = CASTLING_RIGHTS.findIndex(cr => cr.kingFrom.e(m.fromSq));
+        let index = CASTLING_RIGHTS.findIndex(cr => cr.kingTo.e(m.toSq));
         if (index < 0)
             return undefined; // this should not happen
         return CASTLING_RIGHTS[index];
