@@ -16,6 +16,7 @@ if(GLOBALS.isProd()) setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 
 const app=express()
   .use('/ajax',bodyParser.json({limit:'1mb'}))
+  .use('/vote/ajax',bodyParser.json({limit:'1mb'}))
   .use('/chess',express.static(path.join(__dirname, 'chessclient/public')))
   .use('/vote',express.static(path.join(__dirname, 'voteserver')))
   .use(express.static(path.join(__dirname, 'public')))
@@ -25,6 +26,7 @@ const app=express()
   .get('/chesslog', (req:any, res:any) => sendLogPage(req,res))
   .get('/vote', (req:any, res:any) => voteserver.index(req,res))
   .post("/ajax",(req:any, res:any) => api.handleApi(req,res))
+  .post("/vote/ajax",(req:any, res:any) => voteserver.handleAjax(req,res))
 
 const server=http.createServer(app)
 

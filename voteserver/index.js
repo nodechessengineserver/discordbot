@@ -1,6 +1,15 @@
 "use strict";
 // system
 // local
+function handleAjax(req, res) {
+    let responseJson = {
+        ok: true,
+        req: req.body
+    };
+    res.setHeader("Content-Type", "application/json");
+    res.send(JSON.stringify(responseJson));
+}
+module.exports.handleAjax = handleAjax;
 function index(req, res) {
     res.send(`
 <!DOCTYPE html>

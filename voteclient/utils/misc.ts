@@ -73,3 +73,28 @@ function formatDurationAsClock(dur:number):string{
     mins-=hours*60    
     return `${toTwoDigits(hours)}:${toTwoDigits(mins)}:${toTwoDigits(secs)}`
 }
+
+function ajaxRequest(json:any,callback:any){
+    let body=JSON.stringify(json)
+    console.log(`making ajax request ${body}`)
+    fetch(`ajax`,{
+        method:"POST",
+        headers:new Headers({
+            "Content-Type":"application/json"
+        }),
+        body:body
+    }).then((response:any)=>{
+        response.text().then((content:any)=>{
+            try{
+                let json=JSON.parse(content)
+                callback(json)
+            }catch(err){
+                console.log(err)
+            }
+        },(err:any)=>{
+            console.log(err)
+        })
+    },(err:any)=>{
+        console.log(err)
+    })
+}

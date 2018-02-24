@@ -1,5 +1,6 @@
 let DATABASE_NAME=`mychessdb`
 let USERS_COLL=`actusers`
+let CHESSLOG_COLL=`chesslog`
 
 let LOCAL_MONGO_URI=`mongodb://localhost:27017/${DATABASE_NAME}`
 
@@ -15,6 +16,7 @@ try{
             db = conn.db(DATABASE_NAME)
             console.log(`chess connected to MongoDB database < ${db.databaseName} >`)            
             dbUsersStartup()
+            dbChesslogStartup()
         }
     })
 }catch(err){

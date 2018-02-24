@@ -1665,6 +1665,7 @@ function checkLichess(username, code, callback) {
 }
 let DATABASE_NAME = `mychessdb`;
 let USERS_COLL = `actusers`;
+let CHESSLOG_COLL = `chesslog`;
 let LOCAL_MONGO_URI = `mongodb://localhost:27017/${DATABASE_NAME}`;
 let MONGODB_URI = GLOBALS.isProd() ? process.env.MONGODB_URI : LOCAL_MONGO_URI;
 let db;
@@ -1677,6 +1678,7 @@ try {
             db = conn.db(DATABASE_NAME);
             console.log(`chess connected to MongoDB database < ${db.databaseName} >`);
             dbUsersStartup();
+            dbChesslogStartup();
         }
     });
 }
@@ -1752,11 +1754,32 @@ function checkCookie(cookie, callback) {
         { ok: false } :
         { ok: true, user: u });
 }
+let CHESSLOG_MAX_AGE = GLOBALS.ONE_DAY * 30;
 class ChessLogItem {
-    constructor(username, action) {
+    constructor(username = "", action = "") {
         this.time = new Date().getTime();
+        this.username = "";
+        this.action = "";
         this.username = username;
         this.action = action;
+    }
+    toJson() {
+        return ({
+            time: this.time,
+            username: this.username,
+            action: this.action
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.time != undefined)
+            this.time = json.time;
+        if (json.username != undefined)
+            this.username = json.username;
+        if (json.action != undefined)
+            this.action = json.action;
+        return this;
     }
 }
 class ChessLog {
@@ -1765,8 +1788,17 @@ class ChessLog {
     }
     add(item) {
         this.items.unshift(item);
-        while (this.items.length > 1000)
-            this.items.pop();
+    }
+    fromJson(json) {
+        this.items = [];
+        if (json == undefined)
+            return this;
+        for (let key in json) {
+            let valueJson = json[key];
+            let item = new ChessLogItem().fromJson(valueJson);
+            this.add(item);
+        }
+        return this;
     }
     asHtml() {
         let rows = this.items.map(item => `
@@ -1780,14 +1812,34 @@ class ChessLog {
 <td>
 <span class="logaction">${item.action}</span>
 </td>
-</tr>`).join("<br>\n");
+</tr>`).join("\n");
         return `
 <table>
 ${rows}
 </table>`;
     }
 }
-const chessLog = new ChessLog();
+function dbInsertChessLogItem(cli) {
+    if (db != null) {
+        try {
+            const collection = db.collection(CHESSLOG_COLL);
+            let doc = cli.toJson();
+            //console.log(`updating chesslog`,doc)            
+            collection.insertOne(doc, (error, result) => {
+                //console.log(`updating chesslog item error = `,error)
+            });
+            let forget = new Date().getTime() - CHESSLOG_MAX_AGE;
+            collection.deleteMany({ time: { "$lt": forget } }, (error, result) => {
+                //console.log(`deleting old chesslog error = `,error)
+                //console.log(`deleted ${result.result.n} item(s)`)
+            });
+        }
+        catch (err) {
+            console.log(GLOBALS.handledError(err));
+        }
+    }
+}
+let chessLog = new ChessLog();
 function sendLogPage(req, res) {
     let content = `
 <!DOCTYPE html>
@@ -1799,13 +1851,29 @@ function sendLogPage(req, res) {
 </head>
 
 <body>
-    Chess log
-    <hr>
     ${chessLog.asHtml()}
 </body>
 
 </html>`;
     res.send(content);
+}
+function dbChesslogStartup() {
+    chessLog = new ChessLog();
+    if (db != null) {
+        dbFindAsArray(CHESSLOG_COLL, {}, function (result) {
+            if (result[0]) {
+                console.log("chesslog startup failed", GLOBALS.handledError(result[0]));
+            }
+            else {
+                console.log(`chesslog startup ok, ${result[1].length} item(s)`);
+                chessLog.fromJson(result[1]);
+            }
+        });
+    }
+}
+function logChess(item) {
+    chessLog.add(item);
+    dbInsertChessLogItem(item);
 }
 let SOCKET_TIMEOUT = GLOBALS.ONE_SECOND * 60;
 let SOCKET_MAINTAIN_INTERVAL = GLOBALS.ONE_SECOND * 60;
@@ -1993,7 +2061,7 @@ function handleWs(ws, req) {
         }
         sockets[sri] = new Socket(ws);
         console.log("websocket connected", ru, sri);
-        chessLog.add(new ChessLogItem("sri # " + sri, "socket connected"));
+        logChess(new ChessLogItem("sri # " + sri, "socket connected"));
         let headers = req.headers;
         let cookies = {};
         if (headers != undefined) {
@@ -2037,7 +2105,7 @@ function handleWs(ws, req) {
             if (result.ok) {
                 loggedUser = result.user;
                 console.log(`logged user`, loggedUser);
-                chessLog.add(new ChessLogItem(loggedUser.username, "user logged in"));
+                logChess(new ChessLogItem(loggedUser.username, "user logged in"));
                 setUser();
             }
         });
@@ -2051,7 +2119,7 @@ function handleWs(ws, req) {
                 let json = JSON.parse(message);
                 let t = json.t;
                 if (t != "ping") {
-                    chessLog.add(new ChessLogItem(loggedUser.username, t));
+                    logChess(new ChessLogItem(loggedUser.username, t));
                 }
                 if (t == "ping") {
                     send(ws, {
@@ -2246,6 +2314,7 @@ if (GLOBALS.isProd())
 // Server startup
 const app = express()
     .use('/ajax', bodyParser.json({ limit: '1mb' }))
+    .use('/vote/ajax', bodyParser.json({ limit: '1mb' }))
     .use('/chess', express.static(path.join(__dirname, 'chessclient/public')))
     .use('/vote', express.static(path.join(__dirname, 'voteserver')))
     .use(express.static(path.join(__dirname, 'public')))
@@ -2254,7 +2323,8 @@ const app = express()
     .get('/', (req, res) => res.render('pages/index'))
     .get('/chesslog', (req, res) => sendLogPage(req, res))
     .get('/vote', (req, res) => voteserver.index(req, res))
-    .post("/ajax", (req, res) => api.handleApi(req, res));
+    .post("/ajax", (req, res) => api.handleApi(req, res))
+    .post("/vote/ajax", (req, res) => voteserver.handleAjax(req, res));
 const server = http.createServer(app);
 const wss = new WebSocket_.Server({ server });
 wss.on("connection", (ws, req) => {

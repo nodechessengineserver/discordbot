@@ -66,6 +66,31 @@ function formatDurationAsClock(dur) {
     mins -= hours * 60;
     return `${toTwoDigits(hours)}:${toTwoDigits(mins)}:${toTwoDigits(secs)}`;
 }
+function ajaxRequest(json, callback) {
+    let body = JSON.stringify(json);
+    console.log(`making ajax request ${body}`);
+    fetch(`ajax`, {
+        method: "POST",
+        headers: new Headers({
+            "Content-Type": "application/json"
+        }),
+        body: body
+    }).then((response) => {
+        response.text().then((content) => {
+            try {
+                let json = JSON.parse(content);
+                callback(json);
+            }
+            catch (err) {
+                console.log(err);
+            }
+        }, (err) => {
+            console.log(err);
+        });
+    }, (err) => {
+        console.log(err);
+    });
+}
 class Vect {
     constructor(_x, _y) {
         this.x = _x;
@@ -1547,11 +1572,17 @@ const INTRO_HTML = `
 Welcome to voteserver.
 <p>
 `;
+DEBUG = false;
+conslog = (item) => { console.log("<item>", item); };
 let tabpane = new Tabpane("votetabpane").
     setTabs([
     new Tab("intro", "Intro", new Div().ac("test").h(INTRO_HTML))
 ]).
     snapToWindow().
-    build();
+    build().
+    selectTab("intro");
 Layers.init();
 Layers.root.a([tabpane]);
+ajaxRequest({ action: "test" }, (json) => {
+    console.log(json);
+});
