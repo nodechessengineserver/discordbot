@@ -333,6 +333,7 @@ function boardPosChanged(){
     buildFlipButtonSpan()
     buildModposButtonSpan()
     buildPlayerDiv()    
+    chatInput.focusLater
 }
 
 function dragMoveCallback(algeb:string){
