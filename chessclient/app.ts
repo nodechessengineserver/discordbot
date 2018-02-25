@@ -373,8 +373,12 @@ function handleChangeLog(cl:ChangeLog){
         playSound("defeatsound")
     }else if(cl.kind=="movemade"){
         if(cl.isCapture) playSound("explosion")
-        else if(cl.fromPieceKind=="p") playSound("march")
         else if((cl.fromPieceKind=="n")||(cl.toPieceKind=="n")) playSound("horseneigh")
+        else if(cl.fromPieceKind=="p") playSound("march")
+        else if(cl.fromPieceKind=="b") playSound("ferrari")
+        else if(cl.fromPieceKind=="r") playSound("tank")        
+        else if(cl.fromPieceKind=="q") playSound("queenmove")        
+        else if(cl.fromPieceKind=="k") playSound("kingmove")
         else playSound("movesound")
     }else if(cl.kind=="boardreset"){
         playSound("newpmsound")
