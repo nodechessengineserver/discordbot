@@ -683,6 +683,9 @@ class ChangeLog {
     constructor() {
         this.kind = "";
         this.reason = "";
+        this.fromPieceKind = "";
+        this.toPieceKind = "";
+        this.isCapture = false;
         this.pi = new PlayerInfo();
         this.u = new User();
     }
@@ -694,6 +697,9 @@ class ChangeLog {
         return ({
             kind: this.kind,
             reason: this.reason,
+            fromPieceKind: this.fromPieceKind,
+            toPieceKind: this.toPieceKind,
+            isCapture: this.isCapture,
             pi: this.pi.toJson(),
             u: this.u.toJson()
         });
@@ -703,6 +709,12 @@ class ChangeLog {
             this.kind = json.kind;
         if (json.reason != undefined)
             this.reason = json.reason;
+        if (json.fromPieceKind != undefined)
+            this.fromPieceKind = json.fromPieceKind;
+        if (json.toPieceKind != undefined)
+            this.toPieceKind = json.toPieceKind;
+        if (json.isCapture != undefined)
+            this.isCapture = json.isCapture;
         if (json.pi != undefined)
             this.pi = new PlayerInfo().fromJson(json.pi);
         if (json.u != undefined)
@@ -1637,6 +1649,15 @@ class Board {
     getPlayer(color) {
         return this.gameStatus.playersinfo.getByColor(color).u;
     }
+    isCapture(m) {
+        if (m.invalid())
+            return false;
+        if (!this.getSq(m.toSq).empty())
+            return true;
+        if ((this.getSq(m.fromSq).kind == "p") && (this.epSquare.e(m.toSq)))
+            return true;
+        return false;
+    }
 }
 function checkLichess(username, code, callback) {
     console.log(`checking lichess code ${username} ${code}`);
@@ -2184,10 +2205,22 @@ function handleWs(ws, req) {
                     let algeb = json.algeb;
                     console.log("makemove", algeb);
                     let oldTurn = b.turn;
+                    let m = b.moveFromAlgeb(algeb);
+                    let fromPieceKind = "";
+                    let toPieceKind = "";
+                    let isCapture = false;
+                    if (!m.invalid()) {
+                        fromPieceKind = b.getSq(m.fromSq).kind;
+                        isCapture = b.isCapture(m);
+                    }
                     let ok = b.makeAlgebMove(algeb);
                     if (ok) {
                         console.log("legal");
                         b.changeLog.kind = "movemade";
+                        toPieceKind = b.getSq(m.toSq).kind;
+                        b.changeLog.fromPieceKind = fromPieceKind;
+                        b.changeLog.toPieceKind = toPieceKind;
+                        b.changeLog.isCapture = isCapture;
                         if (b.isTerminated()) {
                             console.log("game terminated");
                             b.terminateByRules();

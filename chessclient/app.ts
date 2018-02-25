@@ -372,7 +372,10 @@ function handleChangeLog(cl:ChangeLog){
         showChat()
         playSound("defeatsound")
     }else if(cl.kind=="movemade"){
-        playSound("movesound")
+        if(cl.isCapture) playSound("explosion")
+        else if(cl.fromPieceKind=="p") playSound("march")
+        else if((cl.fromPieceKind=="n")||(cl.toPieceKind=="n")) playSound("horseneigh")
+        else playSound("movesound")
     }else if(cl.kind=="boardreset"){
         playSound("newpmsound")
     }else if(cl.kind=="ratingscalculated"){        

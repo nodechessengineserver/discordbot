@@ -2304,6 +2304,9 @@ class ChangeLog {
     constructor() {
         this.kind = "";
         this.reason = "";
+        this.fromPieceKind = "";
+        this.toPieceKind = "";
+        this.isCapture = false;
         this.pi = new PlayerInfo();
         this.u = new User();
     }
@@ -2315,6 +2318,9 @@ class ChangeLog {
         return ({
             kind: this.kind,
             reason: this.reason,
+            fromPieceKind: this.fromPieceKind,
+            toPieceKind: this.toPieceKind,
+            isCapture: this.isCapture,
             pi: this.pi.toJson(),
             u: this.u.toJson()
         });
@@ -2324,6 +2330,12 @@ class ChangeLog {
             this.kind = json.kind;
         if (json.reason != undefined)
             this.reason = json.reason;
+        if (json.fromPieceKind != undefined)
+            this.fromPieceKind = json.fromPieceKind;
+        if (json.toPieceKind != undefined)
+            this.toPieceKind = json.toPieceKind;
+        if (json.isCapture != undefined)
+            this.isCapture = json.isCapture;
         if (json.pi != undefined)
             this.pi = new PlayerInfo().fromJson(json.pi);
         if (json.u != undefined)
@@ -3258,6 +3270,15 @@ class Board {
     getPlayer(color) {
         return this.gameStatus.playersinfo.getByColor(color).u;
     }
+    isCapture(m) {
+        if (m.invalid())
+            return false;
+        if (!this.getSq(m.toSq).empty())
+            return true;
+        if ((this.getSq(m.fromSq).kind == "p") && (this.epSquare.e(m.toSq)))
+            return true;
+        return false;
+    }
 }
 class GuiPlayerInfo extends DomElement {
     constructor() {
@@ -4006,7 +4027,14 @@ function handleChangeLog(cl) {
         playSound("defeatsound");
     }
     else if (cl.kind == "movemade") {
-        playSound("movesound");
+        if (cl.isCapture)
+            playSound("explosion");
+        else if (cl.fromPieceKind == "p")
+            playSound("march");
+        else if ((cl.fromPieceKind == "n") || (cl.toPieceKind == "n"))
+            playSound("horseneigh");
+        else
+            playSound("movesound");
     }
     else if (cl.kind == "boardreset") {
         playSound("newpmsound");

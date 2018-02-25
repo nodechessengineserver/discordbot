@@ -470,6 +470,9 @@ class GameNode{
 class ChangeLog{
     kind:string=""
     reason:string=""
+    fromPieceKind:string=""
+    toPieceKind:string=""
+    isCapture:boolean=false
     
     clear(){
         this.kind=""
@@ -483,6 +486,9 @@ class ChangeLog{
         return({
             kind:this.kind,
             reason:this.reason,
+            fromPieceKind:this.fromPieceKind,
+            toPieceKind:this.toPieceKind,
+            isCapture:this.isCapture,
             pi:this.pi.toJson(),
             u:this.u.toJson()
         })
@@ -491,6 +497,9 @@ class ChangeLog{
     fromJson(json:any):ChangeLog{
         if(json.kind!=undefined) this.kind=json.kind
         if(json.reason!=undefined) this.reason=json.reason
+        if(json.fromPieceKind!=undefined) this.fromPieceKind=json.fromPieceKind
+        if(json.toPieceKind!=undefined) this.toPieceKind=json.toPieceKind
+        if(json.isCapture!=undefined) this.isCapture=json.isCapture
         if(json.pi!=undefined) this.pi=new PlayerInfo().fromJson(json.pi)
         if(json.u!=undefined) this.u=createUserFromJson(json.u)
         return this
@@ -1510,6 +1519,13 @@ class Board{
 
     getPlayer(color:number){
         return this.gameStatus.playersinfo.getByColor(color).u
+    }
+
+    isCapture(m:Move){
+        if(m.invalid()) return false
+        if(!this.getSq(m.toSq).empty()) return true
+        if((this.getSq(m.fromSq).kind=="p")&&(this.epSquare.e(m.toSq))) return true
+        return false
     }
     
 }

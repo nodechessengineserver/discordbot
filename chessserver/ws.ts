@@ -352,11 +352,22 @@ function handleWs(ws:any,req:any){
                     let algeb=json.algeb
                     console.log("makemove",algeb)
                     let oldTurn=b.turn
+                    let m=b.moveFromAlgeb(algeb)
+                    let fromPieceKind=""
+                    let toPieceKind=""
+                    let isCapture=false
+                    if(!m.invalid()){
+                        fromPieceKind=b.getSq(m.fromSq).kind                        
+                        isCapture=b.isCapture(m)
+                    }
                     let ok=b.makeAlgebMove(algeb)                                
                     if(ok){           
                         console.log("legal")                        
                         b.changeLog.kind="movemade"
-
+                        toPieceKind=b.getSq(m.toSq).kind
+                        b.changeLog.fromPieceKind=fromPieceKind                        
+                        b.changeLog.toPieceKind=toPieceKind                        
+                        b.changeLog.isCapture=isCapture
                         if(b.isTerminated()){
                             console.log("game terminated")
                             
