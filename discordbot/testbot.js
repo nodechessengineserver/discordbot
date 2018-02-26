@@ -407,7 +407,9 @@ client.on("message", async message => { try {
     for(let i=start;i<start+CHUNK;i++){
       if(i<ida.length){
         let id=ida[i]
-        ucs.push(`${i+1}. **${users.get(id)["username"]}**`)
+        let user=users.get(id)
+        let username=user["username"]        
+        ucs.push(`${i+1}. **${username}${user.bot?" [ Bot ]":""}**`)
       }
     }
 
