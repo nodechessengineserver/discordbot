@@ -16,22 +16,32 @@ const PROMOTION_ATOMIC_RULES_HTML=`
 <h1>Rules of variant Promotion Atomic</h1>
 
 <p>
-The rules are the same as of variant Atomic, except that on every non pawn move you can
+The rules are the same as of variant Atomic, except that on every non pawn move you can:
 </p>
 
 <ul>
-    <li>leave the piece unchanged</li>
-    or
     <li>promote the piece incrementally B -&gt; N -&gt; R -&gt; Q</li>
     or
     <li>underpromote the piece decrementally Q -&gt; R -&gt; N -&gt; B</li>
+    or
+    <li>leave the piece unchanged</li>
 </ul>
+
+<p>
+You can promote pawns as follows:
+<ul>
+    <li>5th rank -> P , B</li>    
+    <li>6th rank -> P , B , N</li>
+    <li>7th rank -> P , B , N , R</li>
+    <li>8th rank -> B , N , R , Q ( usual promotion )</li>
+</ul>
+</p>
 
 <p>
 On castling you can promote the rook.
 </p>
 
 <p>
-Promotion to king is not possible.
+Promotion to or from king is not possible.
 </p>
 `

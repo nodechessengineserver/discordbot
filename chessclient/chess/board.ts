@@ -914,13 +914,14 @@ class Board{
             let pdir=this.pawnDir(p.color)
             let pushOne=sq.p(pdir)
             let promdist=this.pawnFromProm(sq,p.color)
-            let isprom=promdist==1
+            let isprom=promdist<5
             let targetKinds=["p"]
-            if(isprom) targetKinds=ALL_PROMOTION_PIECES
+            if(isprom) targetKinds=ALL_PROMOTION_PIECES.slice(0,5-promdist)
+            if((isprom)&&(promdist>1)) targetKinds.unshift("p")            
             function createPawnMoves(targetSq:Square){
                 for(let targetKind of targetKinds){
                     let m=new Move(sq,targetSq)
-                    if(isprom) m.promPiece=new Piece(targetKind)
+                    if(isprom&&(targetKind!="p")) m.promPiece=new Piece(targetKind)
                     moves.push(m)
                 }
             }
