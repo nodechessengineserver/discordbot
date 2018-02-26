@@ -392,7 +392,10 @@ client.on("message", async message => { try {
 
   if(GLOBALS.isProd()) if(command=="users"){
     let CHUNK=50
-    let page=parseInt(args[0])
+    let pageArg=args[0]
+    let dupes=(pageArg=="dupes")
+    console.log("pageArg",pageArg,dupes)
+    let page=parseInt(pageArg)    
     if(isNaN(page)) page=1
     page--
     if(page<0) page=0
@@ -404,16 +407,43 @@ client.on("message", async message => { try {
 
     let content=`**Server users** ( total **${ida.length}** ) - Page **${page+1}** - Listing from **${start+1}** to **${start+CHUNK}**\n\n`
     let ucs=[]
-    for(let i=start;i<start+CHUNK;i++){
+    let allnames={}
+    let nBots=0
+    for(let i=0;i<(dupes?ida.length:start+CHUNK);i++){
       if(i<ida.length){
         let id=ida[i]
         let user=users.get(id)
         let username=user["username"]        
-        ucs.push(`${i+1}. **${username}${user.bot?" [ Bot ]":""}**`)
+        if(allnames[username]!=undefined) allnames[username]++
+        else allnames[username]=1
+        if(user.bot) nBots++
+        if(i>=start){
+          ucs.push(`${i+1}. **${username}${user.bot?" [ Bot ]":""}**`)
+        }        
       }
     }
 
     content+=ucs.join(" , ")
+
+    if(dupes){
+      let dupeList=[]
+      let totalM=0
+      for(let username in allnames){
+        let m=allnames[username]
+        if(m>1){
+          totalM+=(m-1)
+          dupeList.push(`**${username}** [ multiplicity: ${m} ]`)
+        }
+      }
+      let corrUsers=ida.length-totalM
+      content=`dupes: ${dupeList.join(" , ")}
+      
+__total dupes__ : **${totalM}**
+__unique users__ : **${corrUsers}**
+__total bots__ : **${nBots}**
+__unique users minus bots__ : **${corrUsers-nBots}**
+`
+    }
     
     console.log(content)
     message.channel.send(content)
