@@ -1,5 +1,13 @@
 let DRY=false
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(0,20,handles=>sendPlayers(handles)))
+
+if(process.argv.length>2){
+    if(process.argv[2]=="randomletters"){
+        setTimeout(function(){
+            console.log("sending random letters")
+            login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(50,150,handles=>sendPlayers(handles)))
+        },5000)
+    }
+}
 
 // system
 const fetch = require('node-fetch');
@@ -267,4 +275,3 @@ module.exports.getLichessUsers=getLichessUsers
 
 ////////////////////////////////////////
 
-//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(50,150,handles=>sendPlayers(handles)))

@@ -1,0 +1,1 @@
+node discordbot/fetch.js randomletters
