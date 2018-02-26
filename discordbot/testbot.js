@@ -390,8 +390,8 @@ client.on("message", async message => { try {
     purgeGameChannel()
   }
 
-  if(GLOBALS.isProd()||true) if(command=="users"){
-    let CHUNK=100
+  if(GLOBALS.isProd()) if(command=="users"){
+    let CHUNK=50
     let page=parseInt(args[0])
     if(isNaN(page)) page=1
     page--

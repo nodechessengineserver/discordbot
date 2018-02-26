@@ -1,85 +1,112 @@
-__                                                                                                                                                                               __
+###########################################
 
-**To activate the bots, visit this link**:      :pushpin:     https://quiet-tor-66877.herokuapp.com/
-__                                                                                                                                                                               __
+To activate the bots, visit this link:      :pushpin:     https://quiet-tor-66877.herokuapp.com/
 
 :cyclone:   To verify your username as a lichess member, in the #test channel type:
 
-     `+ver`
+     +ver
 
-You will get a **code** in a __personal message__ that you have to **insert** into your **lichess** profile , then in the #test channel type
+You will get a code in a personal message that you have to insert into your lichess profile , then in the #test channel type
 
-     `+check`
+     +check
 
 Once you are verified, you can remove the code from your profile.
 
 To no longer be listed as a verified lichess member, in the #test channel type:
 
-     `+unver`
+     +unver
 
-Note that you have to have the __exact__ same nick here as on lichess, otherwise verification won't work ( the username check is __case sensitive__ ). If you have a different nick here and want to change it, contact @jatekos#8208.
+Note that you have to have the exact same nick here as on lichess, otherwise verification won't work ( the username check is case sensitive ). If you have a different nick here and want to change it, contact @jatekos.
 
-To send a bot message to the #general channel, use this command with **AtomBot** :
+To send a bot message to the #general channel, use this command with AtomBot :
 
-     `+say [message]`
+     +say [message]
 
-Example:  `+say Hello Atomic World!`
-__                                                                                                                                                                               __
-** **
-
-##################################################
+Example:  +say Hello Atomic World!
+                                                                                                                                                                               
+###########################################
 
 To get performance statistics for a player, type:
 
-     `+perf [lichess user name]`
+     +perf [lichess user name]
 
-Example: `+perf tipau`
+Example: +perf tipau
 
 To get performance statistics for a player for a variant other than atomic, type:
 
-     `+perf [lichess user name] [variant]`
+     +perf [lichess user name] [variant]
 
-Example: `+perf tipau standard`
+Example: +perf tipau standard
 
-To compare your Atomic rating to an other player, use this command with **TestBot** : 
+To compare your Atomic rating to an other player, use this command with TestBot : 
 
-     `+cmp [lichess user name]`
+     +cmp [lichess user name]
 
-Example:  `+cmp tipau`
+Example:  +cmp tipau
 
-To get lichess profile information of a user, use this command with **TestBot** :
+To get lichess profile information of a user, use this command with TestBot :
 
-     `+p [lichess user name]`
+     +p [lichess user name]
 
-Example: `+p tipau`
+Example: +p tipau
 
-##################################################
+###########################################
 
-To compare the popularity of Atomic in terms of players playing the variant in the last week, type:
+To get the top list of Atomic players, use this command with TestBot :
 
-     `+vp`
+     +top [num players]
 
-To get historical lichess statistics on highest number of connected players and played games, type:
-
-     `+ls`
-
-##################################################
-
-To get the top list of Atomic players, use this command with **TestBot** :
-
-     `+top [num players]`
-
-Example: `+top 3`
+Example: +top 3
 
 To get the top list for players of a given variant, type:
 
-     `+top [num players] [variantName]`
+     +top [num players] [variantName]
 
-Example: `+top 3 kingOfTheHill`
+Example: +top 3 kingOfTheHill
 
 If you don't know the correct lichess variant name, you will get a list of valid variant names.
 
 To get only the Top 10, 50, 100, 200 thresolds, type:
 
-     `+top 0` or `+top 0 [variantName]`
+     +top 0 or +top 0 [variantName]
 
+To compare the popularity of Atomic in terms of players playing the variant in the last week, type:
+
+     +vp
+
+To get historical lichess statistics on highest number of connected players and played games, type:
+
+     +ls
+
+To list the server users type:
+
+     +users [page]
+
+Examples: +users - lists the first 50 users , users 2 - lists users from 51 to 100
+
+###########################################
+
+To play a game or show a position using the server's board, use these commands:
+
++reset reset the board to starting position
+
++fen [fen] set the board from fen, example:
+
+    +fen rnbqkbnr/ppp1p1pp/5p2/3p4/8/4PN2/PPPP1PPP/RNBQKB1R w KQkq - 0 3
+
++[algeb move] make move given in algebraic notation, example: +g1f3
+
+    recall that promotion in algebraic notation is like: +a7a8q
+
++del delete last move
+
++show or +s or +board or +b or ++ show current board position
+
+To castle, make the king move and the rook move separately, example: +e1g1 then +h1f1.
+
+To make ep capture, make the move, then make an additional move with the opponent pawn capturing your pawn. So if a white pawn was on e5 and black made the move f7f5, then first +e5f6 then +f5f6.
+:bnl: Play rated promotion atomic games with clock using the server's chess interface:
+
+http://quiet-tor-66877.herokuapp.com/chess/
+
+###########################################
