@@ -1,4 +1,4 @@
-let DRY=true
+let DRY=false
 //login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(0,20,handles=>sendPlayers(handles)))
 
 // system
@@ -69,7 +69,19 @@ function getPlayerHandles(min,max,callback){
         console.log("all:")
         console.log(allhandles.join(","));
         console.log("selected:")
-        console.log(handles.join(","));
+        if((max-min)>20){
+            let rhandles=[]
+            for(let i=0;i<20;i++){
+                let r=Math.random()*handles.length
+                if(r>=handles.length) r=0
+                let h=handles.splice(r,1)
+                console.log(`rand ${i} : ${h}`)
+                rhandles.push(h[0])
+            }
+            handles=rhandles
+        }else{
+            console.log(handles.join(","));
+        }        
         callback(handles)
     })
 }
@@ -89,21 +101,25 @@ console.log("-----------------------\n"+handle+"\n-----------------------");
 let subject="Atomic Chess Theoreticians Discord Server";
 let message=`Dear Atomic Friend ${handle} !
 
-I'm glad to announce that the Atomic Chess Theoreticians Team has launched its Discord Server.
+I'm glad to let you know that the Atomic Chess Theoreticians Team now has its own Discord Server with more than 100 members.
 
-Discord is a very advanced chat server designed for gamers.
+Discord is an upcoming and advanced chat server designed for gamers.
 
-It has high quality formatting, customizability, bots that can have custom code and perform useful functions. It is possible to link games, web pages for which a preview will be shown in the post.
+It has high quality formatting, customizability, and bots that perform useful functions.
 
 Everybody is on Discord nowadays, you should be too.
 
-I hereby invite you to join the server, which you can do by clicking on this invite link:
+At the server we have developed a new fun variant of Atomic, called promotion atomic.
+
+You can play rated games with clock in this variant here:
+
+http://quiet-tor-66877.herokuapp.com/chess/
+
+I invite you to join the server, which you can do by clicking on this invite link:
 
 https://discord.gg/TvgMYfc
 
-Of course if you are not a team member already, I also invite you to the Atomic Chess Theoreticians Team itself:
-
-https://lichess.org/team/atomic-chess-theoreticians
+Regards, jatekos ( https://lichess.org/@/jatekos )
 `
 
 console.log("remaining "+handles.length)
@@ -111,7 +127,7 @@ console.log("remaining "+handles.length)
 sendMessage(handle,subject,message,(content)=>
     console.log("message sent, response length: "+content.length))
 
-setTimeout(sendPlayers.bind(this,handles),DRY?1000:10000)
+setTimeout(sendPlayers.bind(this,handles),DRY?1000:5000)
 }
 
 function sendMessage(user,subject,message,callback){
@@ -250,3 +266,5 @@ module.exports.getLichessGames=getLichessGames
 module.exports.getLichessUsers=getLichessUsers
 
 ////////////////////////////////////////
+
+//login(LICHESS_USER,LICHESS_PASS,()=>getPlayerHandles(50,150,handles=>sendPlayers(handles)))
