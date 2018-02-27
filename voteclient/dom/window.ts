@@ -290,23 +290,31 @@ class DraggableWindow extends DomElement<DraggableWindow>{
 }
 
 class TextInputWindow extends DraggableWindow{    
-    textinput:TextInput
+    textinput:TextInput    
+    textcallback:any
     enterCallback(){        
         this.close()                
-        if(this.okcallback!=undefined) this.okcallback()
+        if(this.textcallback!=undefined) this.textcallback(this.textinput.getText())
     }
-    constructor(id:string){
-        super(id)
+    constructor(id:string,orig:string,title:string,info:string,textcallback:any){
+        super(id)        
+        this.textcallback=textcallback
+        this.setOkCallback(this.enterCallback.bind(this))
+        this.setTitle(title)
+        this.setInfo(info)
         this.content=this.textinput=<TextInput>new TextInput(this.id+"_textinput").
             setEnterCallback(this.enterCallback.bind(this)).
             ac("textinputwindowtextinput").
             fs(getCssFloatProperty("--textinputwindowtextinputfontrelsize",1.25)*FONT_SIZE)
+        this.build()
+        this.textinput.setText(orig)
     }
 }
 
 class AckInfoWindow extends DraggableWindow{        
-    constructor(content:string){
+    constructor(content:string,okcallback:any){
         super("ackinfo")
+        this.setOkCallback(okcallback)
         this.content=new Div().ac("ackinfotext").h(content)
         this.setTitle("Info")
     }

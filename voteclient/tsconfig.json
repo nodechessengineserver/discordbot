@@ -53,8 +53,11 @@
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
   },  
   "files": [    
+    "utils/constants.ts",
     "utils/misc.ts",
     "utils/vectors.ts",
+    "models/user.ts",    
+    "dom/globals.ts",
     "dom/dom.ts",
     "dom/store.ts",
     "dom/button.ts",
@@ -67,7 +70,10 @@
     "dom/window.ts",
     "dom/tabpane.ts",
     "dom/logpane.ts",
+    "dom/profile.ts",
+    "dom/app.ts",
     "resource.ts",
+    "globals.ts",
     "app.ts"
   ]
 }

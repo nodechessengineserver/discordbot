@@ -559,10 +559,16 @@ function buildFlipButtonSpan(){
 
 function buildModposButtonSpan(){
     modposButtonSpan.x
-    if(!gboard.b.allSeated()) modposButtonSpan.a([
-        new Button("Del").onClick((e:Event)=>emit({t:"delmove"})),        
-        new Button("Reset").onClick((e:Event)=>emit({t:"reset"}))
-    ])
+    if(!gboard.b.allSeated()){
+        if(!gboard.b.gameStatus.calculated){
+            modposButtonSpan.a([
+                new Button("Del").onClick((e:Event)=>emit({t:"delmove"}))
+            ])
+        }
+        modposButtonSpan.a([
+            new Button("Reset").onClick((e:Event)=>emit({t:"reset"}))
+        ])
+    } 
 }
 
 function setOnlinePlayers(usernames:string[],numSockets:number){

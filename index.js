@@ -8,6 +8,7 @@ const bodyParser = require('body-parser');
 const fetch_ = require("node-fetch");
 const uniqid = require("uniqid");
 const mongodb = require("mongodb");
+const cookieParser = require("cookie-parser");
 // local
 const atombot = require("./discordbot/atombot");
 const testbot = require("./discordbot/testbot");
@@ -332,6 +333,7 @@ let ALL_PIECES = Object.keys(IS_PIECE);
 let ALL_CHECK_PIECES = ["p", "n", "b", "r", "q"];
 let IS_PROM_PIECE = { "n": true, "b": true, "r": true, "q": true };
 let ALL_PROMOTION_PIECES = Object.keys(IS_PROM_PIECE);
+let ALL_INTERIM_PROMOTION_PIECES = ["b", "n", "r", "q"];
 let MOVE_LETTER_TO_TURN = { "w": WHITE, "b": BLACK };
 let VARIANT_PROPERTIES = {
     "promoatomic": {
@@ -602,6 +604,7 @@ class GameStatus {
         this.score = "*";
         this.scoreReason = "";
         this.started = false;
+        this.calculated = false;
         // termination by rules
         this.isStaleMate = false;
         this.isMate = false;
@@ -622,6 +625,7 @@ class GameStatus {
             score: this.score,
             scoreReason: this.scoreReason,
             started: this.started,
+            calculated: this.calculated,
             isStaleMate: this.isStaleMate,
             isMate: this.isMate,
             isFiftyMoveRule: this.isFiftyMoveRule,
@@ -641,6 +645,7 @@ class GameStatus {
         this.score = json.score;
         this.scoreReason = json.scoreReason;
         this.started = json.started;
+        this.calculated = json.calculated;
         this.isStaleMate = json.isStaleMate;
         this.isMate = json.isMate;
         this.isFiftyMoveRule = json.isFiftyMoveRule;
@@ -912,6 +917,8 @@ class Board {
         this.timecontrol = new TimeControl();
         this.gameStatus.score = "*";
         this.gameStatus.scoreReason = "";
+        this.gameStatus.started = false;
+        this.gameStatus.calculated = false;
         this.gameStatus.isStaleMate = false;
         this.gameStatus.isMate = false;
         this.gameStatus.isFiftyMoveRule = false;
@@ -928,6 +935,7 @@ class Board {
     }
     startGame() {
         this.gameStatus.started = true;
+        this.gameStatus.calculated = false;
         this.gameStatus.playersinfo.iterate((pi) => {
             pi.canStand = false;
             pi.canResign = true;
@@ -1094,7 +1102,7 @@ class Board {
             let isprom = promdist < 5;
             let targetKinds = ["p"];
             if (isprom)
-                targetKinds = ALL_PROMOTION_PIECES.slice(0, 5 - promdist);
+                targetKinds = ALL_INTERIM_PROMOTION_PIECES.slice(0, 5 - promdist);
             if ((isprom) && (promdist > 1))
                 targetKinds.unshift("p");
             function createPawnMoves(targetSq) {
@@ -1626,6 +1634,7 @@ class Board {
         this.gameStatus.ratingCalcWhite = rcw;
         this.gameStatus.ratingCalcBlack = rcb;
         console.log("rating calcs", rcw, rcb);
+        this.gameStatus.calculated = true;
         this.actualizeHistory();
         this.timecontrol = new TimeControl();
         return [pw, pb];
@@ -2353,6 +2362,7 @@ const app = express()
     .use('/chess', express.static(path.join(__dirname, 'chessclient/public')))
     .use('/vote', express.static(path.join(__dirname, 'voteserver')))
     .use(express.static(path.join(__dirname, 'public')))
+    .use(cookieParser())
     .set('views', path.join(__dirname, 'views'))
     .set('view engine', 'ejs')
     .get('/', (req, res) => res.render('pages/index'))

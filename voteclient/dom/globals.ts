@@ -1,0 +1,1 @@
+let loggedUser:User=new User()

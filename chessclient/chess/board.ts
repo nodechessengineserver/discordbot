@@ -23,6 +23,7 @@ let ALL_PIECES=Object.keys(IS_PIECE)
 let ALL_CHECK_PIECES=["p","n","b","r","q"]
 let IS_PROM_PIECE:{[id:string]:boolean}={"n":true,"b":true,"r":true,"q":true}
 let ALL_PROMOTION_PIECES=Object.keys(IS_PROM_PIECE)
+let ALL_INTERIM_PROMOTION_PIECES=["b","n","r","q"]
 let MOVE_LETTER_TO_TURN:{[id:string]:number}={"w":WHITE,"b":BLACK}
 
 let VARIANT_PROPERTIES:{[id:string]:any}={
@@ -375,6 +376,7 @@ class GameStatus{
     score:string="*"
     scoreReason:string=""
     started:boolean=false
+    calculated:boolean=false
 
     // termination by rules
     isStaleMate=false
@@ -399,6 +401,7 @@ class GameStatus{
             score:this.score,
             scoreReason:this.scoreReason,
             started:this.started,
+            calculated:this.calculated,
             isStaleMate:this.isStaleMate,
             isMate:this.isMate,
             isFiftyMoveRule:this.isFiftyMoveRule,
@@ -422,6 +425,7 @@ class GameStatus{
         this.score=json.score
         this.scoreReason=json.scoreReason
         this.started=json.started
+        this.calculated=json.calculated
         this.isStaleMate=json.isStaleMate
         this.isMate=json.isMate
         this.isFiftyMoveRule=json.isFiftyMoveRule
@@ -721,6 +725,9 @@ class Board{
         this.gameStatus.score="*"
         this.gameStatus.scoreReason=""
 
+        this.gameStatus.started=false
+        this.gameStatus.calculated=false
+
         this.gameStatus.isStaleMate=false
         this.gameStatus.isMate=false
         this.gameStatus.isFiftyMoveRule=false
@@ -744,6 +751,8 @@ class Board{
 
     startGame(){
         this.gameStatus.started=true
+        this.gameStatus.calculated=false
+
         this.gameStatus.playersinfo.iterate((pi:PlayerInfo)=>{
             pi.canStand=false
             pi.canResign=true
@@ -916,7 +925,7 @@ class Board{
             let promdist=this.pawnFromProm(sq,p.color)
             let isprom=promdist<5
             let targetKinds=["p"]
-            if(isprom) targetKinds=ALL_PROMOTION_PIECES.slice(0,5-promdist)
+            if(isprom) targetKinds=ALL_INTERIM_PROMOTION_PIECES.slice(0,5-promdist)
             if((isprom)&&(promdist>1)) targetKinds.unshift("p")            
             function createPawnMoves(targetSq:Square){
                 for(let targetKind of targetKinds){
@@ -1485,6 +1494,8 @@ class Board{
         this.gameStatus.ratingCalcBlack=rcb
 
         console.log("rating calcs",rcw,rcb)
+
+        this.gameStatus.calculated=true
 
         this.actualizeHistory()
 

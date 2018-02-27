@@ -48,16 +48,6 @@ function uniqueId(){
     return ""+Math.floor(Math.random()*1e9)
 }
 
-function setCookie(name:any,value:any,days:any) {
-    var expires = "";
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days*24*60*60*1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-}
-
 function toTwoDigits(n:number):string{
     return (n<10?"0":"")+n
 }
@@ -76,9 +66,10 @@ function formatDurationAsClock(dur:number):string{
 
 function ajaxRequest(json:any,callback:any){
     let body=JSON.stringify(json)
-    console.log(`making ajax request ${body}`)
+    //console.log(`making ajax request ${body}`)    
     fetch(`ajax`,{
         method:"POST",
+        credentials:"include",
         headers:new Headers({
             "Content-Type":"application/json"
         }),
@@ -97,4 +88,24 @@ function ajaxRequest(json:any,callback:any){
     },(err:any)=>{
         console.log(err)
     })
+}
+
+function setCookie(name:any,value:any,days:any) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+}
+
+// https://stackoverflow.com/questions/10730362/get-cookie-by-name
+
+function getCookie(name:string):any{
+    var value = "; " + document.cookie    
+    var parts:string[] = value.split("; " + name + "=")
+    let lastPart=parts.pop()    
+    if(lastPart==undefined) return undefined
+    if (parts.length == 1) return lastPart.split(";").shift()
 }

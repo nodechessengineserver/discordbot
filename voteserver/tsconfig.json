@@ -54,6 +54,10 @@
   },  
   "files": [    
     "head.ts",
+    "../voteclient/models/user.ts",
+    "utils.ts",
+    "mongo.ts",
+    "users.ts",
     "handleajax.ts",
     "index.ts"
   ]

@@ -4,6 +4,30 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "build all vote",
+            "type": "shell",
+            "command": "bv.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "build all vote and run",
+            "type": "shell",
+            "command": "rv.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "build all chess",
+            "type": "shell",
+            "command": "b.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "build all chess and run",
+            "type": "shell",
+            "command": "r.bat",
+            "problemMatcher": []
+        },
+        {
             "type": "typescript",
             "tsconfig": "chessserver\\tsconfig.json",
             "problemMatcher": [

@@ -1,4 +1,10 @@
 "use strict";
+const ONE_SECOND = 1000;
+const ONE_MINUTE = ONE_SECOND * 60;
+const ONE_HOUR = ONE_MINUTE * 60;
+const ONE_DAY = ONE_HOUR * 24;
+const ONE_YEAR = ONE_DAY * 365;
+const USER_COOKIE_VALIDITY = ONE_YEAR * 100;
 function getCssProperty(name, _default = "") {
     let propertyValue = window.getComputedStyle(document.body).getPropertyValue(name);
     if (propertyValue == "")
@@ -43,15 +49,6 @@ class Log {
 function uniqueId() {
     return "" + Math.floor(Math.random() * 1e9);
 }
-function setCookie(name, value, days) {
-    var expires = "";
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/";
-}
 function toTwoDigits(n) {
     return (n < 10 ? "0" : "") + n;
 }
@@ -68,9 +65,10 @@ function formatDurationAsClock(dur) {
 }
 function ajaxRequest(json, callback) {
     let body = JSON.stringify(json);
-    console.log(`making ajax request ${body}`);
+    //console.log(`making ajax request ${body}`)    
     fetch(`ajax`, {
         method: "POST",
+        credentials: "include",
         headers: new Headers({
             "Content-Type": "application/json"
         }),
@@ -90,6 +88,25 @@ function ajaxRequest(json, callback) {
     }, (err) => {
         console.log(err);
     });
+}
+function setCookie(name, value, days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
+// https://stackoverflow.com/questions/10730362/get-cookie-by-name
+function getCookie(name) {
+    var value = "; " + document.cookie;
+    var parts = value.split("; " + name + "=");
+    let lastPart = parts.pop();
+    if (lastPart == undefined)
+        return undefined;
+    if (parts.length == 1)
+        return lastPart.split(";").shift();
 }
 class Vect {
     constructor(_x, _y) {
@@ -203,6 +220,115 @@ class Arrow {
         this.svg = pg.reportSvg(params["color"]);
     }
 }
+class User {
+    constructor() {
+        this.username = "";
+        this.cookie = "";
+        this.isBot = false;
+        this.isSystem = false;
+        this.registeredAt = new Date().getTime();
+        this.lastSeenAt = new Date().getTime();
+    }
+    clone() {
+        return createUserFromJson(this.toJson());
+    }
+    empty() {
+        return this.username == "";
+    }
+    e(u) {
+        return this.username == u.username;
+    }
+    toJson(secure = false) {
+        let json = ({
+            username: this.username,
+            isBot: this.isBot,
+            isSystem: this.isSystem,
+            registeredAt: this.registeredAt,
+            lastSeenAt: this.lastSeenAt
+        });
+        // don't send user cookie to client
+        if (!secure) {
+            json.cookie = this.cookie;
+        }
+        return json;
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.username != undefined)
+            this.username = json.username;
+        if (json.cookie != undefined)
+            this.cookie = json.cookie;
+        if (json.isBot != undefined)
+            this.isBot = json.isBot;
+        if (json.isSystem != undefined)
+            this.isSystem = json.isSystem;
+        if (json.registeredAt != undefined)
+            this.registeredAt = json.registeredAt;
+        if (json.lastSeenAt != undefined)
+            this.lastSeenAt = json.lastSeenAt;
+        return this;
+    }
+}
+function createUserFromJson(json) {
+    if (json == undefined)
+        return new User();
+    return new User().fromJson(json);
+}
+class UserList {
+    constructor() {
+        this.users = {};
+        this.cookies = {};
+    }
+    toJson(secure = false) {
+        let usersJson = {};
+        for (let username in this.users) {
+            usersJson[username] = this.users[username].toJson(secure);
+        }
+        return usersJson;
+    }
+    fromJson(json) {
+        this.users = {};
+        this.cookies = {};
+        if (json == undefined)
+            return this;
+        for (let username in json) {
+            let userJson = json[username];
+            let u = createUserFromJson(userJson);
+            this.users[u.username] = u;
+            this.cookies[u.cookie] = u;
+        }
+        return this;
+    }
+    setUser(u) {
+        this.users[u.username] = u;
+        this.cookies[u.cookie] = u;
+        return u;
+    }
+    upsertUser(u) {
+        let oldu = this.users[u.username];
+        if (oldu == undefined) {
+            return this.setUser(u);
+        }
+        let cookie = oldu.cookie;
+        let uclone = u.clone();
+        uclone.cookie = cookie;
+        return this.setUser(uclone);
+    }
+    getByCookie(cookie) {
+        return this.cookies[cookie];
+    }
+    getByUsername(username) {
+        return this.users[username];
+    }
+    iterate(callback) {
+        for (let username in this.users) {
+            let u = this.users[username];
+            callback(u);
+        }
+    }
+}
+let loggedUser = new User();
 let DOM_DEFINED = true;
 let FONT_SIZE = getCssFloatProperty("--fontsize", 15);
 let DEBUG = true;
@@ -1386,20 +1512,27 @@ class DraggableWindow extends DomElement {
 class TextInputWindow extends DraggableWindow {
     enterCallback() {
         this.close();
-        if (this.okcallback != undefined)
-            this.okcallback();
+        if (this.textcallback != undefined)
+            this.textcallback(this.textinput.getText());
     }
-    constructor(id) {
+    constructor(id, orig, title, info, textcallback) {
         super(id);
+        this.textcallback = textcallback;
+        this.setOkCallback(this.enterCallback.bind(this));
+        this.setTitle(title);
+        this.setInfo(info);
         this.content = this.textinput = new TextInput(this.id + "_textinput").
             setEnterCallback(this.enterCallback.bind(this)).
             ac("textinputwindowtextinput").
             fs(getCssFloatProperty("--textinputwindowtextinputfontrelsize", 1.25) * FONT_SIZE);
+        this.build();
+        this.textinput.setText(orig);
     }
 }
 class AckInfoWindow extends DraggableWindow {
-    constructor(content) {
+    constructor(content, okcallback) {
         super("ackinfo");
+        this.setOkCallback(okcallback);
         this.content = new Div().ac("ackinfotext").h(content);
         this.setTitle("Info");
     }
@@ -1567,22 +1700,115 @@ class Logpane extends DomElement {
         return this;
     }
 }
+class LichessProfile extends DomElement {
+    constructor() {
+        super("div");
+    }
+    build() {
+        this.x.a([
+            new Table().bs().a([
+                this.userTr = new Tr().a([
+                    new Td().a([
+                        new Div().w(200).h("Lichess username")
+                    ]),
+                    new Td().a([
+                        new Div().w(300).h(loggedUser.empty() ? "?" : loggedUser.username)
+                    ]),
+                    new Td().a([
+                        loggedUser.empty() ?
+                            new Button("Log in").onClick(this.login.bind(this)) :
+                            new Button("Log out").onClick(this.logout.bind(this))
+                    ])
+                ])
+            ])
+        ]);
+        return this;
+    }
+    login() {
+        new TextInputWindow("getusername", "", "Username", "Please enter your lichess username!", (username) => {
+            ajaxRequest({
+                t: "createverificationcode",
+                username: username
+            }, (json) => {
+                if (json.ok) {
+                    new TextInputWindow("checkcode", "" + json.code, "Verify", "Please insert this code into your lichess profile then press OK!", (dummy) => {
+                        console.log("checking code");
+                        ajaxRequest({
+                            t: "checkverificationcode",
+                            username: username
+                        }, (json) => {
+                            if (json.ok) {
+                                let cookie = json.cookie;
+                                console.log(`obtained cookie ${cookie}`);
+                                setCookie("user", cookie, USER_COOKIE_VALIDITY);
+                                this.loginCallback();
+                            }
+                            else {
+                                new AckInfoWindow("Verification failed.", function () { });
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    }
+    logout() {
+    }
+    setLoginCallback(loginCallback) {
+        this.loginCallback = loginCallback;
+        return this;
+    }
+}
+class App {
+    constructor(id) {
+        this.id = id;
+    }
+    loginCallback() {
+        ajaxRequest({
+            t: "login"
+        }, (json) => {
+            console.log(json);
+        });
+    }
+    setProfile(profile) {
+        this.profile = profile;
+        this.profile.setLoginCallback(this.loginCallback.bind(this));
+        return this;
+    }
+    createFromTabs(tabs) {
+        this.mainTabpane = new Tabpane(`${this.id}_mainTabpane`);
+        this.mainTabpane.tabs = tabs;
+        this.mainTabpane.tabs.push(new Tab("profile", "Profile", this.profile.build()));
+        this.mainTabpane.snapToWindow();
+        return this;
+    }
+    login() {
+        ajaxRequest({
+            t: "login"
+        }, (json) => {
+            console.log(json);
+        });
+    }
+    launch() {
+        Layers.init();
+        Layers.root.a([this.mainTabpane.build()]);
+        this.login();
+    }
+}
 const INTRO_HTML = `
 <p>
 Welcome to voteserver.
 <p>
 `;
 DEBUG = false;
-conslog = (item) => { console.log("<item>", item); };
-let tabpane = new Tabpane("votetabpane").
-    setTabs([
-    new Tab("intro", "Intro", new Div().ac("test").h(INTRO_HTML))
+conslog = (item) => { };
+///////////////////////////////////////////
+// app
+let mainTabpane;
+/////////////////////////////////////////// 
+new App("vote").
+    setProfile(new LichessProfile()).
+    createFromTabs([
+    new Tab("about", "About", new Div())
 ]).
-    snapToWindow().
-    build().
-    selectTab("intro");
-Layers.init();
-Layers.root.a([tabpane]);
-ajaxRequest({ action: "test" }, (json) => {
-    console.log(json);
-});
+    launch();
