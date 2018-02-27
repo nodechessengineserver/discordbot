@@ -1,6 +1,7 @@
 class User{
     username:string=""
     cookie:string=""
+    bio:string=""
     isBot:boolean=false
     isSystem:boolean=false        
     registeredAt:number=new Date().getTime()
@@ -21,6 +22,7 @@ class User{
     toJson(secure:boolean=false):any{
         let json:any=({
             username:this.username,
+            bio:this.bio,
             isBot:this.isBot,
             isSystem:this.isSystem,                        
             registeredAt:this.registeredAt,
@@ -38,6 +40,7 @@ class User{
 
         if(json.username!=undefined) this.username=json.username
         if(json.cookie!=undefined) this.cookie=json.cookie
+        if(json.bio!=undefined) this.bio=json.bio
         if(json.isBot!=undefined) this.isBot=json.isBot
         if(json.isSystem!=undefined) this.isSystem=json.isSystem                
         if(json.registeredAt!=undefined) this.registeredAt=json.registeredAt
@@ -90,23 +93,16 @@ class UserList{
         return u
     }
 
-    upsertUser(u:User):User{
-        let oldu=this.users[u.username]
-        if(oldu==undefined){
-            return this.setUser(u)
-        }
-        let cookie=oldu.cookie
-        let uclone=u.clone()
-        uclone.cookie=cookie
-        return this.setUser(uclone)
-    }
-
     getByCookie(cookie:string):User{
-        return this.cookies[cookie]
+        let u=this.cookies[cookie]
+        if(u==undefined) return new User()
+        return u
     }
 
     getByUsername(username:string):User{
-        return this.users[username]
+        let u=this.users[username]
+        if(u==undefined) return new User()
+        return u
     }
 
     iterate(callback:any){

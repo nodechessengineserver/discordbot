@@ -8,7 +8,7 @@ class TextArea extends DomElement<TextArea>{
         return this.getValue()
     }    
     setText(content:string):TextArea{        
-        this.h(content)
+        (<any>this.e).value=content
         return this
     }    
     clear():TextArea{        

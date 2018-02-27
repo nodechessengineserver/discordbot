@@ -4,7 +4,7 @@ let LOCAL_MONGO_URI=`mongodb://localhost:27017/${DATABASE_NAME}`
 
 let MONGODB_URI = isProd()?process.env.MONGODB_URI:LOCAL_MONGO_URI
 
-const COLL_COMMANDS:any={upsertone:true}
+const COLL_COMMANDS:any={upsertone:true,findaslist:true}
 
 let db:any
 
@@ -16,6 +16,7 @@ try{
             db = conn.db(DATABASE_NAME)
             console.log(`votes connected to MongoDB database < ${db.databaseName} >`)            
             // startup
+            usersStartup()
         }
     })
 }catch(err){
@@ -52,13 +53,24 @@ function mongoRequest(req:any,callback:any){
                 console.log("upsert one",query,doc)      
                 collection.updateOne(query,{"$set":doc},{upsert:true},(error:any,result:any)=>{
                     if(error){
-                        res.ok=false
-                        res.status="upsert failed"
-                        res.err=error
+                        res.ok=false;res.status="upsert failed";res.err=error
                         callback(res)
                         return
                     }else{
                         res.status="upsert ok"
+                        callback(res)
+                        return
+                    }
+                })
+            }else if(t=="findaslist"){
+                console.log("find as list",query)
+                collection.find(query).toArray((error:any,docs:any)=>{
+                    if(error){
+                        res.ok=false;res.status="find as list failed";res.err=error
+                        callback(res)
+                        return
+                    }else{
+                        res.docs=docs
                         callback(res)
                         return
                     }

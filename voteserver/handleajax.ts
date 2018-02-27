@@ -20,6 +20,8 @@ function handleAjax(req:any,res:any){
 
         let userCookie=req.cookies.user
 
+        console.log("user cookie",userCookie)
+
         let loggedUser=users.getByCookie(userCookie)
 
         console.log("logged",loggedUser)
@@ -46,12 +48,20 @@ function handleAjax(req:any,res:any){
                     sendResponse(res,responseJson)
                 }
                 else {                    
+                    let oldu=users.getByUsername(username)
+
                     let cookie=uniqid()
                     responseJson.cookie=cookie
                     console.log(`check ok, created cookie ${cookie}`)
 
                     let u=new User()
                     u.username=username
+
+                    if(!oldu.empty()){
+                        console.log(`user ${username} already exists`)
+                        u=oldu
+                    }
+                    
                     u.cookie=cookie
 
                     setUser(u)
@@ -59,7 +69,20 @@ function handleAjax(req:any,res:any){
                 }
             })
         }else if(t=="login"){
-
+            responseJson.u=loggedUser.toJson()
+            sendResponse(res,responseJson)
+        }else if(t=="updateuser"){
+            let u=createUserFromJson(json.u)
+            let oldu=users.getByUsername(u.username)            
+            if(!oldu.empty()){
+                u.cookie=oldu.cookie
+                setUser(u)
+                responseJson.u=u.toJson()
+                sendResponse(res,responseJson)
+            }else{
+                responseJson.u=new User()
+                sendResponse(res,responseJson)
+            }
         }
     }catch(err){
         responseJson.ok=false

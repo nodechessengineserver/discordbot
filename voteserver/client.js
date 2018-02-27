@@ -224,6 +224,7 @@ class User {
     constructor() {
         this.username = "";
         this.cookie = "";
+        this.bio = "";
         this.isBot = false;
         this.isSystem = false;
         this.registeredAt = new Date().getTime();
@@ -241,6 +242,7 @@ class User {
     toJson(secure = false) {
         let json = ({
             username: this.username,
+            bio: this.bio,
             isBot: this.isBot,
             isSystem: this.isSystem,
             registeredAt: this.registeredAt,
@@ -259,6 +261,8 @@ class User {
             this.username = json.username;
         if (json.cookie != undefined)
             this.cookie = json.cookie;
+        if (json.bio != undefined)
+            this.bio = json.bio;
         if (json.isBot != undefined)
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
@@ -305,21 +309,17 @@ class UserList {
         this.cookies[u.cookie] = u;
         return u;
     }
-    upsertUser(u) {
-        let oldu = this.users[u.username];
-        if (oldu == undefined) {
-            return this.setUser(u);
-        }
-        let cookie = oldu.cookie;
-        let uclone = u.clone();
-        uclone.cookie = cookie;
-        return this.setUser(uclone);
-    }
     getByCookie(cookie) {
-        return this.cookies[cookie];
+        let u = this.cookies[cookie];
+        if (u == undefined)
+            return new User();
+        return u;
     }
     getByUsername(username) {
-        return this.users[username];
+        let u = this.users[username];
+        if (u == undefined)
+            return new User();
+        return u;
     }
     iterate(callback) {
         for (let username in this.users) {
@@ -1058,7 +1058,7 @@ class TextArea extends DomElement {
         return this.getValue();
     }
     setText(content) {
-        this.h(content);
+        this.e.value = content;
         return this;
     }
     clear() {
@@ -1719,10 +1719,37 @@ class LichessProfile extends DomElement {
                             new Button("Log in").onClick(this.login.bind(this)) :
                             new Button("Log out").onClick(this.logout.bind(this))
                     ])
+                ]),
+                new Tr().a([
+                    new Td().va("middle").a([
+                        new Div().h("Bio").setMarginTop("auto")
+                    ]),
+                    new Td().a([
+                        this.bioTextArea = new TextArea("biotext").setText(loggedUser.bio).
+                            z(300, 100)
+                    ])
+                ]),
+                new Tr().a([
+                    new Button("Update profile").onClick(this.updateProfile.bind(this))
                 ])
             ])
         ]);
         return this;
+    }
+    updateProfile() {
+        let bio = this.bioTextArea.getText();
+        let uclone = loggedUser.clone();
+        uclone.bio = bio;
+        ajaxRequest({
+            t: "updateuser",
+            u: uclone.toJson()
+        }, (res) => {
+            loggedUser = createUserFromJson(res.u);
+            if (loggedUser.empty())
+                this.loginCallback();
+            else
+                this.build();
+        });
     }
     login() {
         new TextInputWindow("getusername", "", "Username", "Please enter your lichess username!", (username) => {
@@ -1753,9 +1780,18 @@ class LichessProfile extends DomElement {
         });
     }
     logout() {
+        setCookie("user", "", USER_COOKIE_VALIDITY);
+        loggedUser = new User();
+        this.build();
+        if (this.logoutCallback != undefined)
+            this.logoutCallback();
     }
     setLoginCallback(loginCallback) {
         this.loginCallback = loginCallback;
+        return this;
+    }
+    setLogoutCallback(logoutCallback) {
+        this.logoutCallback = logoutCallback;
         return this;
     }
 }
@@ -1764,15 +1800,16 @@ class App {
         this.id = id;
     }
     loginCallback() {
-        ajaxRequest({
-            t: "login"
-        }, (json) => {
-            console.log(json);
-        });
+        console.log(`log in callback`);
+        this.login();
+    }
+    logoutCallback() {
+        console.log(`log out callback`);
     }
     setProfile(profile) {
         this.profile = profile;
         this.profile.setLoginCallback(this.loginCallback.bind(this));
+        this.profile.setLogoutCallback(this.logoutCallback.bind(this));
         return this;
     }
     createFromTabs(tabs) {
@@ -1786,7 +1823,9 @@ class App {
         ajaxRequest({
             t: "login"
         }, (json) => {
-            console.log(json);
+            console.log(`login user [${json.u.username}]`);
+            loggedUser = createUserFromJson(json.u);
+            this.profile.build();
         });
     }
     launch() {

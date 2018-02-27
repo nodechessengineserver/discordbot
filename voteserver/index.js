@@ -14,6 +14,7 @@ class User {
     constructor() {
         this.username = "";
         this.cookie = "";
+        this.bio = "";
         this.isBot = false;
         this.isSystem = false;
         this.registeredAt = new Date().getTime();
@@ -31,6 +32,7 @@ class User {
     toJson(secure = false) {
         let json = ({
             username: this.username,
+            bio: this.bio,
             isBot: this.isBot,
             isSystem: this.isSystem,
             registeredAt: this.registeredAt,
@@ -49,6 +51,8 @@ class User {
             this.username = json.username;
         if (json.cookie != undefined)
             this.cookie = json.cookie;
+        if (json.bio != undefined)
+            this.bio = json.bio;
         if (json.isBot != undefined)
             this.isBot = json.isBot;
         if (json.isSystem != undefined)
@@ -95,21 +99,17 @@ class UserList {
         this.cookies[u.cookie] = u;
         return u;
     }
-    upsertUser(u) {
-        let oldu = this.users[u.username];
-        if (oldu == undefined) {
-            return this.setUser(u);
-        }
-        let cookie = oldu.cookie;
-        let uclone = u.clone();
-        uclone.cookie = cookie;
-        return this.setUser(uclone);
-    }
     getByCookie(cookie) {
-        return this.cookies[cookie];
+        let u = this.cookies[cookie];
+        if (u == undefined)
+            return new User();
+        return u;
     }
     getByUsername(username) {
-        return this.users[username];
+        let u = this.users[username];
+        if (u == undefined)
+            return new User();
+        return u;
     }
     iterate(callback) {
         for (let username in this.users) {
@@ -151,7 +151,7 @@ function checkLichess(username, code, callback) {
 let DATABASE_NAME = `mychessdb`;
 let LOCAL_MONGO_URI = `mongodb://localhost:27017/${DATABASE_NAME}`;
 let MONGODB_URI = isProd() ? process.env.MONGODB_URI : LOCAL_MONGO_URI;
-const COLL_COMMANDS = { upsertone: true };
+const COLL_COMMANDS = { upsertone: true, findaslist: true };
 let db;
 try {
     mongodb.connect(MONGODB_URI, function (err, conn) {
@@ -162,6 +162,7 @@ try {
             db = conn.db(DATABASE_NAME);
             console.log(`votes connected to MongoDB database < ${db.databaseName} >`);
             // startup
+            usersStartup();
         }
     });
 }
@@ -205,6 +206,23 @@ function mongoRequest(req, callback) {
                     }
                 });
             }
+            else if (t == "findaslist") {
+                console.log("find as list", query);
+                collection.find(query).toArray((error, docs) => {
+                    if (error) {
+                        res.ok = false;
+                        res.status = "find as list failed";
+                        res.err = error;
+                        callback(res);
+                        return;
+                    }
+                    else {
+                        res.docs = docs;
+                        callback(res);
+                        return;
+                    }
+                });
+            }
         }
     }
     catch (err) {
@@ -216,7 +234,7 @@ function mongoRequest(req, callback) {
     }
 }
 let USERS_COLL = `voteusers`;
-const users = new UserList();
+let users = new UserList();
 function setUser(u) {
     users.setUser(u);
     mongoRequest({
@@ -228,6 +246,25 @@ function setUser(u) {
         doc: u.toJson()
     }, (res) => {
         console.log(res);
+    });
+}
+function usersStartup() {
+    console.log(`users startup`);
+    mongoRequest({
+        t: "findaslist",
+        collName: USERS_COLL,
+        query: {}
+    }, (res) => {
+        if (!res.ok) {
+            logErr(`users startup failed: ${res.status}`);
+        }
+        else {
+            console.log(`users has ${res.docs.length} records`);
+            users = new UserList();
+            for (let doc of res.docs) {
+                users.setUser(createUserFromJson(doc));
+            }
+        }
     });
 }
 let vercodes = {};
@@ -245,6 +282,7 @@ function handleAjax(req, res) {
     try {
         let t = json.t;
         let userCookie = req.cookies.user;
+        console.log("user cookie", userCookie);
         let loggedUser = users.getByCookie(userCookie);
         console.log("logged", loggedUser);
         if (t == "createverificationcode") {
@@ -265,11 +303,16 @@ function handleAjax(req, res) {
                     sendResponse(res, responseJson);
                 }
                 else {
+                    let oldu = users.getByUsername(username);
                     let cookie = uniqid();
                     responseJson.cookie = cookie;
                     console.log(`check ok, created cookie ${cookie}`);
                     let u = new User();
                     u.username = username;
+                    if (!oldu.empty()) {
+                        console.log(`user ${username} already exists`);
+                        u = oldu;
+                    }
                     u.cookie = cookie;
                     setUser(u);
                     sendResponse(res, responseJson);
@@ -277,6 +320,22 @@ function handleAjax(req, res) {
             });
         }
         else if (t == "login") {
+            responseJson.u = loggedUser.toJson();
+            sendResponse(res, responseJson);
+        }
+        else if (t == "updateuser") {
+            let u = createUserFromJson(json.u);
+            let oldu = users.getByUsername(u.username);
+            if (!oldu.empty()) {
+                u.cookie = oldu.cookie;
+                setUser(u);
+                responseJson.u = u.toJson();
+                sendResponse(res, responseJson);
+            }
+            else {
+                responseJson.u = new User();
+                sendResponse(res, responseJson);
+            }
         }
     }
     catch (err) {

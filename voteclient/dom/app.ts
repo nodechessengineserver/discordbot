@@ -10,16 +10,18 @@ class App{
     }
 
     loginCallback(){
-        ajaxRequest({
-            t:"login"
-        },(json:any)=>{
-            console.log(json)
-        })
+        console.log(`log in callback`)
+        this.login()
+    }
+
+    logoutCallback(){
+        console.log(`log out callback`)
     }
 
     setProfile(profile:Profile):App{
         this.profile=profile
         this.profile.setLoginCallback(this.loginCallback.bind(this))
+        this.profile.setLogoutCallback(this.logoutCallback.bind(this))
         return this
     }
 
@@ -35,7 +37,9 @@ class App{
         ajaxRequest({
             t:"login"
         },(json:any)=>{
-            console.log(json)
+            console.log(`login user [${json.u.username}]`)
+            loggedUser=createUserFromJson(json.u)
+            this.profile.build()
         })
     }
 
