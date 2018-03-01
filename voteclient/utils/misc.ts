@@ -1,3 +1,7 @@
+function logErr(err:any){
+    console.log("err",err)
+}
+
 function getCssProperty(name:string,_default:string=""):string{
     let propertyValue=window.getComputedStyle(document.body).getPropertyValue(name)    
     if(propertyValue=="") return _default
@@ -11,7 +15,7 @@ function getCssFloatProperty(name:string,_default:number):number{
         if(isNaN(value)) return _default
         return value
     }catch(err){
-        console.log("default",_default)
+        //console.log("default",_default)
         return _default
     }
 }
@@ -80,13 +84,13 @@ function ajaxRequest(json:any,callback:any){
                 let json=JSON.parse(content)
                 callback(json)
             }catch(err){
-                console.log(err)
+                logErr(err)
             }
         },(err:any)=>{
-            console.log(err)
+            logErr(err)
         })
     },(err:any)=>{
-        console.log(err)
+        logErr(err)
     })
 }
 

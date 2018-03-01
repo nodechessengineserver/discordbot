@@ -4,12 +4,43 @@ let votes:Vote[]=[]
 
 let voteTransactions:VoteTransaction[]=[]
 
+function someVote(iterfunc:(v:Vote)=>boolean):boolean{
+    for(let v of votes){
+        if(iterfunc(v)) return true
+    }
+    return false
+}
+
+function hasQuestion(question:string){
+    return someVote((v:Vote)=>v.question==question)
+}
+
+function findIndexByQuestion(question:string):number{
+    for(let i=0;i<votes.length;i++){
+        if(votes[i].question==question) return i
+    }
+    return -1
+}
+
+function findIndexById(id:string):number{
+    for(let i=0;i<votes.length;i++){
+        if(votes[i].id==id) return i
+    }
+    return -1
+}
+
 function execTransaction(vt:VoteTransaction){
     let t=vt.t
     if(t=="createvote"){
-        let v=new Vote()
+        let v=new Vote()  
         v.question=vt.text
+        v.owner=vt.u        
         votes.push(v)
+    }else if(t=="deletevote"){
+        let i=findIndexByQuestion(vt.v.question)
+        if(i>=0){
+            votes.splice(i,1)
+        }
     }
 }
 

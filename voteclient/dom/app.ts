@@ -5,17 +5,25 @@ class App{
 
     profile:Profile
 
+    loginTask:any
+
     constructor(id:string){
         this.id=id
     }
 
+    setLoginTask(loginTask:any):App{
+        this.loginTask=loginTask
+        return this
+    }
+
     loginCallback(){
-        console.log(`log in callback`)
+        //console.log(`log in callback`)
         this.login()
     }
 
     logoutCallback(){
-        console.log(`log out callback`)
+        //console.log(`log out callback`)
+        this.mainTabpane.setCaptionByKey("profile","Profile")
     }
 
     setProfile(profile:Profile):App{
@@ -37,9 +45,14 @@ class App{
         ajaxRequest({
             t:"login"
         },(json:any)=>{
-            console.log(`login user [${json.u.username}]`)
+            //console.log(`login user [${json.u.username}]`)
             loggedUser=createUserFromJson(json.u)
+            this.mainTabpane.setCaptionByKey("profile",loggedUser.empty()?"Profile":loggedUser.username)
             this.profile.build()
+
+            if(this.loginTask!=undefined){
+                this.loginTask()
+            }
         })
     }
 

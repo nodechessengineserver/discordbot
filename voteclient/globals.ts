@@ -1,5 +1,5 @@
 DEBUG=false
-conslog=(item:string)=>{/*console.log("<item>",item)*/}
+conslog=(item:string)=>{/*console.log("item",item)*/}
 
 ///////////////////////////////////////////
 // app

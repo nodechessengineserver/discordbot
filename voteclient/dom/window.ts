@@ -296,12 +296,15 @@ class TextInputWindow extends DraggableWindow{
         this.close()                
         if(this.textcallback!=undefined) this.textcallback(this.textinput.getText())
     }
-    constructor(id:string,orig:string,title:string,info:string,textcallback:any){
+    constructor(id:string,orig:string,title:string,info:string,textcallback:any,options:any={}){
         super(id)        
         this.textcallback=textcallback
         this.setOkCallback(this.enterCallback.bind(this))
         this.setTitle(title)
-        this.setInfo(info)
+        this.setInfo(info)        
+        if(options.width!=undefined){            
+            this.width=options.width
+        }
         this.content=this.textinput=<TextInput>new TextInput(this.id+"_textinput").
             setEnterCallback(this.enterCallback.bind(this)).
             ac("textinputwindowtextinput").

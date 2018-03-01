@@ -99,16 +99,45 @@ function handleAjax(req:any,res:any){
                 res.status="question already exists"
                 sendResponse(res,responseJson)
             }else{
+                if(loggedUser.empty()){
+                    res.ok=false
+                    res.status="have to be logged in to create vote"
+                    sendResponse(res,responseJson)
+                }else{
+                    if(hasQuestion(question)){
+                        res.ok=false
+                        res.status="question already exists"
+                        sendResponse(res,responseJson)
+                    }else{
+                        let vt=new VoteTransaction()
+                        vt.t="createvote"                        
+                        vt.u=loggedUser                
+                        vt.text=question
+                        storeAndExecTransaction(vt,(mongores:any)=>{                    
+                            res.ok=mongores.ok
+                            res.status=mongores.status
+                            sendResponse(res,responseJson)
+                        })                   
+                    }                    
+                }                
+            }            
+        }else if(t=="deletevote"){
+            let v=new Vote().fromJson(json.v)
+            console.log("delete vote",v)
+            if(v.owner.e(loggedUser)){
                 let vt=new VoteTransaction()
-                vt.t="createvote"
-                vt.u=loggedUser                
-                vt.text=question
+                vt.t="deletevote"
+                vt.v=v
                 storeAndExecTransaction(vt,(mongores:any)=>{                    
                     res.ok=mongores.ok
                     res.status=mongores.status
                     sendResponse(res,responseJson)
-                })                
-            }            
+                })                   
+            }else{
+                res.ok=false
+                res.status="not authorized to delete vote"
+                sendResponse(res,responseJson)
+            }
         }
     }catch(err){
         responseJson.ok=false

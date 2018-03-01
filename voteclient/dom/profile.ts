@@ -71,14 +71,14 @@ class LichessProfile extends DomElement<LichessProfile> implements Profile{
             },(json:any)=>{
                 if(json.ok){
                     new TextInputWindow("checkcode",""+json.code,"Verify","Please insert this code into your lichess profile then press OK!",(dummy:string)=>{
-                        console.log("checking code")
+                        //console.log("checking code")
                         ajaxRequest({
                             t:"checkverificationcode",
                             username:username
                         },(json:any)=>{
                             if(json.ok){
                                 let cookie=json.cookie
-                                console.log(`obtained cookie ${cookie}`)
+                                //console.log(`obtained cookie ${cookie}`)
                                 setCookie("user",cookie,USER_COOKIE_VALIDITY)                                                                
                                 this.loginCallback()
                             }else{

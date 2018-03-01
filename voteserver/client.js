@@ -5,6 +5,9 @@ const ONE_HOUR = ONE_MINUTE * 60;
 const ONE_DAY = ONE_HOUR * 24;
 const ONE_YEAR = ONE_DAY * 365;
 const USER_COOKIE_VALIDITY = ONE_YEAR * 100;
+function logErr(err) {
+    console.log("err", err);
+}
 function getCssProperty(name, _default = "") {
     let propertyValue = window.getComputedStyle(document.body).getPropertyValue(name);
     if (propertyValue == "")
@@ -20,7 +23,7 @@ function getCssFloatProperty(name, _default) {
         return value;
     }
     catch (err) {
-        console.log("default", _default);
+        //console.log("default",_default)
         return _default;
     }
 }
@@ -80,13 +83,13 @@ function ajaxRequest(json, callback) {
                 callback(json);
             }
             catch (err) {
-                console.log(err);
+                logErr(err);
             }
         }, (err) => {
-            console.log(err);
+            logErr(err);
         });
     }, (err) => {
-        console.log(err);
+        logErr(err);
     });
 }
 function setCookie(name, value, days) {
@@ -409,22 +412,19 @@ class Vote {
 class VoteTransaction {
     constructor() {
         this.t = "createvote";
-        this.id = "transactionid";
-        this.voteId = "voteid";
-        this.voteOptionId = "voteoptionid";
         this.time = new Date().getTime();
         this.u = new User();
-        this.userVote = new UserVote();
+        this.v = new Vote();
+        this.uv = new UserVote();
         this.text = "Vote content";
     }
     toJson() {
         return ({
             t: this.t,
-            id: this.id,
-            voteId: this.voteId,
-            voteOptionId: this.voteOptionId,
             time: this.time,
             u: this.u.toJson(),
+            v: this.v.toJson(),
+            uv: this.uv.toJson(),
             text: this.text
         });
     }
@@ -433,16 +433,14 @@ class VoteTransaction {
             return this;
         if (json.t != undefined)
             this.t = json.t;
-        if (json.id != undefined)
-            this.id = json.id;
-        if (json.voteId != undefined)
-            this.voteId = json.voteId;
-        if (json.voteOptionId != undefined)
-            this.voteOptionId = json.voteOptionId;
         if (json.time != undefined)
             this.time = json.time;
         if (json.u != undefined)
             this.u = createUserFromJson(json.u);
+        if (json.v != undefined)
+            this.v = new Vote().fromJson(json.v);
+        if (json.uv != undefined)
+            this.uv = new UserVote().fromJson(json.uv);
         if (json.text != undefined)
             this.text = json.text;
         return this;
@@ -1635,12 +1633,15 @@ class TextInputWindow extends DraggableWindow {
         if (this.textcallback != undefined)
             this.textcallback(this.textinput.getText());
     }
-    constructor(id, orig, title, info, textcallback) {
+    constructor(id, orig, title, info, textcallback, options = {}) {
         super(id);
         this.textcallback = textcallback;
         this.setOkCallback(this.enterCallback.bind(this));
         this.setTitle(title);
         this.setInfo(info);
+        if (options.width != undefined) {
+            this.width = options.width;
+        }
         this.content = this.textinput = new TextInput(this.id + "_textinput").
             setEnterCallback(this.enterCallback.bind(this)).
             ac("textinputwindowtextinput").
@@ -1879,14 +1880,14 @@ class LichessProfile extends DomElement {
             }, (json) => {
                 if (json.ok) {
                     new TextInputWindow("checkcode", "" + json.code, "Verify", "Please insert this code into your lichess profile then press OK!", (dummy) => {
-                        console.log("checking code");
+                        //console.log("checking code")
                         ajaxRequest({
                             t: "checkverificationcode",
                             username: username
                         }, (json) => {
                             if (json.ok) {
                                 let cookie = json.cookie;
-                                console.log(`obtained cookie ${cookie}`);
+                                //console.log(`obtained cookie ${cookie}`)
                                 setCookie("user", cookie, USER_COOKIE_VALIDITY);
                                 this.loginCallback();
                             }
@@ -1919,15 +1920,35 @@ class VoteSummary extends DomElement {
     constructor() {
         super("div");
         this.vote = new Vote();
+        this.summaryDiv = new Div();
     }
     setVote(vote) {
         this.vote = vote;
         return this.build();
     }
+    deleteVoteClicked() {
+        const t = "deletevote";
+        ajaxRequest({
+            t: t,
+            v: this.vote.toJson()
+        }, (res) => {
+            loadVotes();
+        });
+    }
     build() {
         this.x.a([
-            new Div().h(this.vote.question)
+            this.summaryDiv = new Div().ac("votesummarydiv").a([
+                new Div().ac("votesummarytitle").h(this.vote.question),
+                new Div().ac("votesummaryowner").h(this.vote.owner.username)
+            ])
         ]);
+        if (this.vote.owner.e(loggedUser)) {
+            this.summaryDiv.a([
+                new Div().ac("votesummarycontrol").a([
+                    new Button("Delete").onClick(this.deleteVoteClicked.bind(this))
+                ])
+            ]);
+        }
         return this;
     }
 }
@@ -1948,14 +1969,14 @@ class VoteSummaries extends DomElement {
                 question: question
             }, (res) => {
                 if (res.ok) {
-                    console.log("vote created ok");
+                    //console.log("vote created ok")
                     loadVotes();
                 }
                 else {
-                    console.log("vote creation failed", res.status);
+                    //console.log("vote creation failed",res.status)
                 }
             });
-        });
+        }, { width: 800 });
     }
     build() {
         this.x.a([
@@ -1969,12 +1990,17 @@ class App {
     constructor(id) {
         this.id = id;
     }
+    setLoginTask(loginTask) {
+        this.loginTask = loginTask;
+        return this;
+    }
     loginCallback() {
-        console.log(`log in callback`);
+        //console.log(`log in callback`)
         this.login();
     }
     logoutCallback() {
-        console.log(`log out callback`);
+        //console.log(`log out callback`)
+        this.mainTabpane.setCaptionByKey("profile", "Profile");
     }
     setProfile(profile) {
         this.profile = profile;
@@ -1993,9 +2019,13 @@ class App {
         ajaxRequest({
             t: "login"
         }, (json) => {
-            console.log(`login user [${json.u.username}]`);
+            //console.log(`login user [${json.u.username}]`)
             loggedUser = createUserFromJson(json.u);
+            this.mainTabpane.setCaptionByKey("profile", loggedUser.empty() ? "Profile" : loggedUser.username);
             this.profile.build();
+            if (this.loginTask != undefined) {
+                this.loginTask();
+            }
         });
     }
     launch() {
@@ -2025,12 +2055,12 @@ function buildVotesDiv() {
     ]);
 }
 function loadVotes() {
-    console.log("loading votes");
+    //console.log("loading votes")
     ajaxRequest({
         t: "loadvotes"
     }, (json) => {
         if (json.ok) {
-            console.log("processing votes");
+            //console.log("processing votes")
             if (json.votes != undefined) {
                 votes = json.votes.map((voteJson) => new Vote().fromJson(voteJson));
             }
@@ -2038,12 +2068,15 @@ function loadVotes() {
         }
     });
 }
+function loginTask() {
+    loadVotes();
+}
 new App("vote").
     setProfile(new LichessProfile()).
+    setLoginTask(loginTask).
     createFromTabs([
     new Tab("about", "About", new Div()),
     new Tab("votes", "Votes", votesDiv),
     new Tab("vote", "Vote", voteDiv)
 ]).
     launch();
-loadVotes();

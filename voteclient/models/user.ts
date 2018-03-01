@@ -4,7 +4,8 @@ type AJAX_REQUEST=
     "login"|
     "updateuser"|
     "loadvotes"|
-    "createvote"
+    "createvote"|
+    "deletevote"
 
 class User{
     username:string=""

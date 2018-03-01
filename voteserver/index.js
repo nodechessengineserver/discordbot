@@ -199,22 +199,19 @@ class Vote {
 class VoteTransaction {
     constructor() {
         this.t = "createvote";
-        this.id = "transactionid";
-        this.voteId = "voteid";
-        this.voteOptionId = "voteoptionid";
         this.time = new Date().getTime();
         this.u = new User();
-        this.userVote = new UserVote();
+        this.v = new Vote();
+        this.uv = new UserVote();
         this.text = "Vote content";
     }
     toJson() {
         return ({
             t: this.t,
-            id: this.id,
-            voteId: this.voteId,
-            voteOptionId: this.voteOptionId,
             time: this.time,
             u: this.u.toJson(),
+            v: this.v.toJson(),
+            uv: this.uv.toJson(),
             text: this.text
         });
     }
@@ -223,16 +220,14 @@ class VoteTransaction {
             return this;
         if (json.t != undefined)
             this.t = json.t;
-        if (json.id != undefined)
-            this.id = json.id;
-        if (json.voteId != undefined)
-            this.voteId = json.voteId;
-        if (json.voteOptionId != undefined)
-            this.voteOptionId = json.voteOptionId;
         if (json.time != undefined)
             this.time = json.time;
         if (json.u != undefined)
             this.u = createUserFromJson(json.u);
+        if (json.v != undefined)
+            this.v = new Vote().fromJson(json.v);
+        if (json.uv != undefined)
+            this.uv = new UserVote().fromJson(json.uv);
         if (json.text != undefined)
             this.text = json.text;
         return this;
@@ -412,12 +407,43 @@ function usersStartup() {
 const VOTE_TRANSACTIONS_COLL = "votetransactions";
 let votes = [];
 let voteTransactions = [];
+function someVote(iterfunc) {
+    for (let v of votes) {
+        if (iterfunc(v))
+            return true;
+    }
+    return false;
+}
+function hasQuestion(question) {
+    return someVote((v) => v.question == question);
+}
+function findIndexByQuestion(question) {
+    for (let i = 0; i < votes.length; i++) {
+        if (votes[i].question == question)
+            return i;
+    }
+    return -1;
+}
+function findIndexById(id) {
+    for (let i = 0; i < votes.length; i++) {
+        if (votes[i].id == id)
+            return i;
+    }
+    return -1;
+}
 function execTransaction(vt) {
     let t = vt.t;
     if (t == "createvote") {
         let v = new Vote();
         v.question = vt.text;
+        v.owner = vt.u;
         votes.push(v);
+    }
+    else if (t == "deletevote") {
+        let i = findIndexByQuestion(vt.v.question);
+        if (i >= 0) {
+            votes.splice(i, 1);
+        }
     }
 }
 function storeAndExecTransaction(vt, callback) {
@@ -547,15 +573,48 @@ function handleAjax(req, res) {
                 sendResponse(res, responseJson);
             }
             else {
+                if (loggedUser.empty()) {
+                    res.ok = false;
+                    res.status = "have to be logged in to create vote";
+                    sendResponse(res, responseJson);
+                }
+                else {
+                    if (hasQuestion(question)) {
+                        res.ok = false;
+                        res.status = "question already exists";
+                        sendResponse(res, responseJson);
+                    }
+                    else {
+                        let vt = new VoteTransaction();
+                        vt.t = "createvote";
+                        vt.u = loggedUser;
+                        vt.text = question;
+                        storeAndExecTransaction(vt, (mongores) => {
+                            res.ok = mongores.ok;
+                            res.status = mongores.status;
+                            sendResponse(res, responseJson);
+                        });
+                    }
+                }
+            }
+        }
+        else if (t == "deletevote") {
+            let v = new Vote().fromJson(json.v);
+            console.log("delete vote", v);
+            if (v.owner.e(loggedUser)) {
                 let vt = new VoteTransaction();
-                vt.t = "createvote";
-                vt.u = loggedUser;
-                vt.text = question;
+                vt.t = "deletevote";
+                vt.v = v;
                 storeAndExecTransaction(vt, (mongores) => {
                     res.ok = mongores.ok;
                     res.status = mongores.status;
                     sendResponse(res, responseJson);
                 });
+            }
+            else {
+                res.ok = false;
+                res.status = "not authorized to delete vote";
+                sendResponse(res, responseJson);
             }
         }
     }

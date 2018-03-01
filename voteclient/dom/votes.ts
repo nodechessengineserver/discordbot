@@ -10,10 +10,33 @@ class VoteSummary extends DomElement<VoteSummary>{
         return this.build()
     }
 
+    summaryDiv:Div=new Div()
+
+    deleteVoteClicked(){
+        const t:AJAX_REQUEST="deletevote"
+        ajaxRequest({
+            t:t,
+            v:this.vote.toJson()
+        },(res:any)=>{
+            loadVotes()
+        })
+    }
+
     build():VoteSummary{
         this.x.a([
-            new Div().h(this.vote.question)
+            this.summaryDiv=new Div().ac("votesummarydiv").a([
+                new Div().ac("votesummarytitle").h(this.vote.question),
+                new Div().ac("votesummaryowner").h(this.vote.owner.username)
+            ])
         ])
+
+        if(this.vote.owner.e(loggedUser)){
+            this.summaryDiv.a([
+                new Div().ac("votesummarycontrol").a([
+                    new Button("Delete").onClick(this.deleteVoteClicked.bind(this))
+                ])
+            ])
+        }
 
         return this
     }
@@ -39,13 +62,13 @@ class VoteSummaries extends DomElement<VoteSummaries>{
                 question:question
             },(res:any)=>{
                 if(res.ok){
-                    console.log("vote created ok")
+                    //console.log("vote created ok")
                     loadVotes()
                 }else{
-                    console.log("vote creation failed",res.status)
+                    //console.log("vote creation failed",res.status)
                 }
             })
-        })
+        },{width:800})
     }
 
     build():VoteSummaries{

@@ -10,7 +10,10 @@ const COLL_COMMANDS:any={
     findaslist:true
 }
 
-type MONGO_REQUEST="upsertone"|"insertone"|"findaslist"
+type MONGO_REQUEST=
+    "upsertone"|
+    "insertone"|
+    "findaslist"
 
 let db:any
 

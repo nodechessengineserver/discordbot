@@ -91,26 +91,23 @@ class Vote{
 class VoteTransaction{
     t:VOTE_TRANSACTION="createvote"
 
-    id:string="transactionid"
-    voteId:string="voteid"
-    voteOptionId:string="voteoptionid"
-
     time:number=new Date().getTime()
 
     u:User=new User()
 
-    userVote:UserVote=new UserVote()
+    v:Vote=new Vote()
+
+    uv:UserVote=new UserVote()
 
     text:string="Vote content"
 
     toJson():any{
         return({
             t:this.t,
-            id:this.id,
-            voteId:this.voteId,
-            voteOptionId:this.voteOptionId,
             time:this.time,
             u:this.u.toJson(),
+            v:this.v.toJson(),
+            uv:this.uv.toJson(),
             text:this.text
         })
     }
@@ -119,11 +116,10 @@ class VoteTransaction{
         if(json==undefined) return this
 
         if(json.t!=undefined) this.t=json.t
-        if(json.id!=undefined) this.id=json.id
-        if(json.voteId!=undefined) this.voteId=json.voteId
-        if(json.voteOptionId!=undefined) this.voteOptionId=json.voteOptionId
         if(json.time!=undefined) this.time=json.time
         if(json.u!=undefined) this.u=createUserFromJson(json.u)
+        if(json.v!=undefined) this.v=new Vote().fromJson(json.v)
+        if(json.uv!=undefined) this.uv=new UserVote().fromJson(json.uv)
         if(json.text!=undefined) this.text=json.text
 
         return this
