@@ -1,8 +1,10 @@
 function loginTask(){
-    loadVotes()
+    loadVotes({
+        selectTabKey:"votes"
+    })
 }
 
-new App("vote").
+app=new App("vote").
 setProfile(new LichessProfile()).
 setLoginTask(loginTask).
 createFromTabs([

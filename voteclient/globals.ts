@@ -5,7 +5,7 @@ conslog=(item:string)=>{/*console.log("item",item)*/}
 // app
 let votes:Vote[]=[]
 ///////////////////////////////////////////
-let mainTabpane:Tabpane
+let app:App
 
 let votesDiv:Div=new Div()
 let voteDiv:Div=new Div()

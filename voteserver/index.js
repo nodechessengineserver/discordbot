@@ -10,6 +10,14 @@ function isDev() {
 function isProd() {
     return !isDev();
 }
+const ONE_SECOND = 1000;
+const ONE_MINUTE = ONE_SECOND * 60;
+const ONE_HOUR = ONE_MINUTE * 60;
+const ONE_DAY = ONE_HOUR * 24;
+const ONE_WEEK = ONE_DAY * 7;
+const ONE_MONTH = ONE_DAY * 30;
+const ONE_YEAR = ONE_DAY * 365;
+const USER_COOKIE_VALIDITY = ONE_YEAR * 50;
 class User {
     constructor() {
         this.username = "";
@@ -119,6 +127,8 @@ class UserList {
     }
 }
 const MAX_STARS = 3;
+const MAX_VOTES_PER_WEEK = 3;
+const MAX_OPTIONS_PER_WEEK = 9;
 class UserVote {
     constructor() {
         this.u = new User();
@@ -407,6 +417,50 @@ function usersStartup() {
 const VOTE_TRANSACTIONS_COLL = "votetransactions";
 let votes = [];
 let voteTransactions = [];
+class Credit {
+    constructor(action, unaction, timeFrame, credit) {
+        this.action = "createvote";
+        this.unaction = "deletevote";
+        this.timeFrame = ONE_WEEK;
+        this.credit = MAX_VOTES_PER_WEEK;
+        this.action = action;
+        this.unaction = unaction;
+        this.timeFrame = timeFrame;
+        this.credit = credit;
+    }
+    check() {
+        let now = new Date().getTime();
+        let sum = aggregateTransactions((whileParams) => (now - whileParams.vt.time) < this.timeFrame, (aggregParams) => (aggregParams.vt.t == this.action ? 1 : 0) -
+            (aggregParams.vt.t == this.unaction ? 1 : 0));
+        return sum <= this.credit;
+    }
+}
+let CREATE_VOTE_WEEKLY_CREDIT = new Credit("createvote", "deletevote", ONE_WEEK, MAX_VOTES_PER_WEEK);
+let CREATE_OPTION_WEEKLY_CREDIT = new Credit("createoption", "deleteoption", ONE_WEEK, MAX_OPTIONS_PER_WEEK);
+let CREATE_VOTE_CREDITS = [CREATE_VOTE_WEEKLY_CREDIT];
+let CREATE_OPTION_CREDITS = [CREATE_OPTION_WEEKLY_CREDIT];
+function checkCredits(credits) {
+    for (let credit of credits)
+        if (!credit.check())
+            return false;
+    return true;
+}
+function aggregateTransactions(whileFunc, aggregFunc) {
+    let sum = 0;
+    for (let i = voteTransactions.length - 1; i >= 0; i--) {
+        let vt = voteTransactions[i];
+        let whileParams = {
+            vt: vt
+        };
+        if (!whileFunc(whileParams))
+            return sum;
+        let aggregParams = {
+            vt: vt
+        };
+        sum += aggregFunc(aggregParams);
+    }
+    return sum;
+}
 function someVote(iterfunc) {
     for (let v of votes) {
         if (iterfunc(v))
@@ -455,6 +509,7 @@ function storeAndExecTransaction(vt, callback) {
     }, (res) => {
         console.log("insert result", res);
         if (res.ok) {
+            voteTransactions.push(vt);
             execTransaction(vt);
             callback(res);
         }
@@ -489,6 +544,7 @@ let vercodes = {};
 function sendResponse(res, responseJson) {
     res.setHeader("Content-Type", "application/json");
     res.send(JSON.stringify(responseJson));
+    console.log("req", responseJson.req, "status", res.status);
 }
 function handleAjax(req, res) {
     let json = req.body;
@@ -566,35 +622,32 @@ function handleAjax(req, res) {
             console.log("create vote", question, loggedUser);
             let v = new Vote();
             v.question = question;
-            if (votes.some((v) => v.question == question)) {
-                // question already exists
-                res.ok = false;
-                res.status = "question already exists";
+            if (loggedUser.empty()) {
+                responseJson.ok = false;
+                responseJson.status = "have to be logged in to create vote";
                 sendResponse(res, responseJson);
             }
             else {
-                if (loggedUser.empty()) {
-                    res.ok = false;
-                    res.status = "have to be logged in to create vote";
+                if (hasQuestion(question)) {
+                    responseJson.ok = false;
+                    responseJson.status = "question already exists";
+                    sendResponse(res, responseJson);
+                }
+                else if (!checkCredits(CREATE_VOTE_CREDITS)) {
+                    responseJson.ok = false;
+                    responseJson.status = "vote creation credits surpassed";
                     sendResponse(res, responseJson);
                 }
                 else {
-                    if (hasQuestion(question)) {
-                        res.ok = false;
-                        res.status = "question already exists";
+                    let vt = new VoteTransaction();
+                    vt.t = "createvote";
+                    vt.u = loggedUser;
+                    vt.text = question;
+                    storeAndExecTransaction(vt, (mongores) => {
+                        responseJson.ok = mongores.ok;
+                        responseJson.status = mongores.status;
                         sendResponse(res, responseJson);
-                    }
-                    else {
-                        let vt = new VoteTransaction();
-                        vt.t = "createvote";
-                        vt.u = loggedUser;
-                        vt.text = question;
-                        storeAndExecTransaction(vt, (mongores) => {
-                            res.ok = mongores.ok;
-                            res.status = mongores.status;
-                            sendResponse(res, responseJson);
-                        });
-                    }
+                    });
                 }
             }
         }
@@ -606,14 +659,14 @@ function handleAjax(req, res) {
                 vt.t = "deletevote";
                 vt.v = v;
                 storeAndExecTransaction(vt, (mongores) => {
-                    res.ok = mongores.ok;
-                    res.status = mongores.status;
+                    responseJson.ok = mongores.ok;
+                    responseJson.status = mongores.status;
                     sendResponse(res, responseJson);
                 });
             }
             else {
-                res.ok = false;
-                res.status = "not authorized to delete vote";
+                responseJson.ok = false;
+                responseJson.status = "not authorized to delete vote";
                 sendResponse(res, responseJson);
             }
         }

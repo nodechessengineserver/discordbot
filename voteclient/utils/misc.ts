@@ -94,11 +94,11 @@ function ajaxRequest(json:any,callback:any){
     })
 }
 
-function setCookie(name:any,value:any,days:any) {
+function setCookie(name:any,value:any,expiryPeriod:number) {
     var expires = "";
-    if (days) {
+    if (expiryPeriod) {
         var date = new Date();
-        date.setTime(date.getTime() + (days*24*60*60*1000));
+        date.setTime(date.getTime() + expiryPeriod);
         expires = "; expires=" + date.toUTCString();
     }
     document.cookie = name + "=" + (value || "")  + expires + "; path=/";

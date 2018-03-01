@@ -54,6 +54,7 @@
   },  
   "files": [    
     "head.ts",
+    "../voteclient/utils/constants.ts",
     "../voteclient/models/user.ts",
     "../voteclient/models/vote.ts",
     "utils.ts",

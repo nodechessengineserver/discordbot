@@ -41,7 +41,7 @@ class App{
         return this
     }
 
-    login(){
+    login():App{
         ajaxRequest({
             t:"login"
         },(json:any)=>{
@@ -54,13 +54,17 @@ class App{
                 this.loginTask()
             }
         })
+
+        return this
     }
 
-    launch(){
+    launch():App{
         Layers.init()
 
         Layers.root.a([this.mainTabpane.build()])        
 
         this.login()
+
+        return this
     }
 }

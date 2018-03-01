@@ -3,8 +3,10 @@ const ONE_SECOND = 1000;
 const ONE_MINUTE = ONE_SECOND * 60;
 const ONE_HOUR = ONE_MINUTE * 60;
 const ONE_DAY = ONE_HOUR * 24;
+const ONE_WEEK = ONE_DAY * 7;
+const ONE_MONTH = ONE_DAY * 30;
 const ONE_YEAR = ONE_DAY * 365;
-const USER_COOKIE_VALIDITY = ONE_YEAR * 100;
+const USER_COOKIE_VALIDITY = ONE_YEAR * 50;
 function logErr(err) {
     console.log("err", err);
 }
@@ -92,11 +94,11 @@ function ajaxRequest(json, callback) {
         logErr(err);
     });
 }
-function setCookie(name, value, days) {
+function setCookie(name, value, expiryPeriod) {
     var expires = "";
-    if (days) {
+    if (expiryPeriod) {
         var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        date.setTime(date.getTime() + expiryPeriod);
         expires = "; expires=" + date.toUTCString();
     }
     document.cookie = name + "=" + (value || "") + expires + "; path=/";
@@ -332,6 +334,8 @@ class UserList {
     }
 }
 const MAX_STARS = 3;
+const MAX_VOTES_PER_WEEK = 3;
+const MAX_OPTIONS_PER_WEEK = 9;
 class UserVote {
     constructor() {
         this.u = new User();
@@ -1970,10 +1974,13 @@ class VoteSummaries extends DomElement {
             }, (res) => {
                 if (res.ok) {
                     //console.log("vote created ok")
-                    loadVotes();
+                    loadVotes({
+                        selectTabKey: "votes"
+                    });
                 }
                 else {
                     //console.log("vote creation failed",res.status)
+                    new AckInfoWindow(`<span class="errspan">Failed to create vote:</span><br><br><span class="errreasonspan">${res.status}</span>`, function () { }).build();
                 }
             });
         }, { width: 800 });
@@ -2027,11 +2034,13 @@ class App {
                 this.loginTask();
             }
         });
+        return this;
     }
     launch() {
         Layers.init();
         Layers.root.a([this.mainTabpane.build()]);
         this.login();
+        return this;
     }
 }
 const INTRO_HTML = `
@@ -2045,7 +2054,7 @@ conslog = (item) => { };
 // app
 let votes = [];
 ///////////////////////////////////////////
-let mainTabpane;
+let app;
 let votesDiv = new Div();
 let voteDiv = new Div();
 /////////////////////////////////////////// 
@@ -2054,7 +2063,7 @@ function buildVotesDiv() {
         new VoteSummaries().setVotes(votes)
     ]);
 }
-function loadVotes() {
+function loadVotes(params = {}) {
     //console.log("loading votes")
     ajaxRequest({
         t: "loadvotes"
@@ -2065,13 +2074,18 @@ function loadVotes() {
                 votes = json.votes.map((voteJson) => new Vote().fromJson(voteJson));
             }
             buildVotesDiv();
+            if (params.selectTabKey != undefined) {
+                app.mainTabpane.selectTab(params.selectTabKey);
+            }
         }
     });
 }
 function loginTask() {
-    loadVotes();
+    loadVotes({
+        selectTabKey: "votes"
+    });
 }
-new App("vote").
+app = new App("vote").
     setProfile(new LichessProfile()).
     setLoginTask(loginTask).
     createFromTabs([

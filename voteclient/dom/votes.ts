@@ -63,9 +63,12 @@ class VoteSummaries extends DomElement<VoteSummaries>{
             },(res:any)=>{
                 if(res.ok){
                     //console.log("vote created ok")
-                    loadVotes()
+                    loadVotes({
+                        selectTabKey:"votes"
+                    })
                 }else{
                     //console.log("vote creation failed",res.status)
+                    new AckInfoWindow(`<span class="errspan">Failed to create vote:</span><br><br><span class="errreasonspan">${res.status}</span>`,function(){}).build()
                 }
             })
         },{width:800})

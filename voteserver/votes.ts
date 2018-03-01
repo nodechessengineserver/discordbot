@@ -4,6 +4,71 @@ let votes:Vote[]=[]
 
 let voteTransactions:VoteTransaction[]=[]
 
+class Credit{
+    action:VOTE_TRANSACTION="createvote"
+    unaction:VOTE_TRANSACTION="deletevote"
+    timeFrame:number=ONE_WEEK
+    credit:number=MAX_VOTES_PER_WEEK
+
+    constructor(action:VOTE_TRANSACTION,unaction:VOTE_TRANSACTION,timeFrame:number,credit:number){
+        this.action=action
+        this.unaction=unaction
+        this.timeFrame=timeFrame
+        this.credit=credit
+    }
+
+    check():boolean{
+        let now=new Date().getTime()
+        let sum = aggregateTransactions(
+            (whileParams:any)=>
+                ( now - whileParams.vt.time ) < this.timeFrame,
+            (aggregParams:any)=>
+                ( aggregParams.vt.t==this.action ? 1 : 0 ) -
+                ( aggregParams.vt.t==this.unaction ? 1 : 0 )
+        )
+        return sum <= this.credit
+    }
+}
+
+let CREATE_VOTE_WEEKLY_CREDIT=new Credit(
+    "createvote",
+    "deletevote",
+    ONE_WEEK,
+    MAX_VOTES_PER_WEEK
+)
+
+let CREATE_OPTION_WEEKLY_CREDIT=new Credit(
+    "createoption",
+    "deleteoption",
+    ONE_WEEK,
+    MAX_OPTIONS_PER_WEEK
+)
+
+let CREATE_VOTE_CREDITS=[CREATE_VOTE_WEEKLY_CREDIT]
+
+let CREATE_OPTION_CREDITS=[CREATE_OPTION_WEEKLY_CREDIT]
+
+function checkCredits(credits:Credit[]):boolean{
+    for(let credit of credits) if(!credit.check()) return false
+    return true
+}
+
+function aggregateTransactions(whileFunc:(whileParams:any)=>boolean,aggregFunc:(aggregParams:any)=>number):number{
+    let sum=0
+    for(let i=voteTransactions.length-1;i>=0;i--){
+        let vt=voteTransactions[i]
+        let whileParams={
+            vt:vt
+        }
+        if(!whileFunc(whileParams)) return sum
+        let aggregParams={
+            vt:vt
+        }
+        sum+=aggregFunc(aggregParams)
+    }
+    return sum
+}
+
 function someVote(iterfunc:(v:Vote)=>boolean):boolean{
     for(let v of votes){
         if(iterfunc(v)) return true
@@ -53,6 +118,7 @@ function storeAndExecTransaction(vt:VoteTransaction,callback:any){
     },(res:any)=>{
         console.log("insert result",res)
         if(res.ok){
+            voteTransactions.push(vt)
             execTransaction(vt)
             callback(res)
         }else{

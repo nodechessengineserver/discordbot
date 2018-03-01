@@ -1,9 +1,12 @@
 const MAX_STARS=3
+const MAX_VOTES_PER_WEEK=3
+const MAX_OPTIONS_PER_WEEK=9
 
 type VOTE_TRANSACTION=
+    "noop"|
     "createvote"|
     "deletevote"|
-    "addoption"|
+    "createoption"|
     "deleteoption"|
     "castvote"|
     "uncastvote"

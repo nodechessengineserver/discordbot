@@ -3,6 +3,7 @@ let vercodes:{[id:string]:string}={}
 function sendResponse(res:any,responseJson:any){
     res.setHeader("Content-Type","application/json")
     res.send(JSON.stringify(responseJson))
+    console.log("req",responseJson.req,"status",res.status)
 }
 
 function handleAjax(req:any,res:any){
@@ -93,33 +94,31 @@ function handleAjax(req:any,res:any){
             console.log("create vote",question,loggedUser)
             let v=new Vote()
             v.question=question
-            if(votes.some((v:Vote)=>v.question==question)){
-                // question already exists
-                res.ok=false
-                res.status="question already exists"
+        
+            if(loggedUser.empty()){
+                responseJson.ok=false
+                responseJson.status="have to be logged in to create vote"
                 sendResponse(res,responseJson)
             }else{
-                if(loggedUser.empty()){
-                    res.ok=false
-                    res.status="have to be logged in to create vote"
+                if(hasQuestion(question)){
+                    responseJson.ok=false
+                    responseJson.status="question already exists"                    
+                    sendResponse(res,responseJson)
+                }else if(!checkCredits(CREATE_VOTE_CREDITS)){
+                    responseJson.ok=false
+                    responseJson.status="vote creation credits surpassed"
                     sendResponse(res,responseJson)
                 }else{
-                    if(hasQuestion(question)){
-                        res.ok=false
-                        res.status="question already exists"
+                    let vt=new VoteTransaction()
+                    vt.t="createvote"                        
+                    vt.u=loggedUser                
+                    vt.text=question
+                    storeAndExecTransaction(vt,(mongores:any)=>{                    
+                        responseJson.ok=mongores.ok
+                        responseJson.status=mongores.status
                         sendResponse(res,responseJson)
-                    }else{
-                        let vt=new VoteTransaction()
-                        vt.t="createvote"                        
-                        vt.u=loggedUser                
-                        vt.text=question
-                        storeAndExecTransaction(vt,(mongores:any)=>{                    
-                            res.ok=mongores.ok
-                            res.status=mongores.status
-                            sendResponse(res,responseJson)
-                        })                   
-                    }                    
-                }                
+                    })                   
+                }                                
             }            
         }else if(t=="deletevote"){
             let v=new Vote().fromJson(json.v)
@@ -129,13 +128,13 @@ function handleAjax(req:any,res:any){
                 vt.t="deletevote"
                 vt.v=v
                 storeAndExecTransaction(vt,(mongores:any)=>{                    
-                    res.ok=mongores.ok
-                    res.status=mongores.status
+                    responseJson.ok=mongores.ok
+                    responseJson.status=mongores.status
                     sendResponse(res,responseJson)
                 })                   
             }else{
-                res.ok=false
-                res.status="not authorized to delete vote"
+                responseJson.ok=false
+                responseJson.status="not authorized to delete vote"
                 sendResponse(res,responseJson)
             }
         }

@@ -343,3 +343,11 @@
 .votesummarycontrol{
     display: inline-block;
 }
+
+.errspan{
+    color:#f00;
+}
+
+.errreasonspan{
+    color:#00f;
+}
