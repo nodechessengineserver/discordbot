@@ -57,6 +57,7 @@
     "utils/misc.ts",
     "utils/vectors.ts",
     "models/user.ts",    
+    "models/vote.ts",    
     "dom/globals.ts",
     "dom/dom.ts",
     "dom/store.ts",
@@ -71,9 +72,13 @@
     "dom/tabpane.ts",
     "dom/logpane.ts",
     "dom/profile.ts",
+    "dom/vote.ts",
+    "dom/votes.ts",
     "dom/app.ts",
     "resource.ts",
     "globals.ts",
+    "vote.ts",
+    "votes.ts",
     "app.ts"
   ]
 }

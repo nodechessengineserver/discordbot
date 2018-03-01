@@ -328,6 +328,126 @@ class UserList {
         }
     }
 }
+const MAX_STARS = 3;
+class UserVote {
+    constructor() {
+        this.u = new User();
+        this.stars = MAX_STARS;
+    }
+    toJson() {
+        return ({
+            u: this.u,
+            starts: this.stars
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
+        if (json.stars != undefined)
+            this.stars = json.stars;
+        return this;
+    }
+}
+class VoteOption {
+    constructor() {
+        this.option = "Vote option";
+        this.id = "optionid";
+        this.userVotes = [];
+    }
+    toJson() {
+        return ({
+            option: this.option,
+            id: this.id,
+            votes: this.userVotes.map(userVote => userVote.toJson())
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.option != undefined)
+            this.option = json.option;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.userVotes != undefined)
+            this.userVotes =
+                json.userVotes.map((userVoteJson) => new UserVote().fromJson(userVoteJson));
+        return this;
+    }
+}
+class Vote {
+    constructor() {
+        this.question = "Vote question";
+        this.id = "voteid";
+        this.owner = new User();
+        this.options = [];
+    }
+    toJson() {
+        return ({
+            question: this.question,
+            id: this.id,
+            owner: this.owner.toJson(),
+            options: this.options.map((option) => option.toJson())
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.question != undefined)
+            this.question = json.question;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.owner != undefined)
+            this.owner = createUserFromJson(json.owner);
+        if (json.options != undefined)
+            this.options =
+                json.options.map((optionJson) => new VoteOption().fromJson(optionJson));
+        return this;
+    }
+}
+class VoteTransaction {
+    constructor() {
+        this.t = "createvote";
+        this.id = "transactionid";
+        this.voteId = "voteid";
+        this.voteOptionId = "voteoptionid";
+        this.time = new Date().getTime();
+        this.u = new User();
+        this.userVote = new UserVote();
+        this.text = "Vote content";
+    }
+    toJson() {
+        return ({
+            t: this.t,
+            id: this.id,
+            voteId: this.voteId,
+            voteOptionId: this.voteOptionId,
+            time: this.time,
+            u: this.u.toJson(),
+            text: this.text
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.t != undefined)
+            this.t = json.t;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.voteId != undefined)
+            this.voteId = json.voteId;
+        if (json.voteOptionId != undefined)
+            this.voteOptionId = json.voteOptionId;
+        if (json.time != undefined)
+            this.time = json.time;
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
+        if (json.text != undefined)
+            this.text = json.text;
+        return this;
+    }
+}
 let loggedUser = new User();
 let DOM_DEFINED = true;
 let FONT_SIZE = getCssFloatProperty("--fontsize", 15);
@@ -1795,6 +1915,56 @@ class LichessProfile extends DomElement {
         return this;
     }
 }
+class VoteSummary extends DomElement {
+    constructor() {
+        super("div");
+        this.vote = new Vote();
+    }
+    setVote(vote) {
+        this.vote = vote;
+        return this.build();
+    }
+    build() {
+        this.x.a([
+            new Div().h(this.vote.question)
+        ]);
+        return this;
+    }
+}
+class VoteSummaries extends DomElement {
+    constructor() {
+        super("div");
+        this.votes = [];
+    }
+    setVotes(votes) {
+        this.votes = votes;
+        return this.build();
+    }
+    createVoteClicked() {
+        const t = "createvote";
+        new TextInputWindow("createvoteinput", "", "Create vote", "Enter vote question.", (question) => {
+            ajaxRequest({
+                t: t,
+                question: question
+            }, (res) => {
+                if (res.ok) {
+                    console.log("vote created ok");
+                    loadVotes();
+                }
+                else {
+                    console.log("vote creation failed", res.status);
+                }
+            });
+        });
+    }
+    build() {
+        this.x.a([
+            new Button("Create vote").onClick(this.createVoteClicked.bind(this))
+        ]);
+        this.a(this.votes.map((vote) => new VoteSummary().setVote(vote)));
+        return this;
+    }
+}
 class App {
     constructor(id) {
         this.id = id;
@@ -1843,11 +2013,37 @@ DEBUG = false;
 conslog = (item) => { };
 ///////////////////////////////////////////
 // app
+let votes = [];
+///////////////////////////////////////////
 let mainTabpane;
+let votesDiv = new Div();
+let voteDiv = new Div();
 /////////////////////////////////////////// 
+function buildVotesDiv() {
+    votesDiv.x.a([
+        new VoteSummaries().setVotes(votes)
+    ]);
+}
+function loadVotes() {
+    console.log("loading votes");
+    ajaxRequest({
+        t: "loadvotes"
+    }, (json) => {
+        if (json.ok) {
+            console.log("processing votes");
+            if (json.votes != undefined) {
+                votes = json.votes.map((voteJson) => new Vote().fromJson(voteJson));
+            }
+            buildVotesDiv();
+        }
+    });
+}
 new App("vote").
     setProfile(new LichessProfile()).
     createFromTabs([
-    new Tab("about", "About", new Div())
+    new Tab("about", "About", new Div()),
+    new Tab("votes", "Votes", votesDiv),
+    new Tab("vote", "Vote", voteDiv)
 ]).
     launch();
+loadVotes();

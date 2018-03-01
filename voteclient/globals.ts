@@ -3,5 +3,10 @@ conslog=(item:string)=>{/*console.log("<item>",item)*/}
 
 ///////////////////////////////////////////
 // app
+let votes:Vote[]=[]
+///////////////////////////////////////////
 let mainTabpane:Tabpane
+
+let votesDiv:Div=new Div()
+let voteDiv:Div=new Div()
 ///////////////////////////////////////////

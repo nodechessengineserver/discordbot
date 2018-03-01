@@ -1,3 +1,11 @@
+type AJAX_REQUEST=
+    "createverificationcode"|
+    "checkverificationcode"|
+    "login"|
+    "updateuser"|
+    "loadvotes"|
+    "createvote"
+
 class User{
     username:string=""
     cookie:string=""

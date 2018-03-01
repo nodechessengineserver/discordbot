@@ -12,11 +12,12 @@ function handleAjax(req:any,res:any){
 
     let responseJson:any={
         ok:true,
+        status:"ok",
         req:json
     }
 
     try{
-        let t=json.t
+        let t:AJAX_REQUEST=json.t
 
         let userCookie=req.cookies.user
 
@@ -83,6 +84,31 @@ function handleAjax(req:any,res:any){
                 responseJson.u=new User()
                 sendResponse(res,responseJson)
             }
+        }else if(t=="loadvotes"){
+            console.log("load votes",loggedUser)
+            responseJson.votes=votes.map((vote:Vote)=>vote.toJson())
+            sendResponse(res,responseJson)
+        }else if(t=="createvote"){
+            let question=json.question
+            console.log("create vote",question,loggedUser)
+            let v=new Vote()
+            v.question=question
+            if(votes.some((v:Vote)=>v.question==question)){
+                // question already exists
+                res.ok=false
+                res.status="question already exists"
+                sendResponse(res,responseJson)
+            }else{
+                let vt=new VoteTransaction()
+                vt.t="createvote"
+                vt.u=loggedUser                
+                vt.text=question
+                storeAndExecTransaction(vt,(mongores:any)=>{                    
+                    res.ok=mongores.ok
+                    res.status=mongores.status
+                    sendResponse(res,responseJson)
+                })                
+            }            
         }
     }catch(err){
         responseJson.ok=false

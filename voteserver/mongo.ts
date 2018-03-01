@@ -4,7 +4,13 @@ let LOCAL_MONGO_URI=`mongodb://localhost:27017/${DATABASE_NAME}`
 
 let MONGODB_URI = isProd()?process.env.MONGODB_URI:LOCAL_MONGO_URI
 
-const COLL_COMMANDS:any={upsertone:true,findaslist:true}
+const COLL_COMMANDS:any={
+    upsertone:true,
+    insertone:true,
+    findaslist:true
+}
+
+type MONGO_REQUEST="upsertone"|"insertone"|"findaslist"
 
 let db:any
 
@@ -17,6 +23,7 @@ try{
             console.log(`votes connected to MongoDB database < ${db.databaseName} >`)            
             // startup
             usersStartup()
+            voteTransactionsStartup()
         }
     })
 }catch(err){
@@ -31,7 +38,7 @@ function mongoRequest(req:any,callback:any){
     }
 
     try{
-        let t=req.t
+        let t:MONGO_REQUEST=req.t
         console.log(`mongo request ${t}`)
 
         if(db==null){
@@ -58,6 +65,19 @@ function mongoRequest(req:any,callback:any){
                         return
                     }else{
                         res.status="upsert ok"
+                        callback(res)
+                        return
+                    }
+                })
+            }else if(t=="insertone"){          
+                console.log("insert one",doc)      
+                collection.insertOne(doc,(error:any,result:any)=>{
+                    if(error){
+                        res.ok=false;res.status="insert failed";res.err=error
+                        callback(res)
+                        return
+                    }else{
+                        res.status="insert ok"
                         callback(res)
                         return
                     }

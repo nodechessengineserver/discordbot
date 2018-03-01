@@ -118,6 +118,126 @@ class UserList {
         }
     }
 }
+const MAX_STARS = 3;
+class UserVote {
+    constructor() {
+        this.u = new User();
+        this.stars = MAX_STARS;
+    }
+    toJson() {
+        return ({
+            u: this.u,
+            starts: this.stars
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
+        if (json.stars != undefined)
+            this.stars = json.stars;
+        return this;
+    }
+}
+class VoteOption {
+    constructor() {
+        this.option = "Vote option";
+        this.id = "optionid";
+        this.userVotes = [];
+    }
+    toJson() {
+        return ({
+            option: this.option,
+            id: this.id,
+            votes: this.userVotes.map(userVote => userVote.toJson())
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.option != undefined)
+            this.option = json.option;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.userVotes != undefined)
+            this.userVotes =
+                json.userVotes.map((userVoteJson) => new UserVote().fromJson(userVoteJson));
+        return this;
+    }
+}
+class Vote {
+    constructor() {
+        this.question = "Vote question";
+        this.id = "voteid";
+        this.owner = new User();
+        this.options = [];
+    }
+    toJson() {
+        return ({
+            question: this.question,
+            id: this.id,
+            owner: this.owner.toJson(),
+            options: this.options.map((option) => option.toJson())
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.question != undefined)
+            this.question = json.question;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.owner != undefined)
+            this.owner = createUserFromJson(json.owner);
+        if (json.options != undefined)
+            this.options =
+                json.options.map((optionJson) => new VoteOption().fromJson(optionJson));
+        return this;
+    }
+}
+class VoteTransaction {
+    constructor() {
+        this.t = "createvote";
+        this.id = "transactionid";
+        this.voteId = "voteid";
+        this.voteOptionId = "voteoptionid";
+        this.time = new Date().getTime();
+        this.u = new User();
+        this.userVote = new UserVote();
+        this.text = "Vote content";
+    }
+    toJson() {
+        return ({
+            t: this.t,
+            id: this.id,
+            voteId: this.voteId,
+            voteOptionId: this.voteOptionId,
+            time: this.time,
+            u: this.u.toJson(),
+            text: this.text
+        });
+    }
+    fromJson(json) {
+        if (json == undefined)
+            return this;
+        if (json.t != undefined)
+            this.t = json.t;
+        if (json.id != undefined)
+            this.id = json.id;
+        if (json.voteId != undefined)
+            this.voteId = json.voteId;
+        if (json.voteOptionId != undefined)
+            this.voteOptionId = json.voteOptionId;
+        if (json.time != undefined)
+            this.time = json.time;
+        if (json.u != undefined)
+            this.u = createUserFromJson(json.u);
+        if (json.text != undefined)
+            this.text = json.text;
+        return this;
+    }
+}
 function logErr(err) {
     console.log("***");
     console.log(err);
@@ -151,7 +271,11 @@ function checkLichess(username, code, callback) {
 let DATABASE_NAME = `mychessdb`;
 let LOCAL_MONGO_URI = `mongodb://localhost:27017/${DATABASE_NAME}`;
 let MONGODB_URI = isProd() ? process.env.MONGODB_URI : LOCAL_MONGO_URI;
-const COLL_COMMANDS = { upsertone: true, findaslist: true };
+const COLL_COMMANDS = {
+    upsertone: true,
+    insertone: true,
+    findaslist: true
+};
 let db;
 try {
     mongodb.connect(MONGODB_URI, function (err, conn) {
@@ -163,6 +287,7 @@ try {
             console.log(`votes connected to MongoDB database < ${db.databaseName} >`);
             // startup
             usersStartup();
+            voteTransactionsStartup();
         }
     });
 }
@@ -201,6 +326,23 @@ function mongoRequest(req, callback) {
                     }
                     else {
                         res.status = "upsert ok";
+                        callback(res);
+                        return;
+                    }
+                });
+            }
+            else if (t == "insertone") {
+                console.log("insert one", doc);
+                collection.insertOne(doc, (error, result) => {
+                    if (error) {
+                        res.ok = false;
+                        res.status = "insert failed";
+                        res.err = error;
+                        callback(res);
+                        return;
+                    }
+                    else {
+                        res.status = "insert ok";
                         callback(res);
                         return;
                     }
@@ -267,6 +409,56 @@ function usersStartup() {
         }
     });
 }
+const VOTE_TRANSACTIONS_COLL = "votetransactions";
+let votes = [];
+let voteTransactions = [];
+function execTransaction(vt) {
+    let t = vt.t;
+    if (t == "createvote") {
+        let v = new Vote();
+        v.question = vt.text;
+        votes.push(v);
+    }
+}
+function storeAndExecTransaction(vt, callback) {
+    const t = "insertone";
+    mongoRequest({
+        t: t,
+        collName: VOTE_TRANSACTIONS_COLL,
+        doc: vt.toJson()
+    }, (res) => {
+        console.log("insert result", res);
+        if (res.ok) {
+            execTransaction(vt);
+            callback(res);
+        }
+        else {
+            callback(res);
+        }
+    });
+}
+function voteTransactionsStartup() {
+    votes = [];
+    voteTransactions = [];
+    console.log(`vote transactions startup`);
+    mongoRequest({
+        t: "findaslist",
+        collName: VOTE_TRANSACTIONS_COLL,
+        query: {}
+    }, (res) => {
+        if (!res.ok) {
+            logErr(`vote transactions startup failed: ${res.status}`);
+        }
+        else {
+            console.log(`vote transactions has ${res.docs.length} records`);
+            for (let doc of res.docs) {
+                let vt = new VoteTransaction().fromJson(doc);
+                voteTransactions.push(vt);
+                execTransaction(vt);
+            }
+        }
+    });
+}
 let vercodes = {};
 function sendResponse(res, responseJson) {
     res.setHeader("Content-Type", "application/json");
@@ -277,6 +469,7 @@ function handleAjax(req, res) {
     console.log("ajax", json);
     let responseJson = {
         ok: true,
+        status: "ok",
         req: json
     };
     try {
@@ -335,6 +528,34 @@ function handleAjax(req, res) {
             else {
                 responseJson.u = new User();
                 sendResponse(res, responseJson);
+            }
+        }
+        else if (t == "loadvotes") {
+            console.log("load votes", loggedUser);
+            responseJson.votes = votes.map((vote) => vote.toJson());
+            sendResponse(res, responseJson);
+        }
+        else if (t == "createvote") {
+            let question = json.question;
+            console.log("create vote", question, loggedUser);
+            let v = new Vote();
+            v.question = question;
+            if (votes.some((v) => v.question == question)) {
+                // question already exists
+                res.ok = false;
+                res.status = "question already exists";
+                sendResponse(res, responseJson);
+            }
+            else {
+                let vt = new VoteTransaction();
+                vt.t = "createvote";
+                vt.u = loggedUser;
+                vt.text = question;
+                storeAndExecTransaction(vt, (mongores) => {
+                    res.ok = mongores.ok;
+                    res.status = mongores.status;
+                    sendResponse(res, responseJson);
+                });
             }
         }
     }
