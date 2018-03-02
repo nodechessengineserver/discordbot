@@ -243,6 +243,45 @@ function handleAjax(req:any,res:any){
                 responseJson.status="not authorized to delete option"
                 sendResponse(res,responseJson)
             }
+        }else if(t=="castvote"){
+            let voteId=json.voteId            
+            let optionId=json.optionId
+            let stars=json.stars
+            console.log("cast vote",voteId,optionId,stars)
+
+            let vi=findIndexById(voteId)
+
+            if(vi<0){
+                responseJson.ok=false
+                responseJson.status="no such vote"
+                sendResponse(res,responseJson)
+                return
+            }
+
+            let v=votes[vi]
+
+            let voteCastResult=v.castVote(loggedUser,optionId,stars,true)
+
+            if(voteCastResult=="ok"){
+                let vt=new VoteTransaction()
+
+                vt.t="castvote"
+                vt.u=loggedUser
+                vt.voteId=voteId
+                vt.optionId=optionId
+                vt.stars=stars
+
+                storeAndExecTransaction(vt,(mongores:any)=>{                    
+                    responseJson.ok=mongores.ok
+                    responseJson.status=mongores.status
+                    sendResponse(res,responseJson)
+                })                   
+            }else{
+                responseJson.ok=false
+                responseJson.status=voteCastResult
+                sendResponse(res,responseJson)
+                return
+            }
         }
     }catch(err){
         responseJson.ok=false

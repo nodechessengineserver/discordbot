@@ -143,6 +143,14 @@ function execTransaction(vt:VoteTransaction){
                 v.options.splice(oi,1)
             }
         }
+    }else if(t=="castvote"){
+        let vi=findIndexById(vt.voteId)
+
+        if(vi>=0){
+            let v=votes[vi]
+
+            v.castVote(vt.u,vt.optionId,vt.stars)
+        }
     }
 }
 

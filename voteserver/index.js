@@ -126,18 +126,18 @@ class UserList {
         }
     }
 }
-const MAX_STARS = 3;
+const MAX_USERVOTES_PER_VOTE = 6;
 const MAX_VOTES_PER_WEEK = 3;
 const MAX_OPTIONS_PER_WEEK = 9;
 class UserVote {
     constructor() {
         this.u = new User();
-        this.stars = MAX_STARS;
+        this.stars = 1;
     }
     toJson() {
         return ({
-            u: this.u,
-            starts: this.stars
+            u: this.u.toJson(),
+            stars: this.stars
         });
     }
     fromJson(json) {
@@ -157,12 +157,27 @@ class VoteOption {
         this.owner = new User();
         this.userVotes = [];
     }
+    cumulStars() {
+        let sum = 0;
+        for (let userVote of this.userVotes) {
+            sum += userVote.stars;
+        }
+        return sum;
+    }
+    getUserVoteIndexByUsername(username) {
+        for (let i = 0; i < this.userVotes.length; i++) {
+            let uv = this.userVotes[i];
+            if (uv.u.username == username)
+                return i;
+        }
+        return -1;
+    }
     toJson() {
         return ({
             option: this.option,
             id: this.id,
             owner: this.owner.toJson(),
-            votes: this.userVotes.map(userVote => userVote.toJson())
+            userVotes: this.userVotes.map(userVote => userVote.toJson())
         });
     }
     fromJson(json) {
@@ -187,6 +202,59 @@ class Vote {
         this.id = "voteid";
         this.owner = new User();
         this.options = [];
+        this.voteCredits = {};
+    }
+    sortByCumulStars() {
+        this.options.sort((a, b) => b.cumulStars() - a.cumulStars());
+        return this;
+    }
+    getVoteCredits(username) {
+        let vc = this.voteCredits[username];
+        if (vc == undefined) {
+            this.voteCredits[username] = MAX_USERVOTES_PER_VOTE;
+            return MAX_USERVOTES_PER_VOTE;
+        }
+        return vc;
+    }
+    castVote(u, optionId, stars, dry = false) {
+        if (u.empty())
+            return "not authorized";
+        let oi = this.getOptionIndexById(optionId);
+        if (oi < 0)
+            return "no such option";
+        let o = this.options[oi];
+        let credits = this.getVoteCredits(u.username);
+        let uvi = o.getUserVoteIndexByUsername(u.username);
+        if (stars > 0) {
+            if (stars > credits)
+                return "not enough credits to vote";
+            if (dry)
+                return "ok";
+            if (uvi < 0) {
+                let uv = new UserVote();
+                uv.u = u;
+                uv.stars = stars;
+                o.userVotes.push(uv);
+            }
+            else {
+                let uv = o.userVotes[uvi];
+                uv.stars += stars;
+            }
+            this.voteCredits[u.username] -= stars;
+            return "ok";
+        }
+        else {
+            if (uvi < 0)
+                return "no user votes on this option";
+            let uv = o.userVotes[uvi];
+            if ((uv.stars + stars) < 0)
+                return "not enough votes to un upvote";
+            if (dry)
+                return "ok";
+            uv.stars += stars;
+            this.voteCredits[u.username] -= stars;
+            return "ok";
+        }
     }
     empty() {
         return this.options.length <= 0;
@@ -235,7 +303,7 @@ class VoteTransaction {
         this.voteId = "voteid";
         this.optionId = "optionid";
         this.text = "Vote content";
-        this.stars = MAX_STARS;
+        this.stars = MAX_USERVOTES_PER_VOTE;
     }
     toJson() {
         return ({
@@ -551,6 +619,13 @@ function execTransaction(vt) {
             }
         }
     }
+    else if (t == "castvote") {
+        let vi = findIndexById(vt.voteId);
+        if (vi >= 0) {
+            let v = votes[vi];
+            v.castVote(vt.u, vt.optionId, vt.stars);
+        }
+    }
 }
 function storeAndExecTransaction(vt, callback) {
     const t = "insertone";
@@ -811,6 +886,40 @@ function handleAjax(req, res) {
                 responseJson.ok = false;
                 responseJson.status = "not authorized to delete option";
                 sendResponse(res, responseJson);
+            }
+        }
+        else if (t == "castvote") {
+            let voteId = json.voteId;
+            let optionId = json.optionId;
+            let stars = json.stars;
+            console.log("cast vote", voteId, optionId, stars);
+            let vi = findIndexById(voteId);
+            if (vi < 0) {
+                responseJson.ok = false;
+                responseJson.status = "no such vote";
+                sendResponse(res, responseJson);
+                return;
+            }
+            let v = votes[vi];
+            let voteCastResult = v.castVote(loggedUser, optionId, stars, true);
+            if (voteCastResult == "ok") {
+                let vt = new VoteTransaction();
+                vt.t = "castvote";
+                vt.u = loggedUser;
+                vt.voteId = voteId;
+                vt.optionId = optionId;
+                vt.stars = stars;
+                storeAndExecTransaction(vt, (mongores) => {
+                    responseJson.ok = mongores.ok;
+                    responseJson.status = mongores.status;
+                    sendResponse(res, responseJson);
+                });
+            }
+            else {
+                responseJson.ok = false;
+                responseJson.status = voteCastResult;
+                sendResponse(res, responseJson);
+                return;
             }
         }
     }

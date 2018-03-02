@@ -1,4 +1,4 @@
-const MAX_STARS=3
+const MAX_USERVOTES_PER_VOTE=6
 const MAX_VOTES_PER_WEEK=3
 const MAX_OPTIONS_PER_WEEK=9
 
@@ -8,18 +8,17 @@ type VOTE_TRANSACTION=
     "deletevote"|
     "createoption"|
     "deleteoption"|
-    "castvote"|
-    "uncastvote"
+    "castvote"
 
 class UserVote{
     u:User=new User()
 
-    stars:number=MAX_STARS
+    stars:number=1
 
     toJson():any{
         return({
-            u:this.u,
-            starts:this.stars
+            u:this.u.toJson(),
+            stars:this.stars
         })
     }
 
@@ -42,12 +41,28 @@ class VoteOption{
 
     userVotes:UserVote[]=[]
 
+    cumulStars():number{
+        let sum=0
+        for(let userVote of this.userVotes){
+            sum+=userVote.stars
+        }
+        return sum
+    }
+
+    getUserVoteIndexByUsername(username:string):number{
+        for(let i=0;i<this.userVotes.length;i++){
+            let uv=this.userVotes[i]
+            if(uv.u.username==username) return i
+        }
+        return -1
+    }
+
     toJson():any{
         return({
             option:this.option,
             id:this.id,
             owner:this.owner.toJson(),
-            votes:this.userVotes.map(userVote=>userVote.toJson())
+            userVotes:this.userVotes.map(userVote=>userVote.toJson())
         })
     }
 
@@ -74,6 +89,60 @@ class Vote{
     owner:User=new User()
 
     options:VoteOption[]=[]
+
+    voteCredits:{[id:string]:number}={}
+
+    sortByCumulStars():Vote{
+        this.options.sort((a:VoteOption,b:VoteOption)=>b.cumulStars()-a.cumulStars())
+        return this
+    }
+
+    getVoteCredits(username:string):number{
+        let vc=this.voteCredits[username]
+        if(vc==undefined){
+            this.voteCredits[username]=MAX_USERVOTES_PER_VOTE
+            return MAX_USERVOTES_PER_VOTE
+        }
+        return vc
+    }
+
+    castVote(u:User,optionId:string,stars:number,dry:boolean=false):string{
+        if(u.empty()) return "not authorized"
+
+        let oi=this.getOptionIndexById(optionId)
+
+        if(oi<0) return "no such option"
+
+        let o=this.options[oi]
+
+        let credits=this.getVoteCredits(u.username)
+
+        let uvi=o.getUserVoteIndexByUsername(u.username)
+
+        if(stars>0){
+            if(stars>credits) return "not enough credits to vote"            
+            if(dry) return "ok"
+            if(uvi<0){
+                let uv=new UserVote()
+                uv.u=u
+                uv.stars=stars
+                o.userVotes.push(uv)                
+            }else{
+                let uv=o.userVotes[uvi]
+                uv.stars+=stars
+            }
+            this.voteCredits[u.username]-=stars
+            return "ok"
+        }else{
+            if(uvi<0) return "no user votes on this option"            
+            let uv=o.userVotes[uvi]
+            if((uv.stars+stars)<0) return "not enough votes to un upvote"
+            if(dry) return "ok"
+            uv.stars+=stars
+            this.voteCredits[u.username]-=stars
+            return "ok"
+        }
+    }
 
     empty():boolean{
         return this.options.length<=0
@@ -120,7 +189,7 @@ class VoteTransaction{
     voteId:string="voteid"
     optionId:string="optionid"
     text:string="Vote content"
-    stars:number=MAX_STARS
+    stars:number=MAX_USERVOTES_PER_VOTE
 
     toJson():any{
         return({

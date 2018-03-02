@@ -29,6 +29,9 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
     build():VoteOptionElement{
         this.x.a([
             this.optionDiv=new Div().ac("voteoptiondiv").a([
+                new Div().ac("cumulstarsdiv").h(
+                    `${this.voteOption.cumulStars()}`
+                ),
                 new Div().ac("voteoptionoption").h(this.voteOption.option),
                 new Div().ac("voteoptionowner").h(this.voteOption.owner.username)
             ])
@@ -42,7 +45,40 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
             ])
         }
 
+        this.optionDiv.a([            
+            new Div().ac("voteoptionvote").a([
+                new Button("Upvote").onClick(this.voteClicked.bind(this,1)),
+                new Button("Un-upvote").onClick(this.voteClicked.bind(this,-1))
+            ]),            
+            new Div().ac("uservotesdiv").a(
+                this.voteOption.userVotes.map(userVote=>new Div().ac("uservotediv").h(
+                    `<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`
+                ))
+            )
+        ])
+
         return this
+    }
+
+    voteClicked(stars:number,e:Event){
+        const t:AJAX_REQUEST="castvote"
+        ajaxRequest({
+            t:t,
+            voteId:selVote.id,
+            optionId:this.voteOption.id,
+            stars:stars
+        },(res:any)=>{
+            if(res.ok){
+                //console.log("vote cast ok")
+                loadVotes({
+                    loadVoteId:selVote.id,
+                    selectTabKey:"vote"
+                })
+            }else{
+                //console.log("vote cast failed",res.status)
+                new AckInfoWindow(`<span class="errspan">Failed to cast vote:</span><br><br><span class="errreasonspan">${res.status}</span>`,function(){}).build()
+            }
+        })
     }
 }
 
@@ -84,6 +120,8 @@ class VoteElement extends DomElement<VoteElement>{
         this.x
         
         if(this.vote.invalid) return this
+
+        this.vote.sortByCumulStars()
 
         this.a([
             new Button("Create option").onClick(this.createOptionClicked.bind(this)),

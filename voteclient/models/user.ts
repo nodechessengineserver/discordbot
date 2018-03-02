@@ -7,7 +7,8 @@ type AJAX_REQUEST=
     "createvote"|
     "deletevote"|
     "createoption"|
-    "deleteoption"
+    "deleteoption"|
+    "castvote"
 
 class User{
     username:string=""
