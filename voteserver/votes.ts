@@ -26,7 +26,7 @@ class Credit{
                 ( aggregParams.vt.t==this.action ? 1 : 0 ) -
                 ( aggregParams.vt.t==this.unaction ? 1 : 0 )
         )
-        return sum <= this.credit
+        return sum < this.credit
     }
 }
 
@@ -76,15 +76,19 @@ function someVote(iterfunc:(v:Vote)=>boolean):boolean{
     return false
 }
 
+function someOption(v:Vote,iterfunc:(o:VoteOption)=>boolean){
+    for(let o of v.options){
+        if(iterfunc(o)) return true
+    }
+    return false
+}
+
 function hasQuestion(question:string){
     return someVote((v:Vote)=>v.question==question)
 }
 
-function findIndexByQuestion(question:string):number{
-    for(let i=0;i<votes.length;i++){
-        if(votes[i].question==question) return i
-    }
-    return -1
+function hasOption(v:Vote,option:string){
+    return someOption(v,(o:VoteOption)=>o.option==option)
 }
 
 function findIndexById(id:string):number{
@@ -96,15 +100,48 @@ function findIndexById(id:string):number{
 
 function execTransaction(vt:VoteTransaction){
     let t=vt.t
+
     if(t=="createvote"){
         let v=new Vote()  
-        v.question=vt.text
+
+        v.id=vt.voteId
         v.owner=vt.u        
+        v.question=vt.text        
+
         votes.push(v)
     }else if(t=="deletevote"){
-        let i=findIndexByQuestion(vt.v.question)
-        if(i>=0){
-            votes.splice(i,1)
+        let vi=findIndexById(vt.voteId)
+
+        if(vi>=0){
+            votes.splice(vi,1)
+        }
+    }else if(t=="createoption"){
+        let o=new VoteOption()  
+
+        o.id=vt.optionId
+        o.owner=vt.u      
+        o.option=vt.text
+
+        let vi=findIndexById(vt.voteId)
+
+        if(vi>=0){
+            let v=votes[vi]
+
+            if(v.getOptionIndexById(o.id)<0){
+                v.addOption(o)
+            }
+        }
+    }else if(t=="deleteoption"){
+        let vi=findIndexById(vt.voteId)
+
+        if(vi>=0){
+            let v=votes[vi]
+
+            let oi=v.getOptionIndexById(vt.optionId)
+
+            if(oi>=0){
+                v.options.splice(oi,1)
+            }
         }
     }
 }

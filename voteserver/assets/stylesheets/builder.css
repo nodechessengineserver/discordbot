@@ -329,6 +329,7 @@
     font-weight:bold;
     margin-left:15rem;
     margin-right:10rem;
+    cursor: pointer;
 }
 
 .votesummaryowner{
@@ -341,6 +342,37 @@
 }
 
 .votesummarycontrol{
+    display: inline-block;
+}
+
+.voteoptiondiv{        
+    background-color:#ddf;
+    border-style:solid;
+    border-width:1rem;
+    border-radius:5rem;
+    padding:5rem;
+    margin:5rem;   
+    margin-left:50rem;
+}
+
+.voteoptionoption{
+    display: inline-block;
+    font-size:18rem;
+    font-weight:bold;
+    margin-left:15rem;
+    margin-right:10rem;    
+}
+
+.voteoptionowner{
+    display: inline-block;
+    font-size: 14rem;
+    font-weight: normal;
+    font-style: italic;
+    margin-left:10rem;
+    margin-right:15rem;
+}
+
+.voteoptioncontrol{
     display: inline-block;
 }
 

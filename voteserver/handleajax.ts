@@ -92,8 +92,6 @@ function handleAjax(req:any,res:any){
         }else if(t=="createvote"){
             let question=json.question
             console.log("create vote",question,loggedUser)
-            let v=new Vote()
-            v.question=question
         
             if(loggedUser.empty()){
                 responseJson.ok=false
@@ -110,9 +108,57 @@ function handleAjax(req:any,res:any){
                     sendResponse(res,responseJson)
                 }else{
                     let vt=new VoteTransaction()
+
                     vt.t="createvote"                        
                     vt.u=loggedUser                
                     vt.text=question
+                    vt.voteId=uniqid()
+
+                    storeAndExecTransaction(vt,(mongores:any)=>{                    
+                        responseJson.ok=mongores.ok
+                        responseJson.status=mongores.status
+                        sendResponse(res,responseJson)
+                    })                   
+                }                                
+            }            
+        }else if(t=="createoption"){
+            let option=json.option
+            let voteId=json.voteId
+            console.log("create option",option,voteId,loggedUser)
+
+            let vi=findIndexById(voteId)
+        
+            if(vi<0){
+                responseJson.ok=false
+                responseJson.status="no such vote"
+                sendResponse(res,responseJson)
+                return
+            }
+
+            let v=votes[vi]
+
+            if(loggedUser.empty()){
+                responseJson.ok=false
+                responseJson.status="have to be logged in to create option"
+                sendResponse(res,responseJson)
+            }else{                
+                if(hasOption(v,option)){
+                    responseJson.ok=false
+                    responseJson.status="option already exists"                    
+                    sendResponse(res,responseJson)
+                }else if(!checkCredits(CREATE_OPTION_CREDITS)){
+                    responseJson.ok=false
+                    responseJson.status="option creation credits surpassed"
+                    sendResponse(res,responseJson)
+                }else{
+                    let vt=new VoteTransaction()
+
+                    vt.t="createoption"
+                    vt.u=loggedUser                
+                    vt.voteId=voteId
+                    vt.optionId=uniqid()
+                    vt.text=option
+
                     storeAndExecTransaction(vt,(mongores:any)=>{                    
                         responseJson.ok=mongores.ok
                         responseJson.status=mongores.status
@@ -121,12 +167,30 @@ function handleAjax(req:any,res:any){
                 }                                
             }            
         }else if(t=="deletevote"){
-            let v=new Vote().fromJson(json.v)
-            console.log("delete vote",v)
-            if(v.owner.e(loggedUser)){
+            let voteId=json.voteId
+            console.log("delete vote",voteId)
+
+            let vi=findIndexById(voteId)
+
+            if(vi<0){
+                responseJson.ok=false
+                responseJson.status="no such vote"
+                sendResponse(res,responseJson)
+                return
+            }
+
+            let v=votes[vi]
+
+            if(!v.empty()){
+                responseJson.ok=false
+                responseJson.status="vote is not empty"
+                sendResponse(res,responseJson)
+            }else if(v.owner.e(loggedUser)){
                 let vt=new VoteTransaction()
+
                 vt.t="deletevote"
-                vt.v=v
+                vt.voteId=voteId
+
                 storeAndExecTransaction(vt,(mongores:any)=>{                    
                     responseJson.ok=mongores.ok
                     responseJson.status=mongores.status
@@ -135,6 +199,48 @@ function handleAjax(req:any,res:any){
             }else{
                 responseJson.ok=false
                 responseJson.status="not authorized to delete vote"
+                sendResponse(res,responseJson)
+            }
+        }else if(t=="deleteoption"){
+            let voteId=json.voteId            
+            let optionId=json.optionId
+            console.log("delete option",voteId,optionId)
+
+            let vi=findIndexById(voteId)
+
+            if(vi<0){
+                responseJson.ok=false
+                responseJson.status="no such vote"
+                sendResponse(res,responseJson)
+                return
+            }
+
+            let v=votes[vi]
+
+            let oi=v.getOptionIndexById(optionId)
+
+            if(oi<0){
+                responseJson.ok=false
+                responseJson.status="no such option"
+                sendResponse(res,responseJson)
+                return
+            }            
+            
+            if(v.owner.e(loggedUser)){
+                let vt=new VoteTransaction()
+
+                vt.t="deleteoption"
+                vt.voteId=voteId
+                vt.optionId=optionId
+
+                storeAndExecTransaction(vt,(mongores:any)=>{                    
+                    responseJson.ok=mongores.ok
+                    responseJson.status=mongores.status
+                    sendResponse(res,responseJson)
+                })                   
+            }else{
+                responseJson.ok=false
+                responseJson.status="not authorized to delete option"
                 sendResponse(res,responseJson)
             }
         }

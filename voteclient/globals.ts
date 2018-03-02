@@ -4,6 +4,7 @@ conslog=(item:string)=>{/*console.log("item",item)*/}
 ///////////////////////////////////////////
 // app
 let votes:Vote[]=[]
+let selVote:Vote=new Vote()
 ///////////////////////////////////////////
 let app:App
 

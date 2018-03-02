@@ -1,6 +1,8 @@
 class VoteSummary extends DomElement<VoteSummary>{
     vote:Vote=new Vote()
 
+    showDel:boolean=true
+
     constructor(){        
         super("div")
     }
@@ -10,27 +12,45 @@ class VoteSummary extends DomElement<VoteSummary>{
         return this.build()
     }
 
+    setShowDel(showDel:boolean):VoteSummary{
+        this.showDel=showDel
+        return this
+    }
+
     summaryDiv:Div=new Div()
 
     deleteVoteClicked(){
         const t:AJAX_REQUEST="deletevote"
         ajaxRequest({
             t:t,
-            v:this.vote.toJson()
+            voteId:this.vote.id
         },(res:any)=>{
-            loadVotes()
+            if(res.ok){
+                loadVotes({
+                    clearSelVote:true
+                })
+            }else{
+                new AckInfoWindow(`<span class="errspan">Failed to delete vote:</span><br><br><span class="errreasonspan">${res.status}</span>`,function(){}).build()
+            }       
         })
+    }
+
+    voteTitleClicked(){
+        selVote=this.vote
+        buildVoteDiv()
+        app.mainTabpane.selectTab("vote")
     }
 
     build():VoteSummary{
         this.x.a([
             this.summaryDiv=new Div().ac("votesummarydiv").a([
-                new Div().ac("votesummarytitle").h(this.vote.question),
+                new Div().ac("votesummarytitle").h(this.vote.question).
+                ae("mousedown",this.voteTitleClicked.bind(this)),
                 new Div().ac("votesummaryowner").h(this.vote.owner.username)
             ])
         ])
 
-        if(this.vote.owner.e(loggedUser)){
+        if(this.showDel&&this.vote.owner.e(loggedUser)){
             this.summaryDiv.a([
                 new Div().ac("votesummarycontrol").a([
                     new Button("Delete").onClick(this.deleteVoteClicked.bind(this))

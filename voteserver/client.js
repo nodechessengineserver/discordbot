@@ -361,12 +361,14 @@ class VoteOption {
     constructor() {
         this.option = "Vote option";
         this.id = "optionid";
+        this.owner = new User();
         this.userVotes = [];
     }
     toJson() {
         return ({
             option: this.option,
             id: this.id,
+            owner: this.owner.toJson(),
             votes: this.userVotes.map(userVote => userVote.toJson())
         });
     }
@@ -377,6 +379,8 @@ class VoteOption {
             this.option = json.option;
         if (json.id != undefined)
             this.id = json.id;
+        if (json.owner != undefined)
+            this.owner = createUserFromJson(json.owner);
         if (json.userVotes != undefined)
             this.userVotes =
                 json.userVotes.map((userVoteJson) => new UserVote().fromJson(userVoteJson));
@@ -385,13 +389,28 @@ class VoteOption {
 }
 class Vote {
     constructor() {
+        this.invalid = false;
         this.question = "Vote question";
         this.id = "voteid";
         this.owner = new User();
         this.options = [];
     }
+    empty() {
+        return this.options.length <= 0;
+    }
+    addOption(o) {
+        this.options.push(o);
+        return this;
+    }
+    getOptionIndexById(optionId) {
+        for (let i = 0; i < this.options.length; i++)
+            if (this.options[i].id == optionId)
+                return i;
+        return -1;
+    }
     toJson() {
         return ({
+            invalid: this.invalid,
             question: this.question,
             id: this.id,
             owner: this.owner.toJson(),
@@ -401,6 +420,8 @@ class Vote {
     fromJson(json) {
         if (json == undefined)
             return this;
+        if (json.invalid != undefined)
+            this.invalid = json.invalid;
         if (json.question != undefined)
             this.question = json.question;
         if (json.id != undefined)
@@ -418,18 +439,20 @@ class VoteTransaction {
         this.t = "createvote";
         this.time = new Date().getTime();
         this.u = new User();
-        this.v = new Vote();
-        this.uv = new UserVote();
+        this.voteId = "voteid";
+        this.optionId = "optionid";
         this.text = "Vote content";
+        this.stars = MAX_STARS;
     }
     toJson() {
         return ({
             t: this.t,
             time: this.time,
             u: this.u.toJson(),
-            v: this.v.toJson(),
-            uv: this.uv.toJson(),
-            text: this.text
+            voteId: this.voteId,
+            optionId: this.optionId,
+            text: this.text,
+            stars: this.stars
         });
     }
     fromJson(json) {
@@ -441,12 +464,14 @@ class VoteTransaction {
             this.time = json.time;
         if (json.u != undefined)
             this.u = createUserFromJson(json.u);
-        if (json.v != undefined)
-            this.v = new Vote().fromJson(json.v);
-        if (json.uv != undefined)
-            this.uv = new UserVote().fromJson(json.uv);
+        if (json.voteId != undefined)
+            this.voteId = json.voteId;
+        if (json.optionId != undefined)
+            this.optionId = json.optionId;
         if (json.text != undefined)
             this.text = json.text;
+        if (json.stars != undefined)
+            this.stars = json.stars;
         return this;
     }
 }
@@ -1920,33 +1945,133 @@ class LichessProfile extends DomElement {
         return this;
     }
 }
+class VoteOptionElement extends DomElement {
+    constructor() {
+        super("div");
+        this.voteOption = new VoteOption();
+    }
+    setOption(voteOption) {
+        this.voteOption = voteOption;
+        return this.build();
+    }
+    deleteOptionClicked() {
+        const t = "deleteoption";
+        ajaxRequest({
+            t: t,
+            voteId: selVote.id,
+            optionId: this.voteOption.id
+        }, (res) => {
+            loadVotes({
+                loadVoteId: selVote.id,
+                selectTabKey: "vote"
+            });
+        });
+    }
+    build() {
+        this.x.a([
+            this.optionDiv = new Div().ac("voteoptiondiv").a([
+                new Div().ac("voteoptionoption").h(this.voteOption.option),
+                new Div().ac("voteoptionowner").h(this.voteOption.owner.username)
+            ])
+        ]);
+        if (this.voteOption.owner.e(loggedUser)) {
+            this.optionDiv.a([
+                new Div().ac("voteoptioncontrol").a([
+                    new Button("Delete").onClick(this.deleteOptionClicked.bind(this))
+                ])
+            ]);
+        }
+        return this;
+    }
+}
+class VoteElement extends DomElement {
+    constructor() {
+        super("div");
+        this.vote = new Vote();
+    }
+    setVote(vote) {
+        this.vote = vote;
+        return this.build();
+    }
+    createOptionClicked() {
+        const t = "createoption";
+        new TextInputWindow("createoptioninput", "", "Create option", "Enter option.", (option) => {
+            ajaxRequest({
+                t: t,
+                voteId: selVote.id,
+                option: option
+            }, (res) => {
+                if (res.ok) {
+                    //console.log("option created ok")
+                    loadVotes({
+                        loadVoteId: this.vote.id,
+                        selectTabKey: "vote"
+                    });
+                }
+                else {
+                    //console.log("option creation failed",res.status)
+                    new AckInfoWindow(`<span class="errspan">Failed to create option:</span><br><br><span class="errreasonspan">${res.status}</span>`, function () { }).build();
+                }
+            });
+        }, { width: 800 });
+    }
+    build() {
+        this.x;
+        if (this.vote.invalid)
+            return this;
+        this.a([
+            new Button("Create option").onClick(this.createOptionClicked.bind(this)),
+            new VoteSummary().setShowDel(false).setVote(this.vote)
+        ]);
+        this.a(this.vote.options.map(voteOption => new VoteOptionElement().setOption(voteOption)));
+        return this;
+    }
+}
 class VoteSummary extends DomElement {
     constructor() {
         super("div");
         this.vote = new Vote();
+        this.showDel = true;
         this.summaryDiv = new Div();
     }
     setVote(vote) {
         this.vote = vote;
         return this.build();
     }
+    setShowDel(showDel) {
+        this.showDel = showDel;
+        return this;
+    }
     deleteVoteClicked() {
         const t = "deletevote";
         ajaxRequest({
             t: t,
-            v: this.vote.toJson()
+            voteId: this.vote.id
         }, (res) => {
-            loadVotes();
+            if (res.ok) {
+                loadVotes({
+                    clearSelVote: true
+                });
+            }
+            else {
+                new AckInfoWindow(`<span class="errspan">Failed to delete vote:</span><br><br><span class="errreasonspan">${res.status}</span>`, function () { }).build();
+            }
         });
+    }
+    voteTitleClicked() {
+        selVote = this.vote;
+        buildVoteDiv();
+        app.mainTabpane.selectTab("vote");
     }
     build() {
         this.x.a([
             this.summaryDiv = new Div().ac("votesummarydiv").a([
-                new Div().ac("votesummarytitle").h(this.vote.question),
+                new Div().ac("votesummarytitle").h(this.vote.question).
+                    ae("mousedown", this.voteTitleClicked.bind(this)),
                 new Div().ac("votesummaryowner").h(this.vote.owner.username)
             ])
         ]);
-        if (this.vote.owner.e(loggedUser)) {
+        if (this.showDel && this.vote.owner.e(loggedUser)) {
             this.summaryDiv.a([
                 new Div().ac("votesummarycontrol").a([
                     new Button("Delete").onClick(this.deleteVoteClicked.bind(this))
@@ -2053,15 +2178,28 @@ conslog = (item) => { };
 ///////////////////////////////////////////
 // app
 let votes = [];
+let selVote = new Vote();
 ///////////////////////////////////////////
 let app;
 let votesDiv = new Div();
 let voteDiv = new Div();
 /////////////////////////////////////////// 
+function buildVoteDiv() {
+    voteDiv.x.a([
+        new VoteElement().setVote(selVote)
+    ]);
+}
 function buildVotesDiv() {
     votesDiv.x.a([
         new VoteSummaries().setVotes(votes)
     ]);
+}
+function getVoteById(id) {
+    for (let vote of votes) {
+        if (vote.id == id)
+            return vote;
+    }
+    return new Vote();
 }
 function loadVotes(params = {}) {
     //console.log("loading votes")
@@ -2074,8 +2212,16 @@ function loadVotes(params = {}) {
                 votes = json.votes.map((voteJson) => new Vote().fromJson(voteJson));
             }
             buildVotesDiv();
+            if (params.loadVoteId != undefined) {
+                selVote = getVoteById(params.loadVoteId);
+                buildVoteDiv();
+            }
             if (params.selectTabKey != undefined) {
                 app.mainTabpane.selectTab(params.selectTabKey);
+            }
+            if (params.clearSelVote) {
+                selVote.invalid = true;
+                buildVoteDiv();
             }
         }
     });
