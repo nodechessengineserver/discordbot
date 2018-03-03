@@ -225,6 +225,15 @@ function handleAjax(req:any,res:any){
                 sendResponse(res,responseJson)
                 return
             }            
+
+            let o=v.options[oi]
+
+            if(o.cumulStars()>0){
+                responseJson.ok=false
+                responseJson.status="option not empty"
+                sendResponse(res,responseJson)
+                return
+            }
             
             if(v.owner.e(loggedUser)){
                 let vt=new VoteTransaction()

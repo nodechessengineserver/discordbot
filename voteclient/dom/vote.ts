@@ -2,6 +2,7 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
     voteOption:VoteOption=new VoteOption()
 
     optionDiv:Div
+    userVotesDiv:Div
 
     constructor(){
         super("div")
@@ -19,10 +20,15 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
             voteId:selVote.id,
             optionId:this.voteOption.id
         },(res:any)=>{
-            loadVotes({
-                loadVoteId:selVote.id,
-                selectTabKey:"vote"
-            })
+            if(res.ok){
+                loadVotes({
+                    loadVoteId:selVote.id,
+                    selectTabKey:"vote"
+                })
+            }else{
+                //console.log("vote cast failed",res.status)
+                new AckInfoWindow(`<span class="errspan">Failed to delete option:</span><br><br><span class="errreasonspan">${res.status}</span>`,function(){}).build()
+            }            
         })
     }
 
@@ -33,6 +39,7 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
                     `${this.voteOption.cumulStars()}`
                 ),
                 new Div().ac("voteoptionoption").h(this.voteOption.option),
+                new Div().ac("voteoptionownercopyright").h("@"),
                 new Div().ac("voteoptionowner").h(this.voteOption.owner.username)
             ])
         ])
@@ -45,16 +52,19 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
             ])
         }
 
-        this.optionDiv.a([            
-            new Div().ac("voteoptionvote").a([
-                new Button("Upvote").onClick(this.voteClicked.bind(this,1)),
-                new Button("Un-upvote").onClick(this.voteClicked.bind(this,-1))
-            ]),            
-            new Div().ac("uservotesdiv").a(
-                this.voteOption.userVotes.map(userVote=>new Div().ac("uservotediv").h(
-                    `<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`
-                ))
-            )
+        this.userVotesDiv=new Div().ac("uservotesdiv").a([
+            new Div().h("Upvote").ae("mousedown",this.voteClicked.bind(this,1)).
+            ac("votebutton upvotebutton"),
+            new Div().h("Un-upvote").ae("mousedown",this.voteClicked.bind(this,-1)).
+            ac("votebutton unupvotebutton")
+        ]).a(
+            this.voteOption.userVotes.map(userVote=>new Div().ac("uservotediv").h(
+                `<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`
+            ))
+        )
+
+        this.optionDiv.a([                        
+                this.userVotesDiv
         ])
 
         return this
@@ -124,7 +134,8 @@ class VoteElement extends DomElement<VoteElement>{
         this.vote.sortByCumulStars()
 
         this.a([
-            new Button("Create option").onClick(this.createOptionClicked.bind(this)),
+            new Div().h("Create option").
+            ae("mousedown",this.createOptionClicked.bind(this)).ac("createbutton"),
             new VoteSummary().setShowDel(false).setVote(this.vote)
         ])
         this.a(

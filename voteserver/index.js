@@ -252,6 +252,9 @@ class Vote {
             if (dry)
                 return "ok";
             uv.stars += stars;
+            if (uv.stars <= 0) {
+                o.userVotes.splice(uvi, 1);
+            }
             this.voteCredits[u.username] -= stars;
             return "ok";
         }
@@ -871,6 +874,13 @@ function handleAjax(req, res) {
                 sendResponse(res, responseJson);
                 return;
             }
+            let o = v.options[oi];
+            if (o.cumulStars() > 0) {
+                responseJson.ok = false;
+                responseJson.status = "option not empty";
+                sendResponse(res, responseJson);
+                return;
+            }
             if (v.owner.e(loggedUser)) {
                 let vt = new VoteTransaction();
                 vt.t = "deleteoption";
@@ -936,6 +946,7 @@ function index(req, res) {
 <html>
 
 <head>
+    <title>Lichess Vote</title>
     <link rel="stylesheet" href="assets/stylesheets/reset.css">
     <link rel="stylesheet" href="assets/stylesheets/builder.css">
     <link rel="stylesheet" href="assets/stylesheets/app.css">

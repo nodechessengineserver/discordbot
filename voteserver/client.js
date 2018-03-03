@@ -459,6 +459,9 @@ class Vote {
             if (dry)
                 return "ok";
             uv.stars += stars;
+            if (uv.stars <= 0) {
+                o.userVotes.splice(uvi, 1);
+            }
             this.voteCredits[u.username] -= stars;
             return "ok";
         }
@@ -2029,10 +2032,16 @@ class VoteOptionElement extends DomElement {
             voteId: selVote.id,
             optionId: this.voteOption.id
         }, (res) => {
-            loadVotes({
-                loadVoteId: selVote.id,
-                selectTabKey: "vote"
-            });
+            if (res.ok) {
+                loadVotes({
+                    loadVoteId: selVote.id,
+                    selectTabKey: "vote"
+                });
+            }
+            else {
+                //console.log("vote cast failed",res.status)
+                new AckInfoWindow(`<span class="errspan">Failed to delete option:</span><br><br><span class="errreasonspan">${res.status}</span>`, function () { }).build();
+            }
         });
     }
     build() {
@@ -2040,6 +2049,7 @@ class VoteOptionElement extends DomElement {
             this.optionDiv = new Div().ac("voteoptiondiv").a([
                 new Div().ac("cumulstarsdiv").h(`${this.voteOption.cumulStars()}`),
                 new Div().ac("voteoptionoption").h(this.voteOption.option),
+                new Div().ac("voteoptionownercopyright").h("@"),
                 new Div().ac("voteoptionowner").h(this.voteOption.owner.username)
             ])
         ]);
@@ -2050,12 +2060,14 @@ class VoteOptionElement extends DomElement {
                 ])
             ]);
         }
+        this.userVotesDiv = new Div().ac("uservotesdiv").a([
+            new Div().h("Upvote").ae("mousedown", this.voteClicked.bind(this, 1)).
+                ac("votebutton upvotebutton"),
+            new Div().h("Un-upvote").ae("mousedown", this.voteClicked.bind(this, -1)).
+                ac("votebutton unupvotebutton")
+        ]).a(this.voteOption.userVotes.map(userVote => new Div().ac("uservotediv").h(`<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`)));
         this.optionDiv.a([
-            new Div().ac("voteoptionvote").a([
-                new Button("Upvote").onClick(this.voteClicked.bind(this, 1)),
-                new Button("Un-upvote").onClick(this.voteClicked.bind(this, -1))
-            ]),
-            new Div().ac("uservotesdiv").a(this.voteOption.userVotes.map(userVote => new Div().ac("uservotediv").h(`<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`)))
+            this.userVotesDiv
         ]);
         return this;
     }
@@ -2118,7 +2130,8 @@ class VoteElement extends DomElement {
             return this;
         this.vote.sortByCumulStars();
         this.a([
-            new Button("Create option").onClick(this.createOptionClicked.bind(this)),
+            new Div().h("Create option").
+                ae("mousedown", this.createOptionClicked.bind(this)).ac("createbutton"),
             new VoteSummary().setShowDel(false).setVote(this.vote)
         ]);
         this.a(this.vote.options.map(voteOption => new VoteOptionElement().setOption(voteOption)));
@@ -2166,6 +2179,7 @@ class VoteSummary extends DomElement {
             this.summaryDiv = new Div().ac("votesummarydiv").a([
                 new Div().ac("votesummarytitle").h(this.vote.question).
                     ae("mousedown", this.voteTitleClicked.bind(this)),
+                new Div().ac("votesummaryownercopyright").h("@"),
                 new Div().ac("votesummaryowner").h(this.vote.owner.username)
             ])
         ]);
@@ -2210,7 +2224,8 @@ class VoteSummaries extends DomElement {
     }
     build() {
         this.x.a([
-            new Button("Create vote").onClick(this.createVoteClicked.bind(this))
+            new Div().h("Create vote").
+                ae("mousedown", this.createVoteClicked.bind(this)).ac("createbutton")
         ]);
         this.a(this.votes.map((vote) => new VoteSummary().setVote(vote)));
         return this;
@@ -2266,10 +2281,25 @@ class App {
         return this;
     }
 }
-const INTRO_HTML = `
+const ABOUT_HTML = `
+<h1>
+Welcome to Lichess Vote !
+</h1>
 <p>
-Welcome to voteserver.
+Lichess Vote is a verified and flexible voting system.
+</p>
 <p>
+Verified because you are only allowed to vote with your lichess identity.
+</p>
+<p>
+Flexible because you can create a vote and then let the community add custom options to that vote.
+</p>
+<p>
+You have 6 votes to cast which you can distribute among options at your discretion.
+You can at any point change your vote.
+You can delete an option you have created as long as there are no votes on it.
+You can delete a vote you have created as long as there are no options on it.
+</p>
 `;
 DEBUG = false;
 conslog = (item) => { };
@@ -2279,6 +2309,7 @@ let votes = [];
 let selVote = new Vote();
 ///////////////////////////////////////////
 let app;
+let aboutDiv = new Div();
 let votesDiv = new Div();
 let voteDiv = new Div();
 /////////////////////////////////////////// 
@@ -2333,7 +2364,7 @@ app = new App("vote").
     setProfile(new LichessProfile()).
     setLoginTask(loginTask).
     createFromTabs([
-    new Tab("about", "About", new Div()),
+    new Tab("about", "About", aboutDiv.h(ABOUT_HTML)),
     new Tab("votes", "Votes", votesDiv),
     new Tab("vote", "Vote", voteDiv)
 ]).

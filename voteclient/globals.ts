@@ -8,6 +8,7 @@ let selVote:Vote=new Vote()
 ///////////////////////////////////////////
 let app:App
 
+let aboutDiv:Div=new Div()
 let votesDiv:Div=new Div()
 let voteDiv:Div=new Div()
 ///////////////////////////////////////////

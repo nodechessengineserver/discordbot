@@ -139,6 +139,9 @@ class Vote{
             if((uv.stars+stars)<0) return "not enough votes to un upvote"
             if(dry) return "ok"
             uv.stars+=stars
+            if(uv.stars<=0){
+                o.userVotes.splice(uvi,1)
+            }
             this.voteCredits[u.username]-=stars
             return "ok"
         }

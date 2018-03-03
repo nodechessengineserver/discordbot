@@ -46,6 +46,7 @@ class VoteSummary extends DomElement<VoteSummary>{
             this.summaryDiv=new Div().ac("votesummarydiv").a([
                 new Div().ac("votesummarytitle").h(this.vote.question).
                 ae("mousedown",this.voteTitleClicked.bind(this)),
+                new Div().ac("votesummaryownercopyright").h("@"),
                 new Div().ac("votesummaryowner").h(this.vote.owner.username)
             ])
         ])
@@ -96,7 +97,8 @@ class VoteSummaries extends DomElement<VoteSummaries>{
 
     build():VoteSummaries{
         this.x.a([
-            new Button("Create vote").onClick(this.createVoteClicked.bind(this))
+            new Div().h("Create vote").
+            ae("mousedown",this.createVoteClicked.bind(this)).ac("createbutton")
         ])
         this.a(this.votes.map((vote:Vote)=>new VoteSummary().setVote(vote)))
         return this

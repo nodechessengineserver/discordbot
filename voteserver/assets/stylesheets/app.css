@@ -1,6 +1,12 @@
+h1{
+    padding:10rem;
+    margin:10rem;
+    font-size: 30rem;
+    color:#007;
+}
+
 p{
     padding:5rem;
     margin:5rem;
     font-size: 20rem;
-    color: #007;
 }
