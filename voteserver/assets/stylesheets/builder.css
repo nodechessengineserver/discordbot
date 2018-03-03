@@ -424,12 +424,15 @@
 
 .uservotediv{        
     display: inline-block;
-    background-color:#ffd;
+    background-color:#aff;
     border-style:solid;
     border-width:1rem;
     border-radius:5rem;
     padding:5rem;
     margin:2rem;
+    margin-left: 4rem;
+    margin-right: 4rem;
+    cursor: pointer;
 }
 
 .cumulstarsdiv{            
@@ -446,10 +449,12 @@
     margin:5rem;
     margin-left: 5rem;
     margin-right: 15rem;
+    vertical-align: middle;
 }
 
 .votername{
     font-weight: bold;
+    color:#050;
 }
 
 .voterstars{
@@ -499,4 +504,21 @@
 
 .unupvotebutton{
     background-color: #faa;
+    margin-right: 15rem;
+}
+
+.votestar{
+    display:inline-block;
+    background-image: url(/vote/assets/images/icons/staricon.png);
+    background-size: 100%;
+    width: 15rem;
+    height: 15rem;
+    margin-left:2rem;
+    margin-right:2rem;
+}
+
+.votestarcontainer{
+    display:inline-block;
+    width: 20rem;
+    height: 20rem;
 }

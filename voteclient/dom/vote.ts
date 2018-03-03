@@ -36,7 +36,7 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
         this.x.a([
             this.optionDiv=new Div().ac("voteoptiondiv").a([
                 new Div().ac("cumulstarsdiv").h(
-                    `${this.voteOption.cumulStars()}`
+                    `<div class="votestar votestarcontainer"></div>${this.voteOption.cumulStars()}`
                 ),
                 new Div().ac("voteoptionoption").h(this.voteOption.option),
                 new Div().ac("voteoptionownercopyright").h("@"),
@@ -52,6 +52,14 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
             ])
         }
 
+        function createStars(stars:number):string{
+            let content=""
+            for(let i=0;i<stars;i++){
+                content+=`<div class="votestar"></div>`
+            }
+            return content
+        }
+
         this.userVotesDiv=new Div().ac("uservotesdiv").a([
             new Div().h("Upvote").ae("mousedown",this.voteClicked.bind(this,1)).
             ac("votebutton upvotebutton"),
@@ -59,8 +67,8 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
             ac("votebutton unupvotebutton")
         ]).a(
             this.voteOption.userVotes.map(userVote=>new Div().ac("uservotediv").h(
-                `<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`
-            ))
+                `<span class="votername">${userVote.u.username}</span> <span class="voterstars">${createStars(userVote.stars)}</span>`
+            ).ae("mousedown",this.userNameClicked.bind(this,userVote.u.username)))
         )
 
         this.optionDiv.a([                        
@@ -68,6 +76,10 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
         ])
 
         return this
+    }
+
+    userNameClicked(username:string,e:Event){
+        window.open(`https://lichess.org/@/${username}`)
     }
 
     voteClicked(stars:number,e:Event){

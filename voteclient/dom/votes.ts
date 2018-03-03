@@ -36,9 +36,10 @@ class VoteSummary extends DomElement<VoteSummary>{
     }
 
     voteTitleClicked(){
-        selVote=this.vote
+        /*selVote=this.vote
         buildVoteDiv()
-        app.mainTabpane.selectTab("vote")
+        app.mainTabpane.selectTab("vote")*/
+        document.location.href=`/vote/?voteid=${this.vote.id}`
     }
 
     build():VoteSummary{

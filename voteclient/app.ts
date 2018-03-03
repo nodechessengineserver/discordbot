@@ -1,7 +1,16 @@
+let urlVoteId=getParameterByName("voteid")
+
 function loginTask(){
-    loadVotes({
-        selectTabKey:"votes"
-    })
+    if(urlVoteId==null){
+        loadVotes({
+            selectTabKey:"votes"
+        })
+    }else{
+        loadVotes({
+            loadVoteId:urlVoteId,
+            selectTabKey:"vote"
+        })
+    }
 }
 
 app=new App("vote").

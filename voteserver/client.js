@@ -113,6 +113,18 @@ function getCookie(name) {
     if (parts.length == 1)
         return lastPart.split(";").shift();
 }
+// https://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+function getParameterByName(name, url = undefined) {
+    if (!url)
+        url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+    if (!results)
+        return null;
+    if (!results[2])
+        return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
 class Vect {
     constructor(_x, _y) {
         this.x = _x;
@@ -2047,7 +2059,7 @@ class VoteOptionElement extends DomElement {
     build() {
         this.x.a([
             this.optionDiv = new Div().ac("voteoptiondiv").a([
-                new Div().ac("cumulstarsdiv").h(`${this.voteOption.cumulStars()}`),
+                new Div().ac("cumulstarsdiv").h(`<div class="votestar votestarcontainer"></div>${this.voteOption.cumulStars()}`),
                 new Div().ac("voteoptionoption").h(this.voteOption.option),
                 new Div().ac("voteoptionownercopyright").h("@"),
                 new Div().ac("voteoptionowner").h(this.voteOption.owner.username)
@@ -2060,16 +2072,26 @@ class VoteOptionElement extends DomElement {
                 ])
             ]);
         }
+        function createStars(stars) {
+            let content = "";
+            for (let i = 0; i < stars; i++) {
+                content += `<div class="votestar"></div>`;
+            }
+            return content;
+        }
         this.userVotesDiv = new Div().ac("uservotesdiv").a([
             new Div().h("Upvote").ae("mousedown", this.voteClicked.bind(this, 1)).
                 ac("votebutton upvotebutton"),
             new Div().h("Un-upvote").ae("mousedown", this.voteClicked.bind(this, -1)).
                 ac("votebutton unupvotebutton")
-        ]).a(this.voteOption.userVotes.map(userVote => new Div().ac("uservotediv").h(`<span class="votername">${userVote.u.username}</span> ( <span class="voterstars">${userVote.stars}</span> )`)));
+        ]).a(this.voteOption.userVotes.map(userVote => new Div().ac("uservotediv").h(`<span class="votername">${userVote.u.username}</span> <span class="voterstars">${createStars(userVote.stars)}</span>`).ae("mousedown", this.userNameClicked.bind(this, userVote.u.username))));
         this.optionDiv.a([
             this.userVotesDiv
         ]);
         return this;
+    }
+    userNameClicked(username, e) {
+        window.open(`https://lichess.org/@/${username}`);
     }
     voteClicked(stars, e) {
         const t = "castvote";
@@ -2170,9 +2192,10 @@ class VoteSummary extends DomElement {
         });
     }
     voteTitleClicked() {
-        selVote = this.vote;
-        buildVoteDiv();
-        app.mainTabpane.selectTab("vote");
+        /*selVote=this.vote
+        buildVoteDiv()
+        app.mainTabpane.selectTab("vote")*/
+        document.location.href = `/vote/?voteid=${this.vote.id}`;
     }
     build() {
         this.x.a([
@@ -2355,10 +2378,19 @@ function loadVotes(params = {}) {
         }
     });
 }
+let urlVoteId = getParameterByName("voteid");
 function loginTask() {
-    loadVotes({
-        selectTabKey: "votes"
-    });
+    if (urlVoteId == null) {
+        loadVotes({
+            selectTabKey: "votes"
+        });
+    }
+    else {
+        loadVotes({
+            loadVoteId: urlVoteId,
+            selectTabKey: "vote"
+        });
+    }
 }
 app = new App("vote").
     setProfile(new LichessProfile()).
