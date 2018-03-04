@@ -77,6 +77,10 @@ class VoteOption{
 
         return this
     }
+
+    collectVoters():User[]{
+        return this.userVotes.map(userVote=>userVote.u)
+    }
 }
 
 class Vote{
@@ -182,6 +186,19 @@ class Vote{
             json.options.map((optionJson:any)=>new VoteOption().fromJson(optionJson))
 
         return this
+    }
+
+    collectVoters():User[]{
+        let votersHash:{[id:string]:User}={}
+        for(let option of this.options){
+            let us=option.collectVoters()
+            us.map(u=>votersHash[u.username]=u)
+        }
+        let voters:User[]=[]
+        for(let username in votersHash){
+            voters.push(votersHash[username])
+        }
+        return voters
     }
 }
 

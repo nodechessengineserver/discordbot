@@ -246,6 +246,24 @@ class User {
         this.isSystem = false;
         this.registeredAt = new Date().getTime();
         this.lastSeenAt = new Date().getTime();
+        //////////////////////////////////////////
+        // profiling
+        this.lastProfiledAt = 0;
+        this.overallStrength = 1500;
+        this.overallGames = 0;
+        this.playTime = 0;
+        this.membershipAge = 0;
+        this.title = "none";
+    }
+    //////////////////////////////////////////
+    membershipAgeF() {
+        return "" + Math.floor(this.membershipAge / ONE_DAY);
+    }
+    playtimeF() {
+        return "" + Math.floor(this.playTime / 3600);
+    }
+    overallStrengthF() {
+        return "" + Math.floor(this.overallStrength);
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -263,7 +281,16 @@ class User {
             isBot: this.isBot,
             isSystem: this.isSystem,
             registeredAt: this.registeredAt,
-            lastSeenAt: this.lastSeenAt
+            lastSeenAt: this.lastSeenAt,
+            //////////////////////////////////////////
+            // profiling
+            lastProfiledAt: this.lastProfiledAt,
+            overallStrength: this.overallStrength,
+            overallGames: this.overallGames,
+            playTime: this.playTime,
+            membershipAge: this.membershipAge,
+            title: this.title
+            //////////////////////////////////////////
         });
         // don't send user cookie to client
         if (!secure) {
@@ -288,6 +315,21 @@ class User {
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
+        //////////////////////////////////////////
+        // profiling
+        if (json.lastProfiledAt != undefined)
+            this.lastProfiledAt = json.lastProfiledAt;
+        if (json.overallStrength != undefined)
+            this.overallStrength = json.overallStrength;
+        if (json.overallGames != undefined)
+            this.overallGames = json.overallGames;
+        if (json.playTime != undefined)
+            this.playTime = json.playTime;
+        if (json.membershipAge != undefined)
+            this.membershipAge = json.membershipAge;
+        if (json.title != undefined)
+            this.title = json.title;
+        //////////////////////////////////////////
         return this;
     }
 }
@@ -413,6 +455,9 @@ class VoteOption {
                 json.userVotes.map((userVoteJson) => new UserVote().fromJson(userVoteJson));
         return this;
     }
+    collectVoters() {
+        return this.userVotes.map(userVote => userVote.u);
+    }
 }
 class Vote {
     constructor() {
@@ -515,6 +560,18 @@ class Vote {
             this.options =
                 json.options.map((optionJson) => new VoteOption().fromJson(optionJson));
         return this;
+    }
+    collectVoters() {
+        let votersHash = {};
+        for (let option of this.options) {
+            let us = option.collectVoters();
+            us.map(u => votersHash[u.username] = u);
+        }
+        let voters = [];
+        for (let username in votersHash) {
+            voters.push(votersHash[username]);
+        }
+        return voters;
     }
 }
 class VoteTransaction {
@@ -2115,6 +2172,47 @@ class VoteOptionElement extends DomElement {
         });
     }
 }
+class ProfileElement extends DomElement {
+    constructor() {
+        super("div");
+        this.u = new User();
+    }
+    setUser(u) {
+        this.u = u;
+        return this.build();
+    }
+    build() {
+        this.x.a([
+            new Div().ac("profileelementdiv").a([
+                new Div().ac("profileusernamediv").h(this.u.empty() ? "Username" : this.u.username),
+                new Div().ac("profileoverallstrengthdiv").h(this.u.empty() ? "Overall strength" : `${this.u.overallStrengthF()}`),
+                new Div().ac("profilemembershipagediv").h(this.u.empty() ? "Membership" : this.u.membershipAgeF() + " days"),
+                new Div().ac("profiletotalgamesdiv").h(this.u.empty() ? "Overall games" : `${this.u.overallGames}`),
+                new Div().ac("profileplaytimediv").h(this.u.empty() ? "Play time" : `${this.u.playtimeF() + " hours"}`),
+                new Div().ac("profiletitlediv").h(this.u.empty() ? "Title" : `${this.u.title}`)
+            ])
+        ]);
+        return this;
+    }
+}
+class VoteProfiles extends DomElement {
+    constructor() {
+        super("div");
+        this.vote = new Vote();
+    }
+    setVote(vote) {
+        this.vote = vote;
+        return this.build();
+    }
+    build() {
+        this.x.a([
+            new ProfileElement().build()
+        ]);
+        let voters = this.vote.collectVoters();
+        this.a(voters.map(voter => new ProfileElement().setUser(voter)));
+        return this;
+    }
+}
 class VoteElement extends DomElement {
     constructor() {
         super("div");
@@ -2338,7 +2436,8 @@ let voteDiv = new Div();
 /////////////////////////////////////////// 
 function buildVoteDiv() {
     voteDiv.x.a([
-        new VoteElement().setVote(selVote)
+        new VoteElement().setVote(selVote),
+        new VoteProfiles().setVote(selVote)
     ]);
 }
 function buildVotesDiv() {

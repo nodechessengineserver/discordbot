@@ -193,3 +193,28 @@ function voteTransactionsStartup(){
         }
     })
 }
+
+let patchVotesDone:boolean=false
+
+function patchVotes(){
+    if(!patchVotesDone){
+        if(!usersStartupDone){
+            console.log(`patch votes requested but users startup is not ready`)
+            return
+        }
+        for(let vote of votes){
+            console.log(`patching vote ${vote.question}`)
+            for(let option of vote.options){
+                console.log(`patching option ${option.option}`)
+                for(let userVote of option.userVotes){
+                    let u=users.users[userVote.u.username]
+                    if(u!=undefined){
+                        let uc=users.users[userVote.u.username].clone()
+                        userVote.u=uc
+                    }
+                }
+            }
+        }
+        patchVotesDone=true
+    }
+}

@@ -60,6 +60,7 @@
     "utils.ts",
     "mongo.ts",
     "users.ts",
+    "profiling.ts",
     "votes.ts",
     "handleajax.ts",
     "index.ts"

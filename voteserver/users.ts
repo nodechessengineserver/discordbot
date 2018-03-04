@@ -17,6 +17,8 @@ function setUser(u:User){
     })
 }
 
+let usersStartupDone:boolean=false
+
 function usersStartup(){
     console.log(`users startup`)
     mongoRequest({
@@ -32,6 +34,7 @@ function usersStartup(){
             for(let doc of res.docs){                                
                 users.setUser(createUserFromJson(doc))
             }
+            usersStartupDone=true
         }
     })
 }

@@ -27,6 +27,24 @@ class User {
         this.isSystem = false;
         this.registeredAt = new Date().getTime();
         this.lastSeenAt = new Date().getTime();
+        //////////////////////////////////////////
+        // profiling
+        this.lastProfiledAt = 0;
+        this.overallStrength = 1500;
+        this.overallGames = 0;
+        this.playTime = 0;
+        this.membershipAge = 0;
+        this.title = "none";
+    }
+    //////////////////////////////////////////
+    membershipAgeF() {
+        return "" + Math.floor(this.membershipAge / ONE_DAY);
+    }
+    playtimeF() {
+        return "" + Math.floor(this.playTime / 3600);
+    }
+    overallStrengthF() {
+        return "" + Math.floor(this.overallStrength);
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -44,7 +62,16 @@ class User {
             isBot: this.isBot,
             isSystem: this.isSystem,
             registeredAt: this.registeredAt,
-            lastSeenAt: this.lastSeenAt
+            lastSeenAt: this.lastSeenAt,
+            //////////////////////////////////////////
+            // profiling
+            lastProfiledAt: this.lastProfiledAt,
+            overallStrength: this.overallStrength,
+            overallGames: this.overallGames,
+            playTime: this.playTime,
+            membershipAge: this.membershipAge,
+            title: this.title
+            //////////////////////////////////////////
         });
         // don't send user cookie to client
         if (!secure) {
@@ -69,6 +96,21 @@ class User {
             this.registeredAt = json.registeredAt;
         if (json.lastSeenAt != undefined)
             this.lastSeenAt = json.lastSeenAt;
+        //////////////////////////////////////////
+        // profiling
+        if (json.lastProfiledAt != undefined)
+            this.lastProfiledAt = json.lastProfiledAt;
+        if (json.overallStrength != undefined)
+            this.overallStrength = json.overallStrength;
+        if (json.overallGames != undefined)
+            this.overallGames = json.overallGames;
+        if (json.playTime != undefined)
+            this.playTime = json.playTime;
+        if (json.membershipAge != undefined)
+            this.membershipAge = json.membershipAge;
+        if (json.title != undefined)
+            this.title = json.title;
+        //////////////////////////////////////////
         return this;
     }
 }
@@ -194,6 +236,9 @@ class VoteOption {
                 json.userVotes.map((userVoteJson) => new UserVote().fromJson(userVoteJson));
         return this;
     }
+    collectVoters() {
+        return this.userVotes.map(userVote => userVote.u);
+    }
 }
 class Vote {
     constructor() {
@@ -296,6 +341,18 @@ class Vote {
             this.options =
                 json.options.map((optionJson) => new VoteOption().fromJson(optionJson));
         return this;
+    }
+    collectVoters() {
+        let votersHash = {};
+        for (let option of this.options) {
+            let us = option.collectVoters();
+            us.map(u => votersHash[u.username] = u);
+        }
+        let voters = [];
+        for (let username in votersHash) {
+            voters.push(votersHash[username]);
+        }
+        return voters;
     }
 }
 class VoteTransaction {
@@ -491,6 +548,7 @@ function setUser(u) {
         console.log(res);
     });
 }
+let usersStartupDone = false;
 function usersStartup() {
     console.log(`users startup`);
     mongoRequest({
@@ -507,8 +565,83 @@ function usersStartup() {
             for (let doc of res.docs) {
                 users.setUser(createUserFromJson(doc));
             }
+            usersStartupDone = true;
         }
     });
+}
+const PROFILE_EXPIRY = isDev() ? ONE_MINUTE * 3 : ONE_DAY * 1;
+let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 5;
+if (isProd()) {
+    setInterval(profilingFunc, PROFILING_INTERVAL);
+    if (isDev())
+        setTimeout(profilingFunc, ONE_SECOND * 10);
+}
+function getProfile(username, callback) {
+    console.log(`getting lichess profile for ${username}`);
+    fetch_(`https://lichess.org/api/user/${username}`).then((response) => response.text().then((content) => {
+        try {
+            let json = JSON.parse(content);
+            callback(json);
+        }
+        catch (err) {
+            logErr(err);
+        }
+    }, (err) => logErr(err)), (err) => logErr(err));
+}
+function profilingFunc() {
+    try {
+        for (let username in users.users) {
+            let u = users.users[username];
+            let now = new Date().getTime();
+            let elapsed = now - u.lastProfiledAt;
+            if (elapsed > PROFILE_EXPIRY) {
+                getProfile(username, (json) => {
+                    console.log(json);
+                    console.log(`profiling ${username}`);
+                    let title = json.title == undefined ? "none" : json.title;
+                    console.log(`title ${title}`);
+                    let registeredAt = json.createdAt;
+                    if (registeredAt == undefined)
+                        registeredAt = now;
+                    let membershipAge = now - registeredAt;
+                    console.log(`registered at ${registeredAt} membership age ${membershipAge}`);
+                    let perfs = json.perfs;
+                    let totalgames = 0;
+                    let cumrating = 0;
+                    if (perfs != undefined) {
+                        for (let variant in perfs) {
+                            let perf = perfs[variant];
+                            let rating = perf.rating;
+                            let games = perf.games;
+                            if (games > 0) {
+                                totalgames += games;
+                                cumrating += games * rating;
+                                console.log(`variant ${variant} games ${games} rating ${rating} totalgames ${totalgames} cumavgrating ${cumrating / totalgames}`);
+                            }
+                        }
+                    }
+                    else {
+                        console.log(`no perfs`);
+                    }
+                    let playTime = json.playTime.total;
+                    if (playTime == undefined)
+                        playTime = 0;
+                    console.log(`playtime ${playTime}`);
+                    u.lastProfiledAt = now;
+                    u.title = title;
+                    u.overallGames = totalgames;
+                    u.playTime = playTime;
+                    u.overallStrength = (totalgames > 0) ? cumrating / totalgames : 1500;
+                    u.membershipAge = membershipAge;
+                    setUser(u);
+                });
+                return;
+            }
+        }
+    }
+    catch (err) {
+        logErr(err);
+    }
 }
 const VOTE_TRANSACTIONS_COLL = "votetransactions";
 let votes = [];
@@ -670,6 +803,29 @@ function voteTransactionsStartup() {
         }
     });
 }
+let patchVotesDone = false;
+function patchVotes() {
+    if (!patchVotesDone) {
+        if (!usersStartupDone) {
+            console.log(`patch votes requested but users startup is not ready`);
+            return;
+        }
+        for (let vote of votes) {
+            console.log(`patching vote ${vote.question}`);
+            for (let option of vote.options) {
+                console.log(`patching option ${option.option}`);
+                for (let userVote of option.userVotes) {
+                    let u = users.users[userVote.u.username];
+                    if (u != undefined) {
+                        let uc = users.users[userVote.u.username].clone();
+                        userVote.u = uc;
+                    }
+                }
+            }
+        }
+        patchVotesDone = true;
+    }
+}
 let vercodes = {};
 function sendResponse(res, responseJson) {
     res.setHeader("Content-Type", "application/json");
@@ -744,6 +900,7 @@ function handleAjax(req, res) {
         }
         else if (t == "loadvotes") {
             console.log("load votes", loggedUser);
+            patchVotes();
             responseJson.votes = votes.map((vote) => vote.toJson());
             sendResponse(res, responseJson);
         }

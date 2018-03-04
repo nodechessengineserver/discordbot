@@ -104,6 +104,59 @@ class VoteOptionElement extends DomElement<VoteOptionElement>{
     }
 }
 
+class ProfileElement extends DomElement<ProfileElement>{
+    u:User=new User()
+
+    constructor(){
+        super("div")
+    }
+
+    setUser(u:User):ProfileElement{
+        this.u=u
+        return this.build()
+    }
+
+    build():ProfileElement{
+        this.x.a([
+            new Div().ac("profileelementdiv").a([
+                new Div().ac("profileusernamediv").h(this.u.empty()?"Username":this.u.username),                
+                new Div().ac("profileoverallstrengthdiv").h(this.u.empty()?"Overall strength":`${this.u.overallStrengthF()}`),
+                new Div().ac("profilemembershipagediv").h(this.u.empty()?"Membership":this.u.membershipAgeF()+" days"),
+                new Div().ac("profiletotalgamesdiv").h(this.u.empty()?"Overall games":`${this.u.overallGames}`),
+                new Div().ac("profileplaytimediv").h(this.u.empty()?"Play time":`${this.u.playtimeF()+" hours"}`),
+                new Div().ac("profiletitlediv").h(this.u.empty()?"Title":`${this.u.title}`)
+            ])
+        ])
+
+        return this
+    }
+}
+
+class VoteProfiles extends DomElement<VoteProfiles>{
+    vote:Vote=new Vote()
+
+    constructor(){
+        super("div")
+    }
+
+    setVote(vote:Vote):VoteProfiles{
+        this.vote=vote
+        return this.build()
+    }
+
+    build():VoteProfiles{
+        this.x.a([
+            new ProfileElement().build()
+        ])
+
+        let voters=this.vote.collectVoters()
+
+        this.a(voters.map(voter=>new ProfileElement().setUser(voter)))
+
+        return this
+    }
+}
+
 class VoteElement extends DomElement<VoteElement>{
     vote:Vote=new Vote()
 
