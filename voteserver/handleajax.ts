@@ -1,3 +1,5 @@
+let PATCH_VOTES_STARTUP_DONE = false
+
 let vercodes:{[id:string]:string}={}
 
 function sendResponse(res:any,responseJson:any){
@@ -87,6 +89,12 @@ function handleAjax(req:any,res:any){
             }
         }else if(t=="loadvotes"){
             console.log("load votes",loggedUser)            
+
+            if(!PATCH_VOTES_STARTUP_DONE){
+                patchVotes()                
+                if(usersStartupDone) PATCH_VOTES_STARTUP_DONE=true
+            }
+            
             responseJson.votes=votes.map((vote:Vote)=>vote.toJson())
             sendResponse(res,responseJson)
         }else if(t=="createvote"){

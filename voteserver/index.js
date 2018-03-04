@@ -823,6 +823,7 @@ function patchVotes() {
         }
     }
 }
+let PATCH_VOTES_STARTUP_DONE = false;
 let vercodes = {};
 function sendResponse(res, responseJson) {
     res.setHeader("Content-Type", "application/json");
@@ -897,6 +898,11 @@ function handleAjax(req, res) {
         }
         else if (t == "loadvotes") {
             console.log("load votes", loggedUser);
+            if (!PATCH_VOTES_STARTUP_DONE) {
+                patchVotes();
+                if (usersStartupDone)
+                    PATCH_VOTES_STARTUP_DONE = true;
+            }
             responseJson.votes = votes.map((vote) => vote.toJson());
             sendResponse(res, responseJson);
         }
