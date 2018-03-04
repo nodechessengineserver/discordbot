@@ -304,6 +304,8 @@ class User {
         return rank;
     }
     getRankFByKey(key, prec = 3) {
+        if (prec == 0)
+            return "" + Math.floor(this.getRankByKey(key));
         return this.getRankByKey(key).toPrecision(prec);
     }
     setRankByKey(key, rank) {
@@ -2294,7 +2296,7 @@ class ProfileElement extends DomElement {
     build() {
         this.x.a([
             new Div().ac("profileelementdiv").a(USER_KEYS.map(key => new Div().ac(`profile${key}div`).h(this.u.empty() ? USER_LABELS[key] :
-                `${this.u.getValueFByKey(key)} ${key == "avgrank" ? "" : `#${this.u.getRankFByKey(key, 1)}`}`)))
+                `${this.u.getValueFByKey(key)} ${((key == "avgrank") || (key == "username")) ? "" : `#${this.u.getRankFByKey(key, 0)}`}`)))
         ]);
         return this;
     }

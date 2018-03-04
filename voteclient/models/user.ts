@@ -91,6 +91,7 @@ class User{
     }
 
     getRankFByKey(key:USER_KEY,prec:number=3):string{
+        if(prec==0) return ""+Math.floor(this.getRankByKey(key))
         return this.getRankByKey(key).toPrecision(prec)
     }
 

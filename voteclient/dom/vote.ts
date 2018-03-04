@@ -121,7 +121,7 @@ class ProfileElement extends DomElement<ProfileElement>{
             new Div().ac("profileelementdiv").a(
                 USER_KEYS.map(key=>new Div().ac(`profile${key}div`).h(
                     this.u.empty()?USER_LABELS[key]:
-                        `${this.u.getValueFByKey(key)} ${key=="avgrank"?"":`#${this.u.getRankFByKey(key,1)}`}`
+                        `${this.u.getValueFByKey(key)} ${((key=="avgrank")||(key=="username"))?"":`#${this.u.getRankFByKey(key,0)}`}`
                 ))                
             )
         ])

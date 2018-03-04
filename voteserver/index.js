@@ -84,8 +84,10 @@ class User {
             return 0;
         return rank;
     }
-    getRankFByKey(key) {
-        return this.getRankByKey(key).toPrecision(3);
+    getRankFByKey(key, prec = 3) {
+        if (prec == 0)
+            return "" + Math.floor(this.getRankByKey(key));
+        return this.getRankByKey(key).toPrecision(prec);
     }
     setRankByKey(key, rank) {
         this.rank[key] = rank;
@@ -125,7 +127,7 @@ class User {
         if (key == "overallstrength")
             return "" + Math.floor(this.overallStrength);
         if (key == "avgrank")
-            return this.getRankFByKey("avgrank");
+            return "#" + this.getRankFByKey("avgrank");
         return "?";
     }
     clone() {
@@ -209,7 +211,8 @@ class VoterList {
     sortByKey(key) {
         this.voters.sort((a, b) => b.getValueByKey(key) - a.getValueByKey(key));
         for (let i = 0; i < this.voters.length; i++) {
-            this.voters[i].setRankByKey(key, i + 1);
+            if (key != "avgrank")
+                this.voters[i].setRankByKey(key, i + 1);
         }
     }
     sortByAllKeys() {
@@ -219,7 +222,8 @@ class VoterList {
         for (let voter of this.voters) {
             let sumrank = 0;
             for (let key of RANKED_USER_KEYS) {
-                sumrank += voter.getRankByKey(key);
+                let rank = voter.getRankByKey(key);
+                sumrank += rank;
             }
             let avgrank = sumrank / RANKED_USER_KEYS.length;
             voter.setRankByKey("avgrank", avgrank);
