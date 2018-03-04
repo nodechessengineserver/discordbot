@@ -86,8 +86,7 @@ function handleAjax(req:any,res:any){
                 sendResponse(res,responseJson)
             }
         }else if(t=="loadvotes"){
-            console.log("load votes",loggedUser)
-            patchVotes()
+            console.log("load votes",loggedUser)            
             responseJson.votes=votes.map((vote:Vote)=>vote.toJson())
             sendResponse(res,responseJson)
         }else if(t=="createvote"){

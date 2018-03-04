@@ -570,8 +570,8 @@ function usersStartup() {
     });
 }
 const PROFILE_EXPIRY = isDev() ? ONE_MINUTE * 3 : ONE_DAY * 1;
-let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 5;
-if (isProd()) {
+let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 1;
+if (isProd() || false) {
     setInterval(profilingFunc, PROFILING_INTERVAL);
     if (isDev())
         setTimeout(profilingFunc, ONE_SECOND * 10);
@@ -634,6 +634,7 @@ function profilingFunc() {
                     u.overallStrength = (totalgames > 0) ? cumrating / totalgames : 1500;
                     u.membershipAge = membershipAge;
                     setUser(u);
+                    patchVotes();
                 });
                 return;
             }
@@ -803,27 +804,23 @@ function voteTransactionsStartup() {
         }
     });
 }
-let patchVotesDone = false;
 function patchVotes() {
-    if (!patchVotesDone) {
-        if (!usersStartupDone) {
-            console.log(`patch votes requested but users startup is not ready`);
-            return;
-        }
-        for (let vote of votes) {
-            console.log(`patching vote ${vote.question}`);
-            for (let option of vote.options) {
-                console.log(`patching option ${option.option}`);
-                for (let userVote of option.userVotes) {
-                    let u = users.users[userVote.u.username];
-                    if (u != undefined) {
-                        let uc = users.users[userVote.u.username].clone();
-                        userVote.u = uc;
-                    }
+    if (!usersStartupDone) {
+        console.log(`patch votes requested but users startup is not ready`);
+        return;
+    }
+    for (let vote of votes) {
+        console.log(`patching vote ${vote.question}`);
+        for (let option of vote.options) {
+            console.log(`patching option ${option.option}`);
+            for (let userVote of option.userVotes) {
+                let u = users.users[userVote.u.username];
+                if (u != undefined) {
+                    let uc = users.users[userVote.u.username].clone();
+                    userVote.u = uc;
                 }
             }
         }
-        patchVotesDone = true;
     }
 }
 let vercodes = {};
@@ -900,7 +897,6 @@ function handleAjax(req, res) {
         }
         else if (t == "loadvotes") {
             console.log("load votes", loggedUser);
-            patchVotes();
             responseJson.votes = votes.map((vote) => vote.toJson());
             sendResponse(res, responseJson);
         }

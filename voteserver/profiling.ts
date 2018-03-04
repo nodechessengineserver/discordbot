@@ -1,8 +1,8 @@
 const PROFILE_EXPIRY = isDev() ? ONE_MINUTE * 3 : ONE_DAY * 1
 
-let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 5
+let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 1
 
-if(isProd()){
+if(isProd()||false){
     setInterval(profilingFunc,PROFILING_INTERVAL)
 
     if(isDev()) setTimeout(profilingFunc,ONE_SECOND*10)
@@ -74,6 +74,8 @@ function profilingFunc(){
                     u.membershipAge=membershipAge
 
                     setUser(u)
+
+                    patchVotes()
                 })                
                 return
             }
