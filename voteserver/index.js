@@ -807,7 +807,7 @@ function voteTransactionsStartup() {
 function patchVotes() {
     if (!usersStartupDone) {
         console.log(`patch votes requested but users startup is not ready`);
-        return;
+        return false;
     }
     for (let vote of votes) {
         console.log(`patching vote ${vote.question}`);
@@ -822,6 +822,7 @@ function patchVotes() {
             }
         }
     }
+    return true;
 }
 let PATCH_VOTES_STARTUP_DONE = false;
 let vercodes = {};
@@ -899,8 +900,7 @@ function handleAjax(req, res) {
         else if (t == "loadvotes") {
             console.log("load votes", loggedUser);
             if (!PATCH_VOTES_STARTUP_DONE) {
-                patchVotes();
-                if (usersStartupDone)
+                if (patchVotes())
                     PATCH_VOTES_STARTUP_DONE = true;
             }
             responseJson.votes = votes.map((vote) => vote.toJson());

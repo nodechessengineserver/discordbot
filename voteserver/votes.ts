@@ -194,10 +194,10 @@ function voteTransactionsStartup(){
     })
 }
 
-function patchVotes(){
+function patchVotes():boolean{
     if(!usersStartupDone){
         console.log(`patch votes requested but users startup is not ready`)
-        return
+        return false
     }
 
     for(let vote of votes){
@@ -213,5 +213,7 @@ function patchVotes(){
             }
         }
     }
+
+    return true
 }
 
