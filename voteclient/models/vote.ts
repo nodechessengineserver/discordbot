@@ -188,7 +188,7 @@ class Vote{
         return this
     }
 
-    collectVoters():User[]{
+    collectVoters():VoterList{
         let votersHash:{[id:string]:User}={}
         for(let option of this.options){
             let us=option.collectVoters()
@@ -198,7 +198,7 @@ class Vote{
         for(let username in votersHash){
             voters.push(votersHash[username])
         }
-        return voters
+        return new VoterList(voters)
     }
 }
 

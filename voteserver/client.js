@@ -237,6 +237,46 @@ class Arrow {
         this.svg = pg.reportSvg(params["color"]);
     }
 }
+const USER_LABELS = {
+    "username": "User name",
+    "avgrank": "Average rank",
+    "overallstrength": "Overall strength",
+    "playtime": "Play time",
+    "overallgames": "Overall games",
+    "membershipage": "Membership age",
+    "title": "Title"
+};
+const USER_KEYS = [
+    "username",
+    "avgrank",
+    "overallstrength",
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+];
+const RANKED_USER_KEYS = [
+    "overallstrength",
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+];
+const TITLE_VALUES = {
+    "NONE": 0,
+    "WLM": 1,
+    "WNM": 2,
+    "WCM": 3,
+    "LM": 4,
+    "NM": 5,
+    "CM": 6,
+    "WFM": 7,
+    "WIM": 8,
+    "FM": 9,
+    "IM": 10,
+    "WGM": 11,
+    "GM": 12
+};
 class User {
     constructor() {
         this.username = "";
@@ -254,16 +294,58 @@ class User {
         this.playTime = 0;
         this.membershipAge = 0;
         this.title = "none";
+        //////////////////////////////////////////
+        this.rank = {};
     }
-    //////////////////////////////////////////
-    membershipAgeF() {
-        return "" + Math.floor(this.membershipAge / ONE_DAY);
+    getRankByKey(key) {
+        let rank = this.rank[key];
+        if (rank == undefined)
+            return 0;
+        return rank;
     }
-    playtimeF() {
-        return "" + Math.floor(this.playTime / 3600);
+    getRankFByKey(key, prec = 3) {
+        return this.getRankByKey(key).toPrecision(prec);
     }
-    overallStrengthF() {
-        return "" + Math.floor(this.overallStrength);
+    setRankByKey(key, rank) {
+        this.rank[key] = rank;
+    }
+    getValueByKey(key) {
+        if (key == "overallstrength")
+            return this.overallStrength;
+        if (key == "overallgames")
+            return this.overallGames;
+        if (key == "playtime")
+            return this.playTime;
+        if (key == "membershipage")
+            return this.membershipAge;
+        if (key == "title") {
+            let TIT = this.title.toUpperCase();
+            let titv = TITLE_VALUES[TIT];
+            if (titv == undefined)
+                return 0;
+            return titv;
+        }
+        if (key == "avgrank") {
+            return -this.getRankByKey("avgrank");
+        }
+        return 0;
+    }
+    getValueFByKey(key) {
+        if (key == "username")
+            return this.username;
+        if (key == "title")
+            return this.title;
+        if (key == "membershipage")
+            return "" + Math.floor(this.membershipAge / ONE_DAY) + " days";
+        if (key == "playtime")
+            return "" + Math.floor(this.playTime / 3600) + " hours";
+        if (key == "overallgames")
+            return "" + this.overallGames;
+        if (key == "overallstrength")
+            return "" + Math.floor(this.overallStrength);
+        if (key == "avgrank")
+            return "#" + this.getRankFByKey("avgrank");
+        return "?";
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -337,6 +419,34 @@ function createUserFromJson(json) {
     if (json == undefined)
         return new User();
     return new User().fromJson(json);
+}
+class VoterList {
+    constructor(voters) {
+        this.voters = [];
+        this.voters = voters;
+    }
+    sortByKey(key) {
+        this.voters.sort((a, b) => b.getValueByKey(key) - a.getValueByKey(key));
+        for (let i = 0; i < this.voters.length; i++) {
+            if (key != "avgrank")
+                this.voters[i].setRankByKey(key, i + 1);
+        }
+    }
+    sortByAllKeys() {
+        for (let key of USER_KEYS) {
+            this.sortByKey(key);
+        }
+        for (let voter of this.voters) {
+            let sumrank = 0;
+            for (let key of RANKED_USER_KEYS) {
+                let rank = voter.getRankByKey(key);
+                sumrank += rank;
+            }
+            let avgrank = sumrank / RANKED_USER_KEYS.length;
+            voter.setRankByKey("avgrank", avgrank);
+        }
+        this.sortByKey("avgrank");
+    }
 }
 class UserList {
     constructor() {
@@ -571,7 +681,7 @@ class Vote {
         for (let username in votersHash) {
             voters.push(votersHash[username]);
         }
-        return voters;
+        return new VoterList(voters);
     }
 }
 class VoteTransaction {
@@ -2183,14 +2293,8 @@ class ProfileElement extends DomElement {
     }
     build() {
         this.x.a([
-            new Div().ac("profileelementdiv").a([
-                new Div().ac("profileusernamediv").h(this.u.empty() ? "Username" : this.u.username),
-                new Div().ac("profileoverallstrengthdiv").h(this.u.empty() ? "Overall strength" : `${this.u.overallStrengthF()}`),
-                new Div().ac("profilemembershipagediv").h(this.u.empty() ? "Membership" : this.u.membershipAgeF() + " days"),
-                new Div().ac("profiletotalgamesdiv").h(this.u.empty() ? "Overall games" : `${this.u.overallGames}`),
-                new Div().ac("profileplaytimediv").h(this.u.empty() ? "Play time" : `${this.u.playtimeF() + " hours"}`),
-                new Div().ac("profiletitlediv").h(this.u.empty() ? "Title" : `${this.u.title}`)
-            ])
+            new Div().ac("profileelementdiv").a(USER_KEYS.map(key => new Div().ac(`profile${key}div`).h(this.u.empty() ? USER_LABELS[key] :
+                `${this.u.getValueFByKey(key)} ${key == "avgrank" ? "" : `#${this.u.getRankFByKey(key, 1)}`}`)))
         ]);
         return this;
     }
@@ -2209,7 +2313,8 @@ class VoteProfiles extends DomElement {
             new ProfileElement().build()
         ]);
         let voters = this.vote.collectVoters();
-        this.a(voters.map(voter => new ProfileElement().setUser(voter)));
+        voters.sortByAllKeys();
+        this.a(voters.voters.map(voter => new ProfileElement().setUser(voter)));
         return this;
     }
 }

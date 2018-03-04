@@ -118,14 +118,12 @@ class ProfileElement extends DomElement<ProfileElement>{
 
     build():ProfileElement{
         this.x.a([
-            new Div().ac("profileelementdiv").a([
-                new Div().ac("profileusernamediv").h(this.u.empty()?"Username":this.u.username),                
-                new Div().ac("profileoverallstrengthdiv").h(this.u.empty()?"Overall strength":`${this.u.overallStrengthF()}`),
-                new Div().ac("profilemembershipagediv").h(this.u.empty()?"Membership":this.u.membershipAgeF()+" days"),
-                new Div().ac("profiletotalgamesdiv").h(this.u.empty()?"Overall games":`${this.u.overallGames}`),
-                new Div().ac("profileplaytimediv").h(this.u.empty()?"Play time":`${this.u.playtimeF()+" hours"}`),
-                new Div().ac("profiletitlediv").h(this.u.empty()?"Title":`${this.u.title}`)
-            ])
+            new Div().ac("profileelementdiv").a(
+                USER_KEYS.map(key=>new Div().ac(`profile${key}div`).h(
+                    this.u.empty()?USER_LABELS[key]:
+                        `${this.u.getValueFByKey(key)} ${key=="avgrank"?"":`#${this.u.getRankFByKey(key,1)}`}`
+                ))                
+            )
         ])
 
         return this
@@ -151,7 +149,9 @@ class VoteProfiles extends DomElement<VoteProfiles>{
 
         let voters=this.vote.collectVoters()
 
-        this.a(voters.map(voter=>new ProfileElement().setUser(voter)))
+        voters.sortByAllKeys()
+
+        this.a(voters.voters.map(voter=>new ProfileElement().setUser(voter)))
 
         return this
     }

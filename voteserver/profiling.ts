@@ -1,6 +1,6 @@
 const PROFILE_EXPIRY = isDev() ? ONE_MINUTE * 3 : ONE_DAY * 1
 
-let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 1
+let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 10 : ONE_MINUTE * 1
 
 if(isProd()||false){
     setInterval(profilingFunc,PROFILING_INTERVAL)

@@ -10,6 +10,59 @@ type AJAX_REQUEST=
     "deleteoption"|
     "castvote"
 
+type USER_KEY=
+    "username"|
+    "overallstrength"|    
+    "playtime"|
+    "overallgames"|
+    "membershipage"|
+    "title"|
+    "avgrank"
+
+const USER_LABELS:{[id:string]:string}={
+    "username":"User name",
+    "avgrank":"Average rank",
+    "overallstrength":"Overall strength",
+    "playtime":"Play time",
+    "overallgames":"Overall games",
+    "membershipage":"Membership age",
+    "title":"Title"
+}
+
+const USER_KEYS:USER_KEY[]=[
+    "username",
+    "avgrank",
+    "overallstrength",    
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+]
+
+const RANKED_USER_KEYS:USER_KEY[]=[
+    "overallstrength",    
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+]
+
+const TITLE_VALUES:{[id:string]:number}={
+    "NONE":0,
+    "WLM":1,
+    "WNM":2,
+    "WCM":3,
+    "LM":4,
+    "NM":5,
+    "CM":6,
+    "WFM":7,
+    "WIM":8,
+    "FM":9,
+    "IM":10,
+    "WGM":11,
+    "GM":12
+}
+
 class User{
     username:string=""
     cookie:string=""
@@ -29,16 +82,48 @@ class User{
     title:string="none"
     //////////////////////////////////////////
 
-    membershipAgeF():string{
-        return ""+Math.floor(this.membershipAge/ONE_DAY)
+    rank:{[id:string]:number}={}
+
+    getRankByKey(key:USER_KEY):number{
+        let rank=this.rank[key]
+        if(rank==undefined) return 0
+        return rank
     }
 
-    playtimeF():string{
-        return ""+Math.floor(this.playTime/3600)
+    getRankFByKey(key:USER_KEY,prec:number=3):string{
+        return this.getRankByKey(key).toPrecision(prec)
     }
 
-    overallStrengthF():string{
-        return ""+Math.floor(this.overallStrength)
+    setRankByKey(key:USER_KEY,rank:number){
+        this.rank[key]=rank
+    }
+
+    getValueByKey(key:USER_KEY):number{
+        if(key=="overallstrength") return this.overallStrength
+        if(key=="overallgames") return this.overallGames
+        if(key=="playtime") return this.playTime
+        if(key=="membershipage") return this.membershipAge
+        if(key=="title"){
+            let TIT=this.title.toUpperCase()
+            let titv=TITLE_VALUES[TIT]
+            if(titv==undefined) return 0
+            return titv
+        }
+        if(key=="avgrank"){
+            return -this.getRankByKey("avgrank")
+        }
+        return 0
+    }
+
+    getValueFByKey(key:USER_KEY):string{
+        if(key=="username") return this.username
+        if(key=="title") return this.title
+        if(key=="membershipage") return ""+Math.floor(this.membershipAge/ONE_DAY)+" days"
+        if(key=="playtime") return ""+Math.floor(this.playTime/3600)+" hours"
+        if(key=="overallgames") return ""+this.overallGames
+        if(key=="overallstrength") return ""+Math.floor(this.overallStrength)
+        if(key=="avgrank") return "#"+this.getRankFByKey("avgrank")
+        return "?"
     }
 
     clone():User{
@@ -107,6 +192,39 @@ class User{
 function createUserFromJson(json:any):User{
     if(json==undefined) return new User()    
     return new User().fromJson(json)
+}
+
+class VoterList{
+    voters:User[]=[]
+
+    constructor(voters:User[]){
+        this.voters=voters
+    }
+
+    sortByKey(key:USER_KEY){
+        this.voters.sort((a:User,b:User)=>b.getValueByKey(key)-a.getValueByKey(key))
+        for(let i=0;i<this.voters.length;i++){
+            if(key!="avgrank") this.voters[i].setRankByKey(key,i+1)
+        }
+    }
+
+    sortByAllKeys(){
+        for(let key of USER_KEYS){
+            this.sortByKey(key)
+        }
+
+        for(let voter of this.voters){
+            let sumrank=0
+            for(let key of RANKED_USER_KEYS){
+                let rank=voter.getRankByKey(key)
+                sumrank+=rank                
+            }
+            let avgrank=sumrank/RANKED_USER_KEYS.length            
+            voter.setRankByKey("avgrank",avgrank)
+        }
+
+        this.sortByKey("avgrank")
+    }
 }
 
 class UserList{

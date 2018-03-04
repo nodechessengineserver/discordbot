@@ -569,7 +569,7 @@
     overflow:hidden;
 }
 
-.profiletotalgamesdiv{
+.profileoverallgamesdiv{
     display:inline-block;
     margin:3rem;
     padding:3rem;
@@ -601,6 +601,18 @@
     font-size:16rem;
     color:#077;
     font-weight: bold;
-    width:100rem;
+    width:120rem;
+    overflow:hidden;
+}
+
+.profileavgrankdiv{
+    display:inline-block;
+    margin:3rem;
+    padding:3rem;
+    padding-left:6rem;
+    font-size:16rem;
+    color:#009;
+    font-weight: bold;
+    width:120rem;
     overflow:hidden;
 }

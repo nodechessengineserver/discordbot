@@ -18,6 +18,46 @@ const ONE_WEEK = ONE_DAY * 7;
 const ONE_MONTH = ONE_DAY * 30;
 const ONE_YEAR = ONE_DAY * 365;
 const USER_COOKIE_VALIDITY = ONE_YEAR * 50;
+const USER_LABELS = {
+    "username": "User name",
+    "avgrank": "Average rank",
+    "overallstrength": "Overall strength",
+    "playtime": "Play time",
+    "overallgames": "Overall games",
+    "membershipage": "Membership age",
+    "title": "Title"
+};
+const USER_KEYS = [
+    "username",
+    "avgrank",
+    "overallstrength",
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+];
+const RANKED_USER_KEYS = [
+    "overallstrength",
+    "playtime",
+    "overallgames",
+    "membershipage",
+    "title"
+];
+const TITLE_VALUES = {
+    "NONE": 0,
+    "WLM": 1,
+    "WNM": 2,
+    "WCM": 3,
+    "LM": 4,
+    "NM": 5,
+    "CM": 6,
+    "WFM": 7,
+    "WIM": 8,
+    "FM": 9,
+    "IM": 10,
+    "WGM": 11,
+    "GM": 12
+};
 class User {
     constructor() {
         this.username = "";
@@ -35,16 +75,58 @@ class User {
         this.playTime = 0;
         this.membershipAge = 0;
         this.title = "none";
+        //////////////////////////////////////////
+        this.rank = {};
     }
-    //////////////////////////////////////////
-    membershipAgeF() {
-        return "" + Math.floor(this.membershipAge / ONE_DAY);
+    getRankByKey(key) {
+        let rank = this.rank[key];
+        if (rank == undefined)
+            return 0;
+        return rank;
     }
-    playtimeF() {
-        return "" + Math.floor(this.playTime / 3600);
+    getRankFByKey(key) {
+        return this.getRankByKey(key).toPrecision(3);
     }
-    overallStrengthF() {
-        return "" + Math.floor(this.overallStrength);
+    setRankByKey(key, rank) {
+        this.rank[key] = rank;
+    }
+    getValueByKey(key) {
+        if (key == "overallstrength")
+            return this.overallStrength;
+        if (key == "overallgames")
+            return this.overallGames;
+        if (key == "playtime")
+            return this.playTime;
+        if (key == "membershipage")
+            return this.membershipAge;
+        if (key == "title") {
+            let TIT = this.title.toUpperCase();
+            let titv = TITLE_VALUES[TIT];
+            if (titv == undefined)
+                return 0;
+            return titv;
+        }
+        if (key == "avgrank") {
+            return -this.getRankByKey("avgrank");
+        }
+        return 0;
+    }
+    getValueFByKey(key) {
+        if (key == "username")
+            return this.username;
+        if (key == "title")
+            return this.title;
+        if (key == "membershipage")
+            return "" + Math.floor(this.membershipAge / ONE_DAY) + " days";
+        if (key == "playtime")
+            return "" + Math.floor(this.playTime / 3600) + " hours";
+        if (key == "overallgames")
+            return "" + this.overallGames;
+        if (key == "overallstrength")
+            return "" + Math.floor(this.overallStrength);
+        if (key == "avgrank")
+            return this.getRankFByKey("avgrank");
+        return "?";
     }
     clone() {
         return createUserFromJson(this.toJson());
@@ -118,6 +200,32 @@ function createUserFromJson(json) {
     if (json == undefined)
         return new User();
     return new User().fromJson(json);
+}
+class VoterList {
+    constructor(voters) {
+        this.voters = [];
+        this.voters = voters;
+    }
+    sortByKey(key) {
+        this.voters.sort((a, b) => b.getValueByKey(key) - a.getValueByKey(key));
+        for (let i = 0; i < this.voters.length; i++) {
+            this.voters[i].setRankByKey(key, i + 1);
+        }
+    }
+    sortByAllKeys() {
+        for (let key of USER_KEYS) {
+            this.sortByKey(key);
+        }
+        for (let voter of this.voters) {
+            let sumrank = 0;
+            for (let key of RANKED_USER_KEYS) {
+                sumrank += voter.getRankByKey(key);
+            }
+            let avgrank = sumrank / RANKED_USER_KEYS.length;
+            voter.setRankByKey("avgrank", avgrank);
+        }
+        this.sortByKey("avgrank");
+    }
 }
 class UserList {
     constructor() {
@@ -352,7 +460,7 @@ class Vote {
         for (let username in votersHash) {
             voters.push(votersHash[username]);
         }
-        return voters;
+        return new VoterList(voters);
     }
 }
 class VoteTransaction {
@@ -570,7 +678,7 @@ function usersStartup() {
     });
 }
 const PROFILE_EXPIRY = isDev() ? ONE_MINUTE * 3 : ONE_DAY * 1;
-let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 60 : ONE_MINUTE * 1;
+let PROFILING_INTERVAL = isDev() ? ONE_SECOND * 10 : ONE_MINUTE * 1;
 if (isProd() || false) {
     setInterval(profilingFunc, PROFILING_INTERVAL);
     if (isDev())
