@@ -761,6 +761,7 @@ let votes = [];
 let voteTransactions = [];
 class Credit {
     constructor(action, unaction, timeFrame, credit) {
+        this.u = new User();
         this.action = "createvote";
         this.unaction = "deletevote";
         this.timeFrame = ONE_WEEK;
@@ -770,10 +771,15 @@ class Credit {
         this.timeFrame = timeFrame;
         this.credit = credit;
     }
-    check() {
+    check(u) {
+        console.log("checking credits", this.action, this.unaction, this.timeFrame, this.credit);
         let now = new Date().getTime();
-        let sum = aggregateTransactions((whileParams) => (now - whileParams.vt.time) < this.timeFrame, (aggregParams) => (aggregParams.vt.t == this.action ? 1 : 0) -
-            (aggregParams.vt.t == this.unaction ? 1 : 0));
+        let sum = aggregateTransactions((whileParams) => (now - whileParams.vt.time) < this.timeFrame, (aggregParams) => aggregParams.vt.u.e(u) ?
+            ((aggregParams.vt.t == this.action ? 1 : 0) -
+                (aggregParams.vt.t == this.unaction ? 1 : 0))
+            :
+                0);
+        console.log("sum", sum, "credit", this.credit);
         return sum < this.credit;
     }
 }
@@ -781,9 +787,9 @@ let CREATE_VOTE_WEEKLY_CREDIT = new Credit("createvote", "deletevote", ONE_WEEK,
 let CREATE_OPTION_WEEKLY_CREDIT = new Credit("createoption", "deleteoption", ONE_WEEK, MAX_OPTIONS_PER_WEEK);
 let CREATE_VOTE_CREDITS = [CREATE_VOTE_WEEKLY_CREDIT];
 let CREATE_OPTION_CREDITS = [CREATE_OPTION_WEEKLY_CREDIT];
-function checkCredits(credits) {
+function checkCredits(u, credits) {
     for (let credit of credits)
-        if (!credit.check())
+        if (!credit.check(u))
             return false;
     return true;
 }
@@ -791,6 +797,7 @@ function aggregateTransactions(whileFunc, aggregFunc) {
     let sum = 0;
     for (let i = voteTransactions.length - 1; i >= 0; i--) {
         let vt = voteTransactions[i];
+        //console.log("aggregating",i,vt.t,vt.u.username)
         let whileParams = {
             vt: vt
         };
@@ -800,6 +807,7 @@ function aggregateTransactions(whileFunc, aggregFunc) {
             vt: vt
         };
         sum += aggregFunc(aggregParams);
+        //console.log("new sum",sum)
     }
     return sum;
 }
@@ -1032,7 +1040,7 @@ function handleAjax(req, res) {
                     responseJson.status = "question already exists";
                     sendResponse(res, responseJson);
                 }
-                else if (!checkCredits(CREATE_VOTE_CREDITS)) {
+                else if (!checkCredits(loggedUser, CREATE_VOTE_CREDITS)) {
                     responseJson.ok = false;
                     responseJson.status = "vote creation credits surpassed";
                     sendResponse(res, responseJson);
@@ -1074,7 +1082,7 @@ function handleAjax(req, res) {
                     responseJson.status = "option already exists";
                     sendResponse(res, responseJson);
                 }
-                else if (!checkCredits(CREATE_OPTION_CREDITS)) {
+                else if (!checkCredits(loggedUser, CREATE_OPTION_CREDITS)) {
                     responseJson.ok = false;
                     responseJson.status = "option creation credits surpassed";
                     sendResponse(res, responseJson);
@@ -1152,9 +1160,10 @@ function handleAjax(req, res) {
                 sendResponse(res, responseJson);
                 return;
             }
-            if (v.owner.e(loggedUser)) {
+            if (o.owner.e(loggedUser)) {
                 let vt = new VoteTransaction();
                 vt.t = "deleteoption";
+                vt.u = loggedUser;
                 vt.voteId = voteId;
                 vt.optionId = optionId;
                 storeAndExecTransaction(vt, (mongores) => {

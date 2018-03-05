@@ -109,7 +109,7 @@ function handleAjax(req:any,res:any){
                     responseJson.ok=false
                     responseJson.status="question already exists"                    
                     sendResponse(res,responseJson)
-                }else if(!checkCredits(CREATE_VOTE_CREDITS)){
+                }else if(!checkCredits(loggedUser,CREATE_VOTE_CREDITS)){
                     responseJson.ok=false
                     responseJson.status="vote creation credits surpassed"
                     sendResponse(res,responseJson)
@@ -153,7 +153,7 @@ function handleAjax(req:any,res:any){
                     responseJson.ok=false
                     responseJson.status="option already exists"                    
                     sendResponse(res,responseJson)
-                }else if(!checkCredits(CREATE_OPTION_CREDITS)){
+                }else if(!checkCredits(loggedUser,CREATE_OPTION_CREDITS)){
                     responseJson.ok=false
                     responseJson.status="option creation credits surpassed"
                     sendResponse(res,responseJson)
@@ -242,10 +242,11 @@ function handleAjax(req:any,res:any){
                 return
             }
             
-            if(v.owner.e(loggedUser)){
+            if(o.owner.e(loggedUser)){
                 let vt=new VoteTransaction()
 
                 vt.t="deleteoption"
+                vt.u=loggedUser                
                 vt.voteId=voteId
                 vt.optionId=optionId
 

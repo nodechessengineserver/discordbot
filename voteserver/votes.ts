@@ -5,27 +5,33 @@ let votes:Vote[]=[]
 let voteTransactions:VoteTransaction[]=[]
 
 class Credit{
+    u:User=new User()
     action:VOTE_TRANSACTION="createvote"
     unaction:VOTE_TRANSACTION="deletevote"
     timeFrame:number=ONE_WEEK
     credit:number=MAX_VOTES_PER_WEEK
 
-    constructor(action:VOTE_TRANSACTION,unaction:VOTE_TRANSACTION,timeFrame:number,credit:number){
+    constructor(action:VOTE_TRANSACTION,unaction:VOTE_TRANSACTION,timeFrame:number,credit:number){        
         this.action=action
         this.unaction=unaction
         this.timeFrame=timeFrame
         this.credit=credit
     }
 
-    check():boolean{
+    check(u:User):boolean{
+        console.log("checking credits",this.action,this.unaction,this.timeFrame,this.credit)
         let now=new Date().getTime()
         let sum = aggregateTransactions(
             (whileParams:any)=>
                 ( now - whileParams.vt.time ) < this.timeFrame,
             (aggregParams:any)=>
-                ( aggregParams.vt.t==this.action ? 1 : 0 ) -
-                ( aggregParams.vt.t==this.unaction ? 1 : 0 )
+            aggregParams.vt.u.e(u)?
+                (( aggregParams.vt.t==this.action ? 1 : 0 ) -
+                ( aggregParams.vt.t==this.unaction ? 1 : 0 ))
+                :
+                0
         )
+        console.log("sum",sum,"credit",this.credit)
         return sum < this.credit
     }
 }
@@ -48,15 +54,16 @@ let CREATE_VOTE_CREDITS=[CREATE_VOTE_WEEKLY_CREDIT]
 
 let CREATE_OPTION_CREDITS=[CREATE_OPTION_WEEKLY_CREDIT]
 
-function checkCredits(credits:Credit[]):boolean{
-    for(let credit of credits) if(!credit.check()) return false
+function checkCredits(u:User,credits:Credit[]):boolean{
+    for(let credit of credits) if(!credit.check(u)) return false
     return true
 }
 
 function aggregateTransactions(whileFunc:(whileParams:any)=>boolean,aggregFunc:(aggregParams:any)=>number):number{
     let sum=0
-    for(let i=voteTransactions.length-1;i>=0;i--){
+    for(let i=voteTransactions.length-1;i>=0;i--){        
         let vt=voteTransactions[i]
+        //console.log("aggregating",i,vt.t,vt.u.username)
         let whileParams={
             vt:vt
         }
@@ -65,6 +72,7 @@ function aggregateTransactions(whileFunc:(whileParams:any)=>boolean,aggregFunc:(
             vt:vt
         }
         sum+=aggregFunc(aggregParams)
+        //console.log("new sum",sum)
     }
     return sum
 }
