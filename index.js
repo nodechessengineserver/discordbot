@@ -9,6 +9,7 @@ const fetch_ = require("node-fetch");
 const uniqid = require("uniqid");
 const mongodb = require("mongodb");
 const cookieParser = require("cookie-parser");
+const morgan = require('morgan');
 // local
 const atombot = require("./discordbot/atombot");
 const testbot = require("./discordbot/testbot");
@@ -2357,6 +2358,7 @@ if (GLOBALS.isProd())
 ////////////////////////////////////////
 // Server startup
 const app = express()
+    .use(morgan('combined'))
     .use('/ajax', bodyParser.json({ limit: '1mb' }))
     .use('/vote/ajax', bodyParser.json({ limit: '1mb' }))
     .use('/chess', express.static(path.join(__dirname, 'chessclient/public')))

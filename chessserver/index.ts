@@ -15,6 +15,7 @@ if(GLOBALS.isProd()) setInterval(testbot.purgeTestChannel,10*GLOBALS.ONE_MINUTE)
 // Server startup
 
 const app=express()
+  .use(morgan('combined'))
   .use('/ajax',bodyParser.json({limit:'1mb'}))
   .use('/vote/ajax',bodyParser.json({limit:'1mb'}))
   .use('/chess',express.static(path.join(__dirname, 'chessclient/public')))

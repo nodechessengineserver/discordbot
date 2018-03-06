@@ -8,6 +8,7 @@ const fetch_ = require("node-fetch")
 const uniqid = require("uniqid")
 const mongodb = require("mongodb")
 const cookieParser = require("cookie-parser")
+const morgan = require('morgan')
 
 // local
 const atombot = require("./discordbot/atombot")
