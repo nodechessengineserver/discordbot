@@ -29,6 +29,7 @@ const app=express()
   .get('/vote', (req:any, res:any) => voteserver.index(req,res))
   .post("/ajax",(req:any, res:any) => api.handleApi(req,res))
   .post("/vote/ajax",(req:any, res:any) => voteserver.handleAjax(req,res))
+  .get("/kill",(req:any, res:any) => process.exit(0))
 
 const server=http.createServer(app)
 
