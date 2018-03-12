@@ -213,7 +213,12 @@ client.on("ready", () => {
 });
 
 client.on("message", async message => { try {
-  if(message.author.bot) return;
+  let isWatchDog=(message.author.username=="WatchDog")
+  if(isWatchDog){
+    console.log("WatchDog message")
+  }else{
+    if(message.author.bot) return;
+  }  
   execDatabaseCommand(message);
   if(message.content.indexOf(GLOBALS.COMMAND_PREFIX) !== 0) return;    
   const args = message.content.slice(GLOBALS.COMMAND_PREFIX.length).trim().split(/ +/g);
